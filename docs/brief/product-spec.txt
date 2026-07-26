@@ -1,0 +1,118 @@
+Build Continuum: a real-time embedding drift detection and adaptive fine-tuning platform.
+
+THE PRODUCT:
+Continuum is a standalone service that any team can use to keep their embedding models from silently rotting. It works like this:
+1. Systems publish documents to Continuum via REST API or Kafka
+2. Continuum computes embeddings and maintains online statistics about the embedding distribution
+3. When semantic drift exceeds a threshold, it triggers domain-adaptive LoRA fine-tuning
+4. The new model is evaluated against a held-out test set; if it improves retrieval quality, it is registered and hot-swapped into serving
+5. A React dashboard shows real-time drift scores, embedding space visualizations, training job status, and model version comparisons
+
+THE CAUSE:
+Every production RAG and semantic search system dies slowly. The embedding model was trained on old data. New domains, products, and vocabulary shift the semantic space. Retrieval quality decays silently. Continuum detects this drift automatically and adapts the model without human intervention or downtime.
+
+REPO STRUCTURE (monorepo, pnpm workspace):
+continuum/
+├── apps/
+│   ├── ingest/          # FastAPI: document ingestion API + Kafka producer
+│   ├── drift/           # Node.js or Python: Kafka consumer, embedding computation, online drift detection
+│   ├── trainer/         # Python: model registry, LoRA fine-tuning pipeline, eval harness
+│   ├── server/          # FastAPI + gRPC: embedding serving API with dynamic model routing
+│   └── dashboard/       # Next.js 15: real-time drift viz, model registry UI, training monitor
+├── packages/
+│   ├── shared/          # Prisma schema, protobuf defs, types, config validation
+│   └── ts-config/       # Shared TypeScript configs
+├── infra/
+│   └── docker-compose.yml   # Kafka (Redpanda), Postgres, Redis, MinIO
+├── .github/
+│   └── workflows/
+│       └── ci.yml       # lint, type-check, unit tests, integration tests
+├── docs/
+│   └── adr/             # Architecture Decision Records
+└── eval/                # Benchmark suites and fixtures
+
+PHASES TO BUILD (in order, one at a time, each as a PR):
+
+PHASE 0 — FOUNDATION:
+- Initialize the monorepo with pnpm workspaces
+- Set up TypeScript strict everywhere, Python with Pydantic + mypy
+- Create docker-compose.yml with Redpanda (Kafka), Postgres 16, Redis, MinIO
+- Write Prisma schema for: documents, embeddings (pgvector 384-dim), drift_windows, model_versions, training_jobs
+- Set up GitHub Actions CI: lint, type-check, unit tests
+- Configure branch protection: no direct push to main, PRs require 1 review + CI green
+- Set up husky + lint-staged for pre-commit formatting
+- Write ADR-001: "Why Kafka over a simple queue" and ADR-002: "Why LoRA over full fine-tuning"
+
+PHASE 1 — INGESTION:
+- Build FastAPI app in apps/ingest with POST /v1/ingest/batch
+- Schema: { document_id, text, source, timestamp, metadata? }
+- Validate payloads with Pydantic; reject malformed with 400
+- Publish to Kafka topic "document-stream" with idempotency_key
+- Build Kafka consumer worker in apps/ingest/worker that writes to Postgres + MinIO
+- Implement exactly-once processing: transactional offset commits, deduplication by idempotency_key
+- Add structured logging (structlog) and OpenTelemetry traces
+- Write integration tests with Testcontainers (Kafka + Postgres)
+
+PHASE 2 — DRIFT ENGINE:
+- Build apps/drift: Kafka consumer that computes embeddings
+- Use sentence-transformers (all-MiniLM-L6-v2, 384-dim) or transformers.js
+- Store embeddings in pgvector with HNSW index
+- Implement online drift detection:
+  - Maintain running centroids per time window (5min, 1hr, 24hr)
+  - Compute KL divergence and Wasserstein distance vs. baseline
+  - Score 0.0–1.0; configurable threshold (default 0.75)
+- Publish "drift.alert" event to Kafka when threshold breached
+- Build REST API: GET /v1/drift/status, GET /v1/drift/windows/:id
+- Write property-based tests for drift math; integration test with drift injection
+
+PHASE 3 — TRAINER:
+- Build apps/trainer: model registry + LoRA fine-tuning
+- Registry API: POST /v1/models, GET /v1/models/:version, POST /v1/models/:version/activate
+- Training pipeline:
+  - Sample recent drifted documents + hard negatives from embedding store
+  - Fine-tune with Hugging Face PEFT (LoRA, rank=8, target_modules for MiniLM)
+  - Export to ONNX; store artifact in MinIO; metadata in Postgres
+- Eval harness: compare new model vs. baseline on held-out test set (MRR, recall@k)
+- A/B gate: activate only if improvement > 10%
+- Async training jobs via Redis queue (BullMQ or RQ); retry with backoff
+- Tests: mock training loop, artifact integrity validation
+
+PHASE 4 — SERVING:
+- Build apps/server: FastAPI REST + gRPC embedding service
+- REST: POST /v1/embed (batched, max 32 per batch)
+- gRPC: EmbedService with EmbedBatch RPC
+- Dynamic model routing: load model from registry based on "model" header or "auto"
+- Hot-swap: new model loads in background; old requests finish; swap atomically
+- ONNX Runtime for inference; target p99 < 50ms for batch=32 on CPU
+- Auth: API key middleware (pluggable, simple token validation)
+- Health: /health, /metrics (Prometheus)
+- Load test script with k6 or locust in continuum/bench/
+- Tests: integration with real ONNX models; gRPC contract tests
+
+PHASE 5 — DASHBOARD:
+- Build apps/dashboard: Next.js 15, TypeScript strict, Tailwind, shadcn/ui
+- Real-time drift chart: WebSocket or SSE to drift API
+- Embedding visualization: t-SNE or UMAP projection endpoint; interactive D3 chart
+- Model comparison: side-by-side eval results, MRR delta, pass/fail indicators
+- Training monitor: live job status, loss curves via SSE
+- Model registry UI: list, activate, download ONNX
+- Tests: vitest + React Testing Library
+
+PHASE 6 — E2E + DEMO:
+- Single docker-compose.yml that starts all 5 apps + infra
+- Seed script: inject 1000 software docs, wait, then inject 500 healthcare docs
+- Demo script (DEMO.md): exact commands, 2-minute flow showing drift detection + adaptation
+- Benchmark suite: retrieval eval showing MRR improvement after fine-tuning
+- Final README: architecture, quickstart, API docs, design decisions
+- Blog post draft: "When Your Embeddings Rot"
+
+ENGINEERING STANDARDS FOR EVERY PHASE:
+- Every function has a unit test. Every API route has an integration test.
+- No secrets in code. Use .env.example only.
+- No TODOs in merged code.
+- Conventional commits: feat:, fix:, test:, docs:, refactor:
+- Before any PR: pnpm lint → pnpm type-check → pnpm test → pnpm test:integration
+- Update README and ADRs for any architectural decision.
+- Performance: measure and document p50/p95/p99 for every new endpoint.
+
+Start with Phase 0. Do not skip ahead. Open each phase as a feature branch, implement fully, test, and merge via PR before starting the next.

@@ -1,0 +1,53 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+dist/
+build/
+.next/
+out/
+*.tsbuildinfo
+
+# Test / coverage
+coverage/
+.nyc_output/
+.vitest-cache/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+.coverage.*
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Prisma generated client
+packages/shared/src/generated/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# ML artifacts (large binaries live in MinIO, not git)
+*.onnx
+*.safetensors
+*.bin
+models/
+.hf-cache/
+
+# Local infra state
+infra/.data/
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
