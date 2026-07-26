@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package continuum;
+
+service EmbedService {
+    rpc EmbedBatch (EmbedBatchRequest) returns (EmbedBatchResponse);
+}
+
+message EmbedBatchRequest {
+    repeated string texts = 1;
+    string model_version = 2; // "auto" or specific version like "2026.07.26-1a2b"
+}
+
+message EmbedBatchResponse {
+    repeated Embedding embeddings = 1;
+    string model_version_used = 2;
+    int32 dimension = 3;
+}
+
+message Embedding {
+    repeated float vector = 1;
+}
