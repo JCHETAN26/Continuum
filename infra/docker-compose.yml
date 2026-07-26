@@ -160,6 +160,85 @@ services:
         mc version enable "local/$$S3_BUCKET_MODELS"
         echo "buckets ready: $$S3_BUCKET_DOCUMENTS $$S3_BUCKET_MODELS"
 
+  # -------------------------------------------------------------------------
+  # Application Services
+  # -------------------------------------------------------------------------
+  ingest:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.python
+    container_name: continuum-ingest
+    command: ["uv", "run", "--package", "continuum-ingest", "fastapi", "run", "continuum_ingest/api/main.py", "--port", "8000", "--host", "0.0.0.0"]
+    ports:
+      - "8000:8000"
+    env_file:
+      - ../.env.example
+    depends_on:
+      redpanda:
+        condition: service_healthy
+
+  drift:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.python
+    container_name: continuum-drift
+    command: ["uv", "run", "--package", "continuum-drift", "fastapi", "run", "continuum_drift/api/main.py", "--port", "8001", "--host", "0.0.0.0"]
+    ports:
+      - "8001:8001"
+    env_file:
+      - ../.env.example
+    depends_on:
+      redpanda:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+
+  trainer:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.python
+    container_name: continuum-trainer
+    command: ["uv", "run", "--package", "continuum-trainer", "python", "-m", "continuum_trainer.worker"]
+    env_file:
+      - ../.env.example
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+
+  server:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.python
+    container_name: continuum-server
+    command: ["uv", "run", "--package", "continuum-server", "python", "-m", "continuum_server.main"]
+    ports:
+      - "8002:8002"
+      - "50051:50051"
+    env_file:
+      - ../.env.example
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+
+  dashboard:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.node
+    container_name: continuum-dashboard
+    ports:
+      - "3000:3000"
+    depends_on:
+      drift:
+        condition: service_started
+      trainer:
+        condition: service_started
+
 volumes:
   redpanda-data:
   postgres-data:
