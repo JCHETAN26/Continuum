@@ -1,0 +1,21 @@
+[project]
+name = "continuum-drift"
+version = "0.1.0"
+description = "Continuum drift detection service"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.111.0",
+    "uvicorn>=0.30.0",
+    "confluent-kafka>=2.4.0",
+    "scipy>=1.13.0",
+    "numpy>=1.26.0",
+    "structlog>=24.4.0",
+    "continuum-shared",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv.sources]
+continuum-shared = { workspace = true }
