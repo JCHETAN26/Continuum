@@ -28,7 +28,7 @@ __pycache__/
 venv/
 
 # Prisma generated client
-packages/shared/src/generated/
+packages/shared/generated/
 
 # Environment
 .env
