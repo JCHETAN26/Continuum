@@ -1,0 +1,29 @@
+FROM node:22.13-slim as builder
+
+WORKDIR /app
+RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
+
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY apps/dashboard/package.json apps/dashboard/
+# Disable strict engine checks for the build
+RUN echo "engine-strict=false" > .npmrc
+
+RUN pnpm install --frozen-lockfile
+
+COPY apps/dashboard apps/dashboard
+
+WORKDIR /app/apps/dashboard
+RUN pnpm build
+
+FROM node:22.13-slim
+
+WORKDIR /app
+COPY --from=builder /app/apps/dashboard/public ./public
+COPY --from=builder /app/apps/dashboard/.next/standalone ./
+COPY --from=builder /app/apps/dashboard/.next/static ./.next/static
+
+EXPOSE 3000
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+
+CMD ["node", "server.js"]
