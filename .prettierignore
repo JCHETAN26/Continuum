@@ -1,0 +1,16 @@
+node_modules/
+dist/
+build/
+.next/
+coverage/
+.venv/
+pnpm-lock.yaml
+uv.lock
+packages/shared/generated/
+docs/brief/
+
+# Formatted by `prisma format`, not prettier.
+*.prisma
+
+# Hand-written SQL migrations are never reformatted.
+**/migrations/**/*.sql

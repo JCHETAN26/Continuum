@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "display": "Continuum Next.js App",
+  "extends": "./base.json",
+  "compilerOptions": {
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "preserve",
+    "allowJs": true,
+    "incremental": true,
+    "noEmit": true,
+    "plugins": [{ "name": "next" }]
+  }
+}

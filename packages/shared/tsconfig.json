@@ -1,0 +1,9 @@
+{
+  "extends": "@continuum/ts-config/node.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "noEmit": true
+  },
+  "include": ["src/**/*.ts", "vitest.config.ts"],
+  "exclude": ["node_modules", "dist", "generated", "coverage"]
+}

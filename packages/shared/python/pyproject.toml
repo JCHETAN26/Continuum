@@ -1,0 +1,14 @@
+[project]
+name = "continuum-shared"
+version = "0.1.0"
+description = "Shared configuration and domain types for Continuum"
+authors = [{ name = "Continuum Team" }]
+requires-python = ">=3.12"
+dependencies = [
+    "pydantic>=2.9.0",
+    "pydantic-settings>=2.5.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

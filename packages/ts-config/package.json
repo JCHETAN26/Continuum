@@ -1,0 +1,12 @@
+{
+  "name": "@continuum/ts-config",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Shared TypeScript compiler configurations for the Continuum monorepo",
+  "license": "MIT",
+  "files": [
+    "base.json",
+    "node.json",
+    "nextjs.json"
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "*.{ts,tsx,mts,cts}": ["eslint --fix", "prettier --write"],
+  "*.{js,mjs,cjs,jsx}": ["eslint --fix", "prettier --write"],
+  "*.{json,md,yml,yaml}": ["prettier --write"],
+  "*.py": ["uv run ruff check --fix", "uv run ruff format"],
+  "*.prisma": ["pnpm --filter @continuum/shared exec prisma format"]
+}

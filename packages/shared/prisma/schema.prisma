@@ -1,0 +1,255 @@
+// Continuum data model.
+//
+// Conventions
+//  - Postgres identifiers are snake_case; the generated client is camelCase.
+//  - Every timestamp is `timestamptz(6)`. The application works exclusively in UTC.
+//  - Vector columns are declared `Unsupported("vector(384)")`. Prisma Client can neither
+//    read nor write these fields, so all embedding I/O goes through raw SQL. This is not a
+//    workaround we intend to remove: pgvector distance operators (`<=>`, `<->`) are only
+//    reachable from raw SQL anyway.
+//
+// Migration policy
+//  Migrations are hand-authored and reviewed, generated with
+//  `prisma migrate dev --create-only` and never applied blind. The initial migration also
+//  installs the `vector` extension, the HNSW index on `embeddings.vector`, and a partial
+//  unique index guaranteeing at most one ACTIVE model version — none of which Prisma's
+//  schema language can express. Regenerating migrations automatically would silently drop
+//  them.
+
+generator client {
+  provider        = "prisma-client-js"
+  output          = "../generated/prisma"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [vector]
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+/// Rolling windows over which drift statistics are maintained.
+enum DriftWindowSize {
+  FIVE_MIN
+  ONE_HOUR
+  TWENTY_FOUR_HOUR
+}
+
+/// Lifecycle of a registered model version.
+enum ModelStatus {
+  /// Registered, no artifact uploaded yet.
+  DRAFT
+  /// Artifact present, evaluation in progress.
+  EVALUATING
+  /// Passed the A/B gate, eligible for activation.
+  PASSED
+  /// Failed the A/B gate; retained for audit, never served.
+  REJECTED
+  /// Currently serving traffic. At most one row may hold this status.
+  ACTIVE
+  /// Previously active, superseded by a newer version.
+  ARCHIVED
+}
+
+/// Lifecycle of an asynchronous fine-tuning job.
+enum TrainingJobStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+}
+
+/// Why a training job was created.
+enum TrainingTrigger {
+  DRIFT_ALERT
+  MANUAL
+  SCHEDULED
+}
+
+// ---------------------------------------------------------------------------
+// Models
+// ---------------------------------------------------------------------------
+
+/// A document submitted by a client system, before embedding.
+model Document {
+  id String @id @default(uuid(7)) @db.Uuid
+
+  /// Caller-supplied natural key. Stable across re-ingestion of the same document.
+  externalId String @map("external_id") @db.VarChar(256)
+
+  /// Deduplication key for exactly-once consumption. Unique across the whole stream.
+  idempotencyKey String @map("idempotency_key") @db.VarChar(256)
+
+  text     String
+  /// Originating system, e.g. "support-tickets" or "product-catalog".
+  source   String    @db.VarChar(128)
+  /// Event time as reported by the producer, not ingestion time.
+  occurredAt DateTime @map("occurred_at") @db.Timestamptz(6)
+  metadata Json?
+
+  /// SHA-256 of `text`, hex encoded. Used for corpus dedup and eval reproducibility.
+  contentHash String @map("content_hash") @db.Char(64)
+
+  /// MinIO object key holding the raw ingested payload. Null until the upload lands.
+  objectKey String? @map("object_key") @db.VarChar(512)
+
+  ingestedAt DateTime @default(now()) @map("ingested_at") @db.Timestamptz(6)
+
+  embedding Embedding?
+
+  @@unique([idempotencyKey])
+  @@unique([source, externalId])
+  @@index([occurredAt])
+  @@index([source, occurredAt])
+  @@index([contentHash])
+  @@map("documents")
+}
+
+/// The 384-dimensional embedding of a document, produced by a specific model version.
+model Embedding {
+  id String @id @default(uuid(7)) @db.Uuid
+
+  documentId String   @unique @map("document_id") @db.Uuid
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  /// Null only for embeddings produced by the un-tuned base model before any
+  /// version was registered.
+  modelVersionId String?       @map("model_version_id") @db.Uuid
+  modelVersion   ModelVersion? @relation(fields: [modelVersionId], references: [id], onDelete: SetNull)
+
+  /// pgvector column. Written and read via raw SQL only — see the header comment.
+  vector Unsupported("vector(384)")
+
+  /// Denormalised for cheap validation; must equal 384 for the MiniLM family.
+  dimension Int @default(384)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([modelVersionId])
+  @@index([createdAt])
+  @@map("embeddings")
+}
+
+/// An aggregated drift measurement over one time window.
+model DriftWindow {
+  id String @id @default(uuid(7)) @db.Uuid
+
+  windowSize  DriftWindowSize @map("window_size")
+  windowStart DateTime        @map("window_start") @db.Timestamptz(6)
+  windowEnd   DateTime        @map("window_end") @db.Timestamptz(6)
+
+  documentCount Int @map("document_count")
+
+  /// Mean embedding across the window. Null when `documentCount` is 0.
+  centroid Unsupported("vector(384)")?
+
+  /// Divergence measures against `baseline`. Null until enough samples accumulate.
+  klDivergence        Float? @map("kl_divergence")
+  wassersteinDistance Float? @map("wasserstein_distance")
+  /// Normalised composite score in [0, 1].
+  driftScore          Float  @map("drift_score")
+
+  /// Threshold in force when this window was scored, captured for auditability.
+  threshold Float   @default(0.75)
+  breached  Boolean @default(false)
+
+  /// The window this one was compared against. Null for baseline windows themselves.
+  baselineId String?      @map("baseline_id") @db.Uuid
+  baseline   DriftWindow? @relation("DriftBaseline", fields: [baselineId], references: [id], onDelete: SetNull)
+  derived    DriftWindow[] @relation("DriftBaseline")
+
+  trainingJobs TrainingJob[]
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([windowSize, windowStart])
+  @@index([breached, windowStart])
+  @@index([windowStart])
+  @@map("drift_windows")
+}
+
+/// An entry in the model registry.
+model ModelVersion {
+  id String @id @default(uuid(7)) @db.Uuid
+
+  /// Human-facing identifier, e.g. "2026.07.26-1". Immutable once created.
+  version String @unique @db.VarChar(64)
+
+  /// Hugging Face id of the model this version was adapted from.
+  baseModel String @map("base_model") @db.VarChar(256)
+
+  status ModelStatus @default(DRAFT)
+
+  /// MinIO URI of the exported ONNX artifact.
+  artifactUri    String? @map("artifact_uri") @db.VarChar(512)
+  /// SHA-256 of the artifact, hex encoded. Verified on load before serving.
+  artifactSha256 String? @map("artifact_sha256") @db.Char(64)
+  artifactBytes  BigInt? @map("artifact_bytes")
+
+  embeddingDim Int  @default(384) @map("embedding_dim")
+  /// LoRA rank used for this adapter. Null for the base model.
+  loraRank     Int? @map("lora_rank")
+
+  /// Eval results for this version, e.g. { "mrr": 0.71, "recall_at_5": 0.83 }.
+  metrics         Json?
+  /// The same metric shape for the version this one was gated against.
+  baselineMetrics Json?  @map("baseline_metrics")
+  /// Relative MRR improvement over baseline, as a fraction. Gate requires > 0.10.
+  improvementPct  Float? @map("improvement_pct")
+
+  activatedAt DateTime? @map("activated_at") @db.Timestamptz(6)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  trainingJob TrainingJob?
+  embeddings  Embedding[]
+
+  @@index([status])
+  @@index([createdAt])
+  @@map("model_versions")
+}
+
+/// An asynchronous LoRA fine-tuning run.
+model TrainingJob {
+  id String @id @default(uuid(7)) @db.Uuid
+
+  status  TrainingJobStatus @default(QUEUED)
+  trigger TrainingTrigger
+
+  /// The drift window that triggered this job. Null for MANUAL and SCHEDULED runs.
+  driftWindowId String?      @map("drift_window_id") @db.Uuid
+  driftWindow   DriftWindow? @relation(fields: [driftWindowId], references: [id], onDelete: SetNull)
+
+  /// The version this job produced. Null until training succeeds.
+  modelVersionId String?       @unique @map("model_version_id") @db.Uuid
+  modelVersion   ModelVersion? @relation(fields: [modelVersionId], references: [id], onDelete: SetNull)
+
+  baseModel String @map("base_model") @db.VarChar(256)
+
+  /// Full hyperparameter set, captured so a run can be reproduced exactly.
+  hyperparameters Json
+  /// Number of documents sampled into the training set.
+  sampleCount     Int? @map("sample_count")
+
+  attempts    Int @default(0)
+  maxAttempts Int @default(3) @map("max_attempts")
+
+  /// Failure message from the final attempt. Null unless status is FAILED.
+  error String?
+
+  /// Per-step loss, streamed to the dashboard: [{ "step": 1, "loss": 0.42 }, ...].
+  lossHistory Json? @map("loss_history")
+
+  queuedAt   DateTime  @default(now()) @map("queued_at") @db.Timestamptz(6)
+  startedAt  DateTime? @map("started_at") @db.Timestamptz(6)
+  finishedAt DateTime? @map("finished_at") @db.Timestamptz(6)
+
+  @@index([status, queuedAt])
+  @@index([driftWindowId])
+  @@map("training_jobs")
+}

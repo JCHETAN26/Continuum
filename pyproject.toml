@@ -1,0 +1,29 @@
+[project]
+name = "continuum"
+version = "0.1.0"
+description = "Continuum real-time embedding drift detection platform"
+authors = [{ name = "Continuum Team" }]
+requires-python = ">=3.12"
+dependencies = []
+
+[tool.uv.workspace]
+members = ["packages/shared/python", "apps/*"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "N"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+plugins = ["pydantic.mypy"]
+files = ["packages/shared/python"]
+
+[dependency-groups]
+dev = [
+    "mypy>=2.3.0",
+    "ruff>=0.16.0",
+]
