@@ -1,0 +1,1727 @@
+{
+  "datamodel": "// Continuum data model.\n//\n// Conventions\n//  - Postgres identifiers are snake_case; the generated client is camelCase.\n//  - Every timestamp is `timestamptz(6)`. The application works exclusively in UTC.\n//  - Vector columns are declared `Unsupported(\"vector(384)\")`. Prisma Client can neither\n//    read nor write these fields, so all embedding I/O goes through raw SQL. This is not a\n//    workaround we intend to remove: pgvector distance operators (`<=>`, `<->`) are only\n//    reachable from raw SQL anyway.\n//\n// Migration policy\n//  Migrations are hand-authored and reviewed, generated with\n//  `prisma migrate dev --create-only` and never applied blind. The initial migration also\n//  installs the `vector` extension, the HNSW index on `embeddings.vector`, and a partial\n//  unique index guaranteeing at most one ACTIVE model version — none of which Prisma's\n//  schema language can express. Regenerating migrations automatically would silently drop\n//  them.\n\ngenerator client {\n  provider        = \"prisma-client-js\"\n  output          = \"../generated/prisma\"\n  previewFeatures = [\"postgresqlExtensions\"]\n}\n\ngenerator client_py {\n  provider             = \"prisma-client-py\"\n  interface            = \"asyncio\"\n  recursive_type_depth = 5\n  output               = \"../python/continuum_shared/prisma\"\n  previewFeatures      = [\"postgresqlExtensions\"]\n}\n\ndatasource db {\n  provider   = \"postgresql\"\n  url        = env(\"DATABASE_URL\")\n  extensions = [vector]\n}\n\n// ---------------------------------------------------------------------------\n// Enums\n// ---------------------------------------------------------------------------\n\n/// Rolling windows over which drift statistics are maintained.\nenum DriftWindowSize {\n  FIVE_MIN\n  ONE_HOUR\n  TWENTY_FOUR_HOUR\n}\n\n/// Lifecycle of a registered model version.\nenum ModelStatus {\n  /// Registered, no artifact uploaded yet.\n  DRAFT\n  /// Artifact present, evaluation in progress.\n  EVALUATING\n  /// Passed the A/B gate, eligible for activation.\n  PASSED\n  /// Failed the A/B gate; retained for audit, never served.\n  REJECTED\n  /// Currently serving traffic. At most one row may hold this status.\n  ACTIVE\n  /// Previously active, superseded by a newer version.\n  ARCHIVED\n}\n\n/// Lifecycle of an asynchronous fine-tuning job.\nenum TrainingJobStatus {\n  QUEUED\n  RUNNING\n  SUCCEEDED\n  FAILED\n  CANCELLED\n}\n\n/// Why a training job was created.\nenum TrainingTrigger {\n  DRIFT_ALERT\n  MANUAL\n  SCHEDULED\n}\n\n// ---------------------------------------------------------------------------\n// Models\n// ---------------------------------------------------------------------------\n\n/// A document submitted by a client system, before embedding.\nmodel Document {\n  id String @id @default(uuid(7)) @db.Uuid\n\n  /// Caller-supplied natural key. Stable across re-ingestion of the same document.\n  externalId String @map(\"external_id\") @db.VarChar(256)\n\n  /// Deduplication key for exactly-once consumption. Unique across the whole stream.\n  idempotencyKey String @map(\"idempotency_key\") @db.VarChar(256)\n\n  text       String\n  /// Originating system, e.g. \"support-tickets\" or \"product-catalog\".\n  source     String   @db.VarChar(128)\n  /// Event time as reported by the producer, not ingestion time.\n  occurredAt DateTime @map(\"occurred_at\") @db.Timestamptz(6)\n  metadata   Json?\n\n  /// SHA-256 of `text`, hex encoded. Used for corpus dedup and eval reproducibility.\n  contentHash String @map(\"content_hash\") @db.Char(64)\n\n  /// MinIO object key holding the raw ingested payload. Null until the upload lands.\n  objectKey String? @map(\"object_key\") @db.VarChar(512)\n\n  ingestedAt DateTime @default(now()) @map(\"ingested_at\") @db.Timestamptz(6)\n\n  embedding Embedding?\n\n  @@unique([idempotencyKey])\n  @@unique([source, externalId])\n  @@index([occurredAt])\n  @@index([source, occurredAt])\n  @@index([contentHash])\n  @@map(\"documents\")\n}\n\n/// The 384-dimensional embedding of a document, produced by a specific model version.\nmodel Embedding {\n  id String @id @default(uuid(7)) @db.Uuid\n\n  documentId String   @unique @map(\"document_id\") @db.Uuid\n  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)\n\n  /// Null only for embeddings produced by the un-tuned base model before any\n  /// version was registered.\n  modelVersionId String?       @map(\"model_version_id\") @db.Uuid\n  modelVersion   ModelVersion? @relation(fields: [modelVersionId], references: [id], onDelete: SetNull)\n\n  /// pgvector column. Written and read via raw SQL only — see the header comment.\n  vector Unsupported(\"vector(384)\")\n\n  /// Denormalised for cheap validation; must equal 384 for the MiniLM family.\n  dimension Int @default(384)\n\n  createdAt DateTime @default(now()) @map(\"created_at\") @db.Timestamptz(6)\n\n  @@index([modelVersionId])\n  @@index([createdAt])\n  @@map(\"embeddings\")\n}\n\n/// An aggregated drift measurement over one time window.\nmodel DriftWindow {\n  id String @id @default(uuid(7)) @db.Uuid\n\n  windowSize  DriftWindowSize @map(\"window_size\")\n  windowStart DateTime        @map(\"window_start\") @db.Timestamptz(6)\n  windowEnd   DateTime        @map(\"window_end\") @db.Timestamptz(6)\n\n  documentCount Int @map(\"document_count\")\n\n  /// Mean embedding across the window. Null when `documentCount` is 0.\n  centroid Unsupported(\"vector(384)\")?\n\n  /// Divergence measures against `baseline`. Null until enough samples accumulate.\n  klDivergence        Float? @map(\"kl_divergence\")\n  wassersteinDistance Float? @map(\"wasserstein_distance\")\n  /// Normalised composite score in [0, 1].\n  driftScore          Float  @map(\"drift_score\")\n\n  /// Threshold in force when this window was scored, captured for auditability.\n  threshold Float   @default(0.75)\n  breached  Boolean @default(false)\n\n  /// The window this one was compared against. Null for baseline windows themselves.\n  baselineId String?       @map(\"baseline_id\") @db.Uuid\n  baseline   DriftWindow?  @relation(\"DriftBaseline\", fields: [baselineId], references: [id], onDelete: SetNull)\n  derived    DriftWindow[] @relation(\"DriftBaseline\")\n\n  trainingJobs TrainingJob[]\n\n  createdAt DateTime @default(now()) @map(\"created_at\") @db.Timestamptz(6)\n\n  @@unique([windowSize, windowStart])\n  @@index([breached, windowStart])\n  @@index([windowStart])\n  @@map(\"drift_windows\")\n}\n\n/// An entry in the model registry.\nmodel ModelVersion {\n  id String @id @default(uuid(7)) @db.Uuid\n\n  /// Human-facing identifier, e.g. \"2026.07.26-1\". Immutable once created.\n  version String @unique @db.VarChar(64)\n\n  /// Hugging Face id of the model this version was adapted from.\n  baseModel String @map(\"base_model\") @db.VarChar(256)\n\n  status ModelStatus @default(DRAFT)\n\n  /// MinIO URI of the exported ONNX artifact.\n  artifactUri    String? @map(\"artifact_uri\") @db.VarChar(512)\n  /// SHA-256 of the artifact, hex encoded. Verified on load before serving.\n  artifactSha256 String? @map(\"artifact_sha256\") @db.Char(64)\n  artifactBytes  BigInt? @map(\"artifact_bytes\")\n\n  embeddingDim Int  @default(384) @map(\"embedding_dim\")\n  /// LoRA rank used for this adapter. Null for the base model.\n  loraRank     Int? @map(\"lora_rank\")\n\n  /// Eval results for this version, e.g. { \"mrr\": 0.71, \"recall_at_5\": 0.83 }.\n  metrics         Json?\n  /// The same metric shape for the version this one was gated against.\n  baselineMetrics Json?  @map(\"baseline_metrics\")\n  /// Relative MRR improvement over baseline, as a fraction. Gate requires > 0.10.\n  improvementPct  Float? @map(\"improvement_pct\")\n\n  activatedAt DateTime? @map(\"activated_at\") @db.Timestamptz(6)\n  createdAt   DateTime  @default(now()) @map(\"created_at\") @db.Timestamptz(6)\n  updatedAt   DateTime  @updatedAt @map(\"updated_at\") @db.Timestamptz(6)\n\n  trainingJob TrainingJob?\n  embeddings  Embedding[]\n\n  @@index([status])\n  @@index([createdAt])\n  @@map(\"model_versions\")\n}\n\n/// An asynchronous LoRA fine-tuning run.\nmodel TrainingJob {\n  id String @id @default(uuid(7)) @db.Uuid\n\n  status  TrainingJobStatus @default(QUEUED)\n  trigger TrainingTrigger\n\n  /// The drift window that triggered this job. Null for MANUAL and SCHEDULED runs.\n  driftWindowId String?      @map(\"drift_window_id\") @db.Uuid\n  driftWindow   DriftWindow? @relation(fields: [driftWindowId], references: [id], onDelete: SetNull)\n\n  /// The version this job produced. Null until training succeeds.\n  modelVersionId String?       @unique @map(\"model_version_id\") @db.Uuid\n  modelVersion   ModelVersion? @relation(fields: [modelVersionId], references: [id], onDelete: SetNull)\n\n  baseModel String @map(\"base_model\") @db.VarChar(256)\n\n  /// Full hyperparameter set, captured so a run can be reproduced exactly.\n  hyperparameters Json\n  /// Number of documents sampled into the training set.\n  sampleCount     Int? @map(\"sample_count\")\n\n  attempts    Int @default(0)\n  maxAttempts Int @default(3) @map(\"max_attempts\")\n\n  /// Failure message from the final attempt. Null unless status is FAILED.\n  error String?\n\n  /// Per-step loss, streamed to the dashboard: [{ \"step\": 1, \"loss\": 0.42 }, ...].\n  lossHistory Json? @map(\"loss_history\")\n\n  queuedAt   DateTime  @default(now()) @map(\"queued_at\") @db.Timestamptz(6)\n  startedAt  DateTime? @map(\"started_at\") @db.Timestamptz(6)\n  finishedAt DateTime? @map(\"finished_at\") @db.Timestamptz(6)\n\n  @@index([status, queuedAt])\n  @@index([driftWindowId])\n  @@map(\"training_jobs\")\n}\n",
+  "version": "4123509d24aa4dede1e864b46351bf2790323b69",
+  "generator": {
+    "name": "client_py",
+    "output": {
+      "value": "/Users/chetan/Continuum/Continuum/packages/shared/python/continuum_shared/prisma",
+      "from_env_var": null
+    },
+    "provider": {
+      "value": "prisma-client-py",
+      "from_env_var": null
+    },
+    "config": {
+      "interface": "asyncio",
+      "partial_type_generator": null,
+      "recursive_type_depth": 5,
+      "engine_type": "binary",
+      "enable_experimental_decimal": false
+    },
+    "binary_targets": [
+      {
+        "value": "darwin-arm64",
+        "from_env_var": null
+      }
+    ],
+    "preview_features": [
+      "postgresqlExtensions"
+    ]
+  },
+  "dmmf": {
+    "datamodel": {
+      "enums": [
+        {
+          "name": "DriftWindowSize",
+          "db_name": null,
+          "values": [
+            {
+              "name": "FIVE_MIN",
+              "db_name": null
+            },
+            {
+              "name": "ONE_HOUR",
+              "db_name": null
+            },
+            {
+              "name": "TWENTY_FOUR_HOUR",
+              "db_name": null
+            }
+          ]
+        },
+        {
+          "name": "ModelStatus",
+          "db_name": null,
+          "values": [
+            {
+              "name": "DRAFT",
+              "db_name": null
+            },
+            {
+              "name": "EVALUATING",
+              "db_name": null
+            },
+            {
+              "name": "PASSED",
+              "db_name": null
+            },
+            {
+              "name": "REJECTED",
+              "db_name": null
+            },
+            {
+              "name": "ACTIVE",
+              "db_name": null
+            },
+            {
+              "name": "ARCHIVED",
+              "db_name": null
+            }
+          ]
+        },
+        {
+          "name": "TrainingJobStatus",
+          "db_name": null,
+          "values": [
+            {
+              "name": "QUEUED",
+              "db_name": null
+            },
+            {
+              "name": "RUNNING",
+              "db_name": null
+            },
+            {
+              "name": "SUCCEEDED",
+              "db_name": null
+            },
+            {
+              "name": "FAILED",
+              "db_name": null
+            },
+            {
+              "name": "CANCELLED",
+              "db_name": null
+            }
+          ]
+        },
+        {
+          "name": "TrainingTrigger",
+          "db_name": null,
+          "values": [
+            {
+              "name": "DRIFT_ALERT",
+              "db_name": null
+            },
+            {
+              "name": "MANUAL",
+              "db_name": null
+            },
+            {
+              "name": "SCHEDULED",
+              "db_name": null
+            }
+          ]
+        }
+      ],
+      "models": [
+        {
+          "name": "Document",
+          "documentation": "A document submitted by a client system, before embedding.",
+          "db_name": "documents",
+          "is_generated": false,
+          "compound_primary_key": null,
+          "unique_indexes": [
+            {
+              "name": "idempotencyKey",
+              "fields": [
+                "idempotencyKey"
+              ]
+            },
+            {
+              "name": "source_externalId",
+              "fields": [
+                "source",
+                "externalId"
+              ]
+            }
+          ],
+          "all_fields": [
+            {
+              "name": "id",
+              "documentation": null,
+              "kind": "scalar",
+              "type": "String",
+              "is_id": true,
+              "is_list": false,
+              "is_unique": false,
+              "is_required": true,
+              "is_read_only": false,
+              "is_generated": false,
+              "is_updated_at": false,
+              "default": {
+                "args": [
+                  7
+                ],
+                "name": "uuid"
+              },
+              "has_default_value": true,
+              "relation_name": null,
+              "relation_on_delete": null,
+              "relation_to_fields": null,
+              "relation_from_fields": null
+            },
+            {
+              "name": "externalId",
+              "documentation": "Caller-supplied natural key. Stable across re-ingestion of the same document.",
+              "kind": "scalar",
+              "type": "String",
+              "is_id": false,
+              "is_list": false,
+              "is_unique": false,
+              "is_required": true,
+              "is_read_only": false,
+              "is_generated": false,
+              "is_updated_at": false,
+              "default": null,
+              "has_default_value": false,
+              "relation_name": null,
+              "relation_on_delete": null,
+              "relation_to_fields": null,
+              "relation_from_fields": null
+            },
+            {
+              "name": "idempotencyKey",
+              "documentation": "Deduplication key for exactly-once consumption. Unique across the whole stream.",
+              "kind": "scalar",
+              "type": "String",
+              "is_id": false,
+              "is_list": false,
+              "is_unique": true,
+              "is_required": true,
+              "is_read_only": false,
+              "is_generated": false,
+              "is_updated_at": false,
+              "default": null,
+              "has_default_value": false,
+              "relation_name": null,
+              "relation_on_delete": null,
+              "relation_to_fields": null,
+              "relation_from_fields": null
+            },
+            {
+              "name": "text",
+              "documentation": null,
+              "kind": "scalar",
+              "type": "String",
+              "is_id": false,
+              "is_list": false,
+              "is_unique": false,
+              "is_required": true,
+              "is_read_only": false,
+              "is_generated": false,
+              "is_updated_at": false,
+              "default": null,
+              "has_default_value": false,
+              "relation_name": null,
+              "relation_on_delete": null,
+              "relation_to_fields": null,
+              "relation_from_fields": null
+            },
+            {
+              "name": "source",
+              "documentation": "Originating system, e.g. \"support-tickets\" or \"product-catalog\".",
+              "kind": "scalar",
+              "type": "String",
+              "is_id": false,
+              "is_list": false,
+              "is_unique": false,
+              "is_required": true,
+              "is_read_only": false,
+              "is_generated": false,
+              "is_updated_at": false,
+              "default": null,
+              "has_default_value": false,
+              "relation_name": null,
+              "relation_on_delete": null,
+              "relation_to_fields": null,
+              "relation_from_fields": null
+            },
+            {
+              "name": "occurredAt",
+              "documentation": "Event time as reported by the producer, not ingestion time.",
+              "kind": "scalar",
+              "type": "DateTime",
+              "is_id": false,
+              "is_list": false,
+              "is_unique": false,
+              "is_required": true,
+              "is_read_only": false,
+              "is_generated": false,
+              "is_updated_at": false,
+              "default": null,
+              "has_default_value": false,
+              "relation_name": null,
+              "relation_on_delete": null,
+              "relation_to_fields": null,
+              "relation_from_fields": null
+            },
+            {
+              "name": "metadata",
+              "documentation": null,
+              "kind": "scalar",
+              "type": "Json",
+              "is_id": false,
+              "is_list": false,
+              "is_unique": false,
+              "is_required": false,
+              "is_read_only": false,
+              "is_generated": false,
+              "is_updated_at": false,
+              "default": null,
+              "has_default_value": false,
+              "relation_name": null,
+              "relation_on_delete": null,
+              "relation_to_fields": null,
+              "relation_from_fields": null
+            },
+            {
+              "name": "contentHash",
+              "documentation": "SHA-256 of `text`, hex encoded. Used for corpus dedup and eval reproducibility.",
+              "kind": "scalar",
+              "type": "String",
+              "is_id": false,
+              "is_list": false,
+              "is_unique": false,
+              "is_required": true,
+              "is_read_only": false,
+              "is_generated": false,
+              "is_updated_at": false,
+              "default": null,
+              "has_default_value": false,
+              "relation_name": null,
+              "relation_on_delete": null,
+              "relation_to_fields": null,
+              "relation_from_fields": null
+            },
+            {
+              "name": "objectKey",
+              "documentation": "MinIO object key holding the raw ingested payload. Null until the upload lands.",
+              "kind": "scalar",
+              "type": "String",
+              "is_id": false,
+              "is_list": false,
+              "is_unique": false,
+              "is_required": false,
+              "is_read_only": false,
+              "is_generated": false,
+              "is_updated_at": false,
+              "default": null,
+              "has_default_value": false,
+              "relation_name": null,
+              "relation_on_delete": null,
+              "relation_to_fields": null,
+              "relation_from_fields": null
+            },
+            {
+              "name": "ingestedAt",
+              "documentation": null,
+              "kind": "scalar",
+              "type": "DateTime",
+              "is_id": false,
+              "is_list": false,
+              "is_unique": false,
+              "is_required": true,
+              "is_read_only": false,
+              "is_generated": false,
+              "is_updated_at": false,
+              "default": {
+                "args": [],
+                "name": "now"
+              },
+              "has_default_value": true,
+              "relation_name": null,
+              "relation_on_delete": null,
+              "relation_to_fields": null,
+              "relation_from_fields": null
+            },
+            {
+              "name": "embedding",
+              "documentation": null,
+              "kind": "object",
+              "type": "Embedding",
+              "is_id": false,
+              "is_list": false,
+              "is_unique": false,
+              "is_required": false,
+              "is_read_only": false,
+              "is_generated": false,
+              "is_updated_at": false,
+              "default": null,
+              "has_default_value": false,
+              "relation_name": "DocumentToEmbedding",
+              "relation_on_delete": null,
+              "relation_to_fields": [],
+              "relation_from_fields": []
+            }
+          ],
+          "extension": null
+        },
+        {
+          "name": "Embedding",
+          "documentation": "The 384-dimensional embedding of a document, produced by a specific model version.",
+          "db_name": "embeddings",
+          "is_generated": false,
+          "compound_primary_key": null,
+          "unique_indexes": [],
+          "all_fields": [
+            {
+              "name": "id",
+              "documentation": null,
+              "kind": "scalar",
+              "type": "String",
+              "is_id": true,
+              "is_list": false,
+              "is_unique": false,
+              "is_required": true,
+              "is_read_only": false,
+              "is_generated": false,
+              "is_updated_at": false,
+              "default": {
+                "args": [
+                  7
+                ],
+                "name": "uuid"
+              },
+              "has_default_value": true,
+              "relation_name": null,
+              "relation_on_delete": null,
+              "relation_to_fields": null,
+              "relation_from_fields": null
+            },
+            {
+              "name": "documentId",
+              "documentation": null,
+              "kind": "scalar",
+              "type": "String",
+              "is_id": false,
+              "is_list": false,
+              "is_unique": true,
+              "is_required": true,
+              "is_read_only": true,
+              "is_generated": false,
+              "is_updated_at": false,
+              "default": null,
+              "has_default_value": false,
+              "relation_name": null,
+              "relation_on_delete": null,
+              "relation_to_fields": null,
+              "relation_from_fields": null
+            },
+            {
+              "name": "document",
+              "documentation": null,
+              "kind": "object",
+              "type": "Document",
+              "is_id": false,
+              "is_list": false,
+              "is_unique": false,
+              "is_required": true,
+              "is_read_only": false,
+              "is_generated": false,
+              "is_updated_at": false,
+              "default": null,
+              "has_default_value": false,
+              "relation_name": "DocumentToEmbedding",
+              "relation_on_delete": "Cascade",
+              "relation_to_fields": [
+                "id"
+              ],
+              "relation_from_fields": [
+                "documentId"
+              ]
+            },
+            {
+              "name": "modelVersionId",
+              "documentation": "Null only for embeddings produced by the un-tuned base model before any\nversion was registered.",
+              "kind": "scalar",
+              "type": "String",
+              "is_id": false,
+              "is_list": false,
+              "is_unique": false,
+              "is_required": false,
+              "is_read_only": true,
+              "is_generated": false,
+              "is_updated_at": false,
+              "default": null,
+              "has_default_value": false,
+              "relation_name": null,
+              "relation_on_delete": null,
+              "relation_to_fields": null,
+              "relation_from_fields": null
+            },
+            {
+              "name": "modelVersion",
+              "documentation": null,
+              "kind": "object",
+              "type": "ModelVersion",
+              "is_id": false,
+              "is_list": false,
+              "is_unique": false,
+              "is_required": false,
+              "is_read_only": false,
+              "is_generated": false,
+              "is_updated_at": false,
+              "default": null,
+              "has_default_value": false,
+              "relation_name": "EmbeddingToModelVersion",
+              "relation_on_delete": "SetNull",
+              "relation_to_fields": [
+                "id"
+              ],
+              "relation_from_fields": [
+                "modelVersionId"
+              ]
+            },
+            {
+              "name": "dimension",
+              "documentation": "Denormalised for cheap validation; must equal 384 for the MiniLM family.",
+              "kind": "scalar",
+              "type": "Int",
+              "is_id": false,
+              "is_list": false,
+              "is_unique": false,
+              "is_required": true,
+              "is_read_only": false,
+              "is_generated": false,
+              "is_updated_at": false,
+              "default": 384,
+              "has_default_value": true,
+              "relation_name": null,
+              "relation_on_delete": null,
+              "relation_to_fields": null,
+              "relation_from_fields": null
+            },
+            {
+              "name": "createdAt",
+              "documentation": null,
+              "kind": "scalar",
+              "type": "DateTime",
+              "is_id": false,
+              "is_list": false,
+              "is_unique": false,
+              "is_required": true,
+              "is_read_only": false,
+              "is_generated": false,
+              "is_updated_at": false,
+              "default": {
+                "args": [],
+                "name": "now"
+              },
+              "has_default_value": true,
+              "relation_name": null,
+              "relation_on_delete": null,
+              "relation_to_fields": null,
+              "relation_from_fields": null
+            }
+          ],
+          "extension": null
+        },
+        {
+          "name": "DriftWindow",
+          "documentation": "An aggregated drift measurement over one time window.",
+          "db_name": "drift_windows",
+          "is_generated": false,
+          "compound_primary_key": null,
+          "unique_indexes": [
+            {
+              "name": "windowSize_windowStart",
+              "fields": [
+                "windowSize",
+                "windowStart"
+              ]
+            }
+          ],
+          "all_fields": [
+            {
+              "name": "id",
+              "documentation": null,
+              "kind": "scalar",
+              "type": "String",
+              "is_id": true,
+              "is_list": false,
+              "is_unique": false,
+              "is_required": true,
+              "is_read_only": false,
+              "is_generated": false,
+              "is_updated_at": false,
+              "default": {
+                "args": [
+                  7
+                ],
+                "name": "uuid"
+              },
+              "has_default_value": true,
+              "relation_name": null,
+              "relation_on_delete": null,
+              "relation_to_fields": null,
+              "relation_from_fields": null
+            },
+            {
+              "name": "windowSize",
+              "documentation": null,
+              "kind": "enum",
+              "type": "DriftWindowSize",
+              "is_id": false,
+              "is_list": false,
+              "is_unique": false,
+              "is_required": true,
+              "is_read_only": false,
+              "is_generated": false,
+              "is_updated_at": false,
+              "default": null,
+              "has_default_value": false,
+              "relation_name": null,
+              "relation_on_delete": null,
+              "relation_to_fields": null,
+              "relation_from_fields": null
+            },
+            {
+              "name": "windowStart",
+              "documentation": null,
+              "kind": "scalar",
+              "type": "DateTime",
+              "is_id": false,
+              "is_list": false,
+              "is_unique": false,
+              "is_required": true,
+              "is_read_only": false,
+              "is_generated": false,
+              "is_updated_at": false,
+              "default": null,
+              "has_default_value": false,
+              "relation_name": null,
+              "relation_on_delete": null,
+              "relation_to_fields": null,
+              "relation_from_fields": null
+            },
+            {
+              "name": "windowEnd",
+              "documentation": null,
+              "kind": "scalar",
+              "type": "DateTime",
+              "is_id": false,
+              "is_list": false,
+              "is_unique": false,
+              "is_required": true,
+              "is_read_only": false,
+              "is_generated": false,
+              "is_updated_at": false,
+              "default": null,
+              "has_default_value": false,
+              "relation_name": null,
+              "relation_on_delete": null,
+              "relation_to_fields": null,
+              "relation_from_fields": null
+            },
+            {
+              "name": "documentCount",
+              "documentation": null,
+              "kind": "scalar",
+              "type": "Int",
+              "is_id": false,
+              "is_list": false,
+              "is_unique": false,
+              "is_required": true,
+              "is_read_only": false,
+              "is_generated": false,
+              "is_updated_at": false,
+              "default": null,
+              "has_default_value": false,
+              "relation_name": null,
+              "relation_on_delete": null,
+              "relation_to_fields": null,
+              "relation_from_fields": null
+            },
+            {
+              "name": "klDivergence",
+              "documentation": "Divergence measures against `baseline`. Null until enough samples accumulate.",
+              "kind": "scalar",
+              "type": "Float",
+              "is_id": false,
+              "is_list": false,
+              "is_unique": false,
+              "is_required": false,
+              "is_read_only": false,
+              "is_generated": false,
+              "is_updated_at": false,
+              "default": null,
+              "has_default_value": false,
+              "relation_name": null,
+              "relation_on_delete": null,
+              "relation_to_fields": null,
+              "relation_from_fields": null
+            },
+            {
+              "name": "wassersteinDistance",
+              "documentation": null,
+              "kind": "scalar",
+              "type": "Float",
+              "is_id": false,
+              "is_list": false,
+              "is_unique": false,
+              "is_required": false,
+              "is_read_only": false,
+              "is_generated": false,
+              "is_updated_at": false,
+              "default": null,
+              "has_default_value": false,
+              "relation_name": null,
+              "relation_on_delete": null,
+              "relation_to_fields": null,
+              "relation_from_fields": null
+            },
+            {
+              "name": "driftScore",
+              "documentation": "Normalised composite score in [0, 1].",
+              "kind": "scalar",
+              "type": "Float",
+              "is_id": false,
+              "is_list": false,
+              "is_unique": false,
+              "is_required": true,
+              "is_read_only": false,
+              "is_generated": false,
+              "is_updated_at": false,
+              "default": null,
+              "has_default_value": false,
+              "relation_name": null,
+              "relation_on_delete": null,
+              "relation_to_fields": null,
+              "relation_from_fields": null
+            },
+            {
+              "name": "threshold",
+              "documentation": "Threshold in force when this window was scored, captured for auditability.",
+              "kind": "scalar",
+              "type": "Float",
+              "is_id": false,
+              "is_list": false,
+              "is_unique": false,
+              "is_required": true,
+              "is_read_only": false,
+              "is_generated": false,
+              "is_updated_at": false,
+              "default": 0.75,
+              "has_default_value": true,
+              "relation_name": null,
+              "relation_on_delete": null,
+              "relation_to_fields": null,
+              "relation_from_fields": null
+            },
+            {
+              "name": "breached",
+              "documentation": null,
+              "kind": "scalar",
+              "type": "Boolean",
+              "is_id": false,
+              "is_list": false,
+              "is_unique": false,
+              "is_required": true,
+              "is_read_only": false,
+              "is_generated": false,
+              "is_updated_at": false,
+              "default": false,
+              "has_default_value": true,
+              "relation_name": null,
+              "relation_on_delete": null,
+              "relation_to_fields": null,
+              "relation_from_fields": null
+            },
+            {
+              "name": "baselineId",
+              "documentation": "The window this one was compared against. Null for baseline windows themselves.",
+              "kind": "scalar",
+              "type": "String",
+              "is_id": false,
+              "is_list": false,
+              "is_unique": false,
+              "is_required": false,
+              "is_read_only": true,
+              "is_generated": false,
+              "is_updated_at": false,
+              "default": null,
+              "has_default_value": false,
+              "relation_name": null,
+              "relation_on_delete": null,
+              "relation_to_fields": null,
+              "relation_from_fields": null
+            },
+            {
+              "name": "baseline",
+              "documentation": null,
+              "kind": "object",
+              "type": "DriftWindow",
+              "is_id": false,
+              "is_list": false,
+              "is_unique": false,
+              "is_required": false,
+              "is_read_only": false,
+              "is_generated": false,
+              "is_updated_at": false,
+              "default": null,
+              "has_default_value": false,
+              "relation_name": "DriftBaseline",
+              "relation_on_delete": "SetNull",
+              "relation_to_fields": [
+                "id"
+              ],
+              "relation_from_fields": [
+                "baselineId"
+              ]
+            },
+            {
+              "name": "derived",
+              "documentation": null,
+              "kind": "object",
+              "type": "DriftWindow",
+              "is_id": false,
+              "is_list": true,
+              "is_unique": false,
+              "is_required": true,
+              "is_read_only": false,
+              "is_generated": false,
+              "is_updated_at": false,
+              "default": null,
+              "has_default_value": false,
+              "relation_name": "DriftBaseline",
+              "relation_on_delete": null,
+              "relation_to_fields": [],
+              "relation_from_fields": []
+            },
+            {
+              "name": "trainingJobs",
+              "documentation": null,
+              "kind": "object",
+              "type": "TrainingJob",
+              "is_id": false,
+              "is_list": true,
+              "is_unique": false,
+              "is_required": true,
+              "is_read_only": false,
+              "is_generated": false,
+              "is_updated_at": false,
+              "default": null,
+              "has_default_value": false,
+              "relation_name": "DriftWindowToTrainingJob",
+              "relation_on_delete": null,
+              "relation_to_fields": [],
+              "relation_from_fields": []
+            },
+            {
+              "name": "createdAt",
+              "documentation": null,
+              "kind": "scalar",
+              "type": "DateTime",
+              "is_id": false,
+              "is_list": false,
+              "is_unique": false,
+              "is_required": true,
+              "is_read_only": false,
+              "is_generated": false,
+              "is_updated_at": false,
+              "default": {
+                "args": [],
+                "name": "now"
+              },
+              "has_default_value": true,
+              "relation_name": null,
+              "relation_on_delete": null,
+              "relation_to_fields": null,
+              "relation_from_fields": null
+            }
+          ],
+          "extension": null
+        },
+        {
+          "name": "ModelVersion",
+          "documentation": "An entry in the model registry.",
+          "db_name": "model_versions",
+          "is_generated": false,
+          "compound_primary_key": null,
+          "unique_indexes": [],
+          "all_fields": [
+            {
+              "name": "id",
+              "documentation": null,
+              "kind": "scalar",
+              "type": "String",
+              "is_id": true,
+              "is_list": false,
+              "is_unique": false,
+              "is_required": true,
+              "is_read_only": false,
+              "is_generated": false,
+              "is_updated_at": false,
+              "default": {
+                "args": [
+                  7
+                ],
+                "name": "uuid"
+              },
+              "has_default_value": true,
+              "relation_name": null,
+              "relation_on_delete": null,
+              "relation_to_fields": null,
+              "relation_from_fields": null
+            },
+            {
+              "name": "version",
+              "documentation": "Human-facing identifier, e.g. \"2026.07.26-1\". Immutable once created.",
+              "kind": "scalar",
+              "type": "String",
+              "is_id": false,
+              "is_list": false,
+              "is_unique": true,
+              "is_required": true,
+              "is_read_only": false,
+              "is_generated": false,
+              "is_updated_at": false,
+              "default": null,
+              "has_default_value": false,
+              "relation_name": null,
+              "relation_on_delete": null,
+              "relation_to_fields": null,
+              "relation_from_fields": null
+            },
+            {
+              "name": "baseModel",
+              "documentation": "Hugging Face id of the model this version was adapted from.",
+              "kind": "scalar",
+              "type": "String",
+              "is_id": false,
+              "is_list": false,
+              "is_unique": false,
+              "is_required": true,
+              "is_read_only": false,
+              "is_generated": false,
+              "is_updated_at": false,
+              "default": null,
+              "has_default_value": false,
+              "relation_name": null,
+              "relation_on_delete": null,
+              "relation_to_fields": null,
+              "relation_from_fields": null
+            },
+            {
+              "name": "status",
+              "documentation": null,
+              "kind": "enum",
+              "type": "ModelStatus",
+              "is_id": false,
+              "is_list": false,
+              "is_unique": false,
+              "is_required": true,
+              "is_read_only": false,
+              "is_generated": false,
+              "is_updated_at": false,
+              "default": "DRAFT",
+              "has_default_value": true,
+              "relation_name": null,
+              "relation_on_delete": null,
+              "relation_to_fields": null,
+              "relation_from_fields": null
+            },
+            {
+              "name": "artifactUri",
+              "documentation": "MinIO URI of the exported ONNX artifact.",
+              "kind": "scalar",
+              "type": "String",
+              "is_id": false,
+              "is_list": false,
+              "is_unique": false,
+              "is_required": false,
+              "is_read_only": false,
+              "is_generated": false,
+              "is_updated_at": false,
+              "default": null,
+              "has_default_value": false,
+              "relation_name": null,
+              "relation_on_delete": null,
+              "relation_to_fields": null,
+              "relation_from_fields": null
+            },
+            {
+              "name": "artifactSha256",
+              "documentation": "SHA-256 of the artifact, hex encoded. Verified on load before serving.",
+              "kind": "scalar",
+              "type": "String",
+              "is_id": false,
+              "is_list": false,
+              "is_unique": false,
+              "is_required": false,
+              "is_read_only": false,
+              "is_generated": false,
+              "is_updated_at": false,
+              "default": null,
+              "has_default_value": false,
+              "relation_name": null,
+              "relation_on_delete": null,
+              "relation_to_fields": null,
+              "relation_from_fields": null
+            },
+            {
+              "name": "artifactBytes",
+              "documentation": null,
+              "kind": "scalar",
+              "type": "BigInt",
+              "is_id": false,
+              "is_list": false,
+              "is_unique": false,
+              "is_required": false,
+              "is_read_only": false,
+              "is_generated": false,
+              "is_updated_at": false,
+              "default": null,
+              "has_default_value": false,
+              "relation_name": null,
+              "relation_on_delete": null,
+              "relation_to_fields": null,
+              "relation_from_fields": null
+            },
+            {
+              "name": "embeddingDim",
+              "documentation": null,
+              "kind": "scalar",
+              "type": "Int",
+              "is_id": false,
+              "is_list": false,
+              "is_unique": false,
+              "is_required": true,
+              "is_read_only": false,
+              "is_generated": false,
+              "is_updated_at": false,
+              "default": 384,
+              "has_default_value": true,
+              "relation_name": null,
+              "relation_on_delete": null,
+              "relation_to_fields": null,
+              "relation_from_fields": null
+            },
+            {
+              "name": "loraRank",
+              "documentation": "LoRA rank used for this adapter. Null for the base model.",
+              "kind": "scalar",
+              "type": "Int",
+              "is_id": false,
+              "is_list": false,
+              "is_unique": false,
+              "is_required": false,
+              "is_read_only": false,
+              "is_generated": false,
+              "is_updated_at": false,
+              "default": null,
+              "has_default_value": false,
+              "relation_name": null,
+              "relation_on_delete": null,
+              "relation_to_fields": null,
+              "relation_from_fields": null
+            },
+            {
+              "name": "metrics",
+              "documentation": "Eval results for this version, e.g. { \"mrr\": 0.71, \"recall_at_5\": 0.83 }.",
+              "kind": "scalar",
+              "type": "Json",
+              "is_id": false,
+              "is_list": false,
+              "is_unique": false,
+              "is_required": false,
+              "is_read_only": false,
+              "is_generated": false,
+              "is_updated_at": false,
+              "default": null,
+              "has_default_value": false,
+              "relation_name": null,
+              "relation_on_delete": null,
+              "relation_to_fields": null,
+              "relation_from_fields": null
+            },
+            {
+              "name": "baselineMetrics",
+              "documentation": "The same metric shape for the version this one was gated against.",
+              "kind": "scalar",
+              "type": "Json",
+              "is_id": false,
+              "is_list": false,
+              "is_unique": false,
+              "is_required": false,
+              "is_read_only": false,
+              "is_generated": false,
+              "is_updated_at": false,
+              "default": null,
+              "has_default_value": false,
+              "relation_name": null,
+              "relation_on_delete": null,
+              "relation_to_fields": null,
+              "relation_from_fields": null
+            },
+            {
+              "name": "improvementPct",
+              "documentation": "Relative MRR improvement over baseline, as a fraction. Gate requires > 0.10.",
+              "kind": "scalar",
+              "type": "Float",
+              "is_id": false,
+              "is_list": false,
+              "is_unique": false,
+              "is_required": false,
+              "is_read_only": false,
+              "is_generated": false,
+              "is_updated_at": false,
+              "default": null,
+              "has_default_value": false,
+              "relation_name": null,
+              "relation_on_delete": null,
+              "relation_to_fields": null,
+              "relation_from_fields": null
+            },
+            {
+              "name": "activatedAt",
+              "documentation": null,
+              "kind": "scalar",
+              "type": "DateTime",
+              "is_id": false,
+              "is_list": false,
+              "is_unique": false,
+              "is_required": false,
+              "is_read_only": false,
+              "is_generated": false,
+              "is_updated_at": false,
+              "default": null,
+              "has_default_value": false,
+              "relation_name": null,
+              "relation_on_delete": null,
+              "relation_to_fields": null,
+              "relation_from_fields": null
+            },
+            {
+              "name": "createdAt",
+              "documentation": null,
+              "kind": "scalar",
+              "type": "DateTime",
+              "is_id": false,
+              "is_list": false,
+              "is_unique": false,
+              "is_required": true,
+              "is_read_only": false,
+              "is_generated": false,
+              "is_updated_at": false,
+              "default": {
+                "args": [],
+                "name": "now"
+              },
+              "has_default_value": true,
+              "relation_name": null,
+              "relation_on_delete": null,
+              "relation_to_fields": null,
+              "relation_from_fields": null
+            },
+            {
+              "name": "updatedAt",
+              "documentation": null,
+              "kind": "scalar",
+              "type": "DateTime",
+              "is_id": false,
+              "is_list": false,
+              "is_unique": false,
+              "is_required": true,
+              "is_read_only": false,
+              "is_generated": false,
+              "is_updated_at": true,
+              "default": null,
+              "has_default_value": false,
+              "relation_name": null,
+              "relation_on_delete": null,
+              "relation_to_fields": null,
+              "relation_from_fields": null
+            },
+            {
+              "name": "trainingJob",
+              "documentation": null,
+              "kind": "object",
+              "type": "TrainingJob",
+              "is_id": false,
+              "is_list": false,
+              "is_unique": false,
+              "is_required": false,
+              "is_read_only": false,
+              "is_generated": false,
+              "is_updated_at": false,
+              "default": null,
+              "has_default_value": false,
+              "relation_name": "ModelVersionToTrainingJob",
+              "relation_on_delete": null,
+              "relation_to_fields": [],
+              "relation_from_fields": []
+            },
+            {
+              "name": "embeddings",
+              "documentation": null,
+              "kind": "object",
+              "type": "Embedding",
+              "is_id": false,
+              "is_list": true,
+              "is_unique": false,
+              "is_required": true,
+              "is_read_only": false,
+              "is_generated": false,
+              "is_updated_at": false,
+              "default": null,
+              "has_default_value": false,
+              "relation_name": "EmbeddingToModelVersion",
+              "relation_on_delete": null,
+              "relation_to_fields": [],
+              "relation_from_fields": []
+            }
+          ],
+          "extension": null
+        },
+        {
+          "name": "TrainingJob",
+          "documentation": "An asynchronous LoRA fine-tuning run.",
+          "db_name": "training_jobs",
+          "is_generated": false,
+          "compound_primary_key": null,
+          "unique_indexes": [],
+          "all_fields": [
+            {
+              "name": "id",
+              "documentation": null,
+              "kind": "scalar",
+              "type": "String",
+              "is_id": true,
+              "is_list": false,
+              "is_unique": false,
+              "is_required": true,
+              "is_read_only": false,
+              "is_generated": false,
+              "is_updated_at": false,
+              "default": {
+                "args": [
+                  7
+                ],
+                "name": "uuid"
+              },
+              "has_default_value": true,
+              "relation_name": null,
+              "relation_on_delete": null,
+              "relation_to_fields": null,
+              "relation_from_fields": null
+            },
+            {
+              "name": "status",
+              "documentation": null,
+              "kind": "enum",
+              "type": "TrainingJobStatus",
+              "is_id": false,
+              "is_list": false,
+              "is_unique": false,
+              "is_required": true,
+              "is_read_only": false,
+              "is_generated": false,
+              "is_updated_at": false,
+              "default": "QUEUED",
+              "has_default_value": true,
+              "relation_name": null,
+              "relation_on_delete": null,
+              "relation_to_fields": null,
+              "relation_from_fields": null
+            },
+            {
+              "name": "trigger",
+              "documentation": null,
+              "kind": "enum",
+              "type": "TrainingTrigger",
+              "is_id": false,
+              "is_list": false,
+              "is_unique": false,
+              "is_required": true,
+              "is_read_only": false,
+              "is_generated": false,
+              "is_updated_at": false,
+              "default": null,
+              "has_default_value": false,
+              "relation_name": null,
+              "relation_on_delete": null,
+              "relation_to_fields": null,
+              "relation_from_fields": null
+            },
+            {
+              "name": "driftWindowId",
+              "documentation": "The drift window that triggered this job. Null for MANUAL and SCHEDULED runs.",
+              "kind": "scalar",
+              "type": "String",
+              "is_id": false,
+              "is_list": false,
+              "is_unique": false,
+              "is_required": false,
+              "is_read_only": true,
+              "is_generated": false,
+              "is_updated_at": false,
+              "default": null,
+              "has_default_value": false,
+              "relation_name": null,
+              "relation_on_delete": null,
+              "relation_to_fields": null,
+              "relation_from_fields": null
+            },
+            {
+              "name": "driftWindow",
+              "documentation": null,
+              "kind": "object",
+              "type": "DriftWindow",
+              "is_id": false,
+              "is_list": false,
+              "is_unique": false,
+              "is_required": false,
+              "is_read_only": false,
+              "is_generated": false,
+              "is_updated_at": false,
+              "default": null,
+              "has_default_value": false,
+              "relation_name": "DriftWindowToTrainingJob",
+              "relation_on_delete": "SetNull",
+              "relation_to_fields": [
+                "id"
+              ],
+              "relation_from_fields": [
+                "driftWindowId"
+              ]
+            },
+            {
+              "name": "modelVersionId",
+              "documentation": "The version this job produced. Null until training succeeds.",
+              "kind": "scalar",
+              "type": "String",
+              "is_id": false,
+              "is_list": false,
+              "is_unique": true,
+              "is_required": false,
+              "is_read_only": true,
+              "is_generated": false,
+              "is_updated_at": false,
+              "default": null,
+              "has_default_value": false,
+              "relation_name": null,
+              "relation_on_delete": null,
+              "relation_to_fields": null,
+              "relation_from_fields": null
+            },
+            {
+              "name": "modelVersion",
+              "documentation": null,
+              "kind": "object",
+              "type": "ModelVersion",
+              "is_id": false,
+              "is_list": false,
+              "is_unique": false,
+              "is_required": false,
+              "is_read_only": false,
+              "is_generated": false,
+              "is_updated_at": false,
+              "default": null,
+              "has_default_value": false,
+              "relation_name": "ModelVersionToTrainingJob",
+              "relation_on_delete": "SetNull",
+              "relation_to_fields": [
+                "id"
+              ],
+              "relation_from_fields": [
+                "modelVersionId"
+              ]
+            },
+            {
+              "name": "baseModel",
+              "documentation": null,
+              "kind": "scalar",
+              "type": "String",
+              "is_id": false,
+              "is_list": false,
+              "is_unique": false,
+              "is_required": true,
+              "is_read_only": false,
+              "is_generated": false,
+              "is_updated_at": false,
+              "default": null,
+              "has_default_value": false,
+              "relation_name": null,
+              "relation_on_delete": null,
+              "relation_to_fields": null,
+              "relation_from_fields": null
+            },
+            {
+              "name": "hyperparameters",
+              "documentation": "Full hyperparameter set, captured so a run can be reproduced exactly.",
+              "kind": "scalar",
+              "type": "Json",
+              "is_id": false,
+              "is_list": false,
+              "is_unique": false,
+              "is_required": true,
+              "is_read_only": false,
+              "is_generated": false,
+              "is_updated_at": false,
+              "default": null,
+              "has_default_value": false,
+              "relation_name": null,
+              "relation_on_delete": null,
+              "relation_to_fields": null,
+              "relation_from_fields": null
+            },
+            {
+              "name": "sampleCount",
+              "documentation": "Number of documents sampled into the training set.",
+              "kind": "scalar",
+              "type": "Int",
+              "is_id": false,
+              "is_list": false,
+              "is_unique": false,
+              "is_required": false,
+              "is_read_only": false,
+              "is_generated": false,
+              "is_updated_at": false,
+              "default": null,
+              "has_default_value": false,
+              "relation_name": null,
+              "relation_on_delete": null,
+              "relation_to_fields": null,
+              "relation_from_fields": null
+            },
+            {
+              "name": "attempts",
+              "documentation": null,
+              "kind": "scalar",
+              "type": "Int",
+              "is_id": false,
+              "is_list": false,
+              "is_unique": false,
+              "is_required": true,
+              "is_read_only": false,
+              "is_generated": false,
+              "is_updated_at": false,
+              "default": 0,
+              "has_default_value": true,
+              "relation_name": null,
+              "relation_on_delete": null,
+              "relation_to_fields": null,
+              "relation_from_fields": null
+            },
+            {
+              "name": "maxAttempts",
+              "documentation": null,
+              "kind": "scalar",
+              "type": "Int",
+              "is_id": false,
+              "is_list": false,
+              "is_unique": false,
+              "is_required": true,
+              "is_read_only": false,
+              "is_generated": false,
+              "is_updated_at": false,
+              "default": 3,
+              "has_default_value": true,
+              "relation_name": null,
+              "relation_on_delete": null,
+              "relation_to_fields": null,
+              "relation_from_fields": null
+            },
+            {
+              "name": "error",
+              "documentation": "Failure message from the final attempt. Null unless status is FAILED.",
+              "kind": "scalar",
+              "type": "String",
+              "is_id": false,
+              "is_list": false,
+              "is_unique": false,
+              "is_required": false,
+              "is_read_only": false,
+              "is_generated": false,
+              "is_updated_at": false,
+              "default": null,
+              "has_default_value": false,
+              "relation_name": null,
+              "relation_on_delete": null,
+              "relation_to_fields": null,
+              "relation_from_fields": null
+            },
+            {
+              "name": "lossHistory",
+              "documentation": "Per-step loss, streamed to the dashboard: [{ \"step\": 1, \"loss\": 0.42 }, ...].",
+              "kind": "scalar",
+              "type": "Json",
+              "is_id": false,
+              "is_list": false,
+              "is_unique": false,
+              "is_required": false,
+              "is_read_only": false,
+              "is_generated": false,
+              "is_updated_at": false,
+              "default": null,
+              "has_default_value": false,
+              "relation_name": null,
+              "relation_on_delete": null,
+              "relation_to_fields": null,
+              "relation_from_fields": null
+            },
+            {
+              "name": "queuedAt",
+              "documentation": null,
+              "kind": "scalar",
+              "type": "DateTime",
+              "is_id": false,
+              "is_list": false,
+              "is_unique": false,
+              "is_required": true,
+              "is_read_only": false,
+              "is_generated": false,
+              "is_updated_at": false,
+              "default": {
+                "args": [],
+                "name": "now"
+              },
+              "has_default_value": true,
+              "relation_name": null,
+              "relation_on_delete": null,
+              "relation_to_fields": null,
+              "relation_from_fields": null
+            },
+            {
+              "name": "startedAt",
+              "documentation": null,
+              "kind": "scalar",
+              "type": "DateTime",
+              "is_id": false,
+              "is_list": false,
+              "is_unique": false,
+              "is_required": false,
+              "is_read_only": false,
+              "is_generated": false,
+              "is_updated_at": false,
+              "default": null,
+              "has_default_value": false,
+              "relation_name": null,
+              "relation_on_delete": null,
+              "relation_to_fields": null,
+              "relation_from_fields": null
+            },
+            {
+              "name": "finishedAt",
+              "documentation": null,
+              "kind": "scalar",
+              "type": "DateTime",
+              "is_id": false,
+              "is_list": false,
+              "is_unique": false,
+              "is_required": false,
+              "is_read_only": false,
+              "is_generated": false,
+              "is_updated_at": false,
+              "default": null,
+              "has_default_value": false,
+              "relation_name": null,
+              "relation_on_delete": null,
+              "relation_to_fields": null,
+              "relation_from_fields": null
+            }
+          ],
+          "extension": null
+        }
+      ],
+      "types": []
+    },
+    "prisma_schema": {
+      "enum_types": {
+        "prisma": [
+          {
+            "name": "TransactionIsolationLevel",
+            "values": [
+              "ReadUncommitted",
+              "ReadCommitted",
+              "RepeatableRead",
+              "Serializable"
+            ]
+          },
+          {
+            "name": "DocumentScalarFieldEnum",
+            "values": [
+              "id",
+              "externalId",
+              "idempotencyKey",
+              "text",
+              "source",
+              "occurredAt",
+              "metadata",
+              "contentHash",
+              "objectKey",
+              "ingestedAt"
+            ]
+          },
+          {
+            "name": "EmbeddingScalarFieldEnum",
+            "values": [
+              "id",
+              "documentId",
+              "modelVersionId",
+              "dimension",
+              "createdAt"
+            ]
+          },
+          {
+            "name": "DriftWindowScalarFieldEnum",
+            "values": [
+              "id",
+              "windowSize",
+              "windowStart",
+              "windowEnd",
+              "documentCount",
+              "klDivergence",
+              "wassersteinDistance",
+              "driftScore",
+              "threshold",
+              "breached",
+              "baselineId",
+              "createdAt"
+            ]
+          },
+          {
+            "name": "ModelVersionScalarFieldEnum",
+            "values": [
+              "id",
+              "version",
+              "baseModel",
+              "status",
+              "artifactUri",
+              "artifactSha256",
+              "artifactBytes",
+              "embeddingDim",
+              "loraRank",
+              "metrics",
+              "baselineMetrics",
+              "improvementPct",
+              "activatedAt",
+              "createdAt",
+              "updatedAt"
+            ]
+          },
+          {
+            "name": "TrainingJobScalarFieldEnum",
+            "values": [
+              "id",
+              "status",
+              "trigger",
+              "driftWindowId",
+              "modelVersionId",
+              "baseModel",
+              "hyperparameters",
+              "sampleCount",
+              "attempts",
+              "maxAttempts",
+              "error",
+              "lossHistory",
+              "queuedAt",
+              "startedAt",
+              "finishedAt"
+            ]
+          },
+          {
+            "name": "SortOrder",
+            "values": [
+              "asc",
+              "desc"
+            ]
+          },
+          {
+            "name": "NullableJsonNullValueInput",
+            "values": [
+              "DbNull",
+              "JsonNull"
+            ]
+          },
+          {
+            "name": "JsonNullValueInput",
+            "values": [
+              "JsonNull"
+            ]
+          },
+          {
+            "name": "QueryMode",
+            "values": [
+              "default",
+              "insensitive"
+            ]
+          },
+          {
+            "name": "JsonNullValueFilter",
+            "values": [
+              "DbNull",
+              "JsonNull",
+              "AnyNull"
+            ]
+          },
+          {
+            "name": "NullsOrder",
+            "values": [
+              "first",
+              "last"
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "schema_path": "/Users/chetan/Continuum/Continuum/packages/shared/prisma/schema.prisma",
+  "datasources": [
+    {
+      "name": "db",
+      "provider": "postgresql",
+      "active_provider": "postgresql",
+      "url": {
+        "value": null,
+        "from_env_var": "DATABASE_URL"
+      },
+      "source_file_path": "/Users/chetan/Continuum/Continuum/packages/shared/prisma/schema.prisma"
+    }
+  ],
+  "other_generators": [
+    {
+      "name": "client",
+      "output": {
+        "value": "/Users/chetan/Continuum/Continuum/packages/shared/generated/prisma",
+        "from_env_var": null
+      },
+      "provider": {
+        "value": "prisma-client-js",
+        "from_env_var": null
+      },
+      "config": {},
+      "binary_targets": [
+        {
+          "value": "darwin-arm64",
+          "from_env_var": null
+        }
+      ],
+      "preview_features": [
+        "postgresqlExtensions"
+      ]
+    }
+  ],
+  "binary_paths": {
+    "query_engine": {
+      "darwin-arm64": "/Users/chetan/.npm/_npx/cc9dcd50cd5d7787/node_modules/prisma/query-engine-darwin-arm64"
+    },
+    "introspection_engine": {},
+    "migration_engine": {},
+    "libquery_engine": {},
+    "prisma_format": {}
+  },
+  "names": {}
+}

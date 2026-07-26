@@ -93,12 +93,12 @@ model Document {
   /// Deduplication key for exactly-once consumption. Unique across the whole stream.
   idempotencyKey String @map("idempotency_key") @db.VarChar(256)
 
-  text     String
+  text       String
   /// Originating system, e.g. "support-tickets" or "product-catalog".
-  source   String    @db.VarChar(128)
+  source     String   @db.VarChar(128)
   /// Event time as reported by the producer, not ingestion time.
   occurredAt DateTime @map("occurred_at") @db.Timestamptz(6)
-  metadata Json?
+  metadata   Json?
 
   /// SHA-256 of `text`, hex encoded. Used for corpus dedup and eval reproducibility.
   contentHash String @map("content_hash") @db.Char(64)
@@ -167,8 +167,8 @@ model DriftWindow {
   breached  Boolean @default(false)
 
   /// The window this one was compared against. Null for baseline windows themselves.
-  baselineId String?      @map("baseline_id") @db.Uuid
-  baseline   DriftWindow? @relation("DriftBaseline", fields: [baselineId], references: [id], onDelete: SetNull)
+  baselineId String?       @map("baseline_id") @db.Uuid
+  baseline   DriftWindow?  @relation("DriftBaseline", fields: [baselineId], references: [id], onDelete: SetNull)
   derived    DriftWindow[] @relation("DriftBaseline")
 
   trainingJobs TrainingJob[]
