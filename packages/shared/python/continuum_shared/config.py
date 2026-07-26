@@ -1,6 +1,6 @@
-from typing import Literal
+from typing import Any, Literal
 
-from pydantic import AnyUrl, Field, PostgresDsn, RedisDsn
+from pydantic import AnyUrl, Field, PostgresDsn, RedisDsn, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -52,6 +52,13 @@ class Settings(BaseSettings):
     # Observability
     otel_service_name: str = Field(min_length=1)
     otel_exporter_otlp_endpoint: AnyUrl | None = None
+
+    @field_validator("otel_exporter_otlp_endpoint", mode="before")
+    @classmethod
+    def empty_str_to_none(cls, v: Any) -> Any:
+        if v == "":
+            return None
+        return v
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
