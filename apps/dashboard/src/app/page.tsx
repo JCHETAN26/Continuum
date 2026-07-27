@@ -1,164 +1,284 @@
-"use client";
+'use client';
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { useEffect, useState } from "react";
-import { format } from "date-fns";
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { format } from 'date-fns';
+import { useEffect, useState } from 'react';
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
 
-// Mock data to simulate the API
-const generateMockData = () => {
-  const data = [];
-  let score = 0.2;
-  const now = new Date();
-  for (let i = 24; i >= 0; i--) {
-    const time = new Date(now.getTime() - i * 5 * 60000);
-    score += (Math.random() - 0.4) * 0.1;
-    if (score < 0.1) score = 0.1;
-    if (score > 0.9) score = 0.9;
-    
-    data.push({
-      time: format(time, "HH:mm"),
-      driftScore: score,
-      threshold: 0.75
-    });
-  }
-  return data;
-};
+const DRIFT_API = process.env.NEXT_PUBLIC_DRIFT_API_URL ?? 'http://localhost:8001';
+const TRAINER_API = process.env.NEXT_PUBLIC_TRAINER_API_URL ?? 'http://localhost:8003';
+
+interface DriftWindow {
+  id: string;
+  windowStart: string;
+  documentCount: number;
+  driftScore: number;
+  threshold: number;
+  breached: boolean;
+}
+
+interface DriftSummary {
+  documentCount: number;
+  embeddingCount: number;
+  latestDriftScore: number;
+  breached: boolean;
+  threshold: number;
+}
+
+interface ModelVersion {
+  version: string;
+  status: string;
+  baseModel: string;
+}
+
+interface ProjectionPoint {
+  x: number;
+  y: number;
+  source: string;
+  label: string;
+}
+
+interface DriftEventPayload {
+  windows: DriftWindow[];
+  summary: DriftSummary;
+  projection: { points: ProjectionPoint[] };
+}
+
+interface TrainingEventPayload {
+  models: ModelVersion[];
+}
 
 export default function Home() {
-  const [data, setData] = useState<any[]>([]);
+  const [windows, setWindows] = useState<DriftWindow[]>([]);
+  const [summary, setSummary] = useState<DriftSummary | null>(null);
+  const [models, setModels] = useState<ModelVersion[]>([]);
+  const [points, setPoints] = useState<ProjectionPoint[]>([]);
 
   useEffect(() => {
-    setData(generateMockData());
-    
-    // Simulate real-time updates
-    const interval = setInterval(() => {
-      setData(prev => {
-        const newData = [...prev.slice(1)];
-        const lastScore = prev[prev.length - 1].driftScore;
-        let newScore = lastScore + (Math.random() - 0.4) * 0.1;
-        if (newScore < 0.1) newScore = 0.1;
-        if (newScore > 0.9) newScore = 0.9;
-        
-        newData.push({
-          time: format(new Date(), "HH:mm"),
-          driftScore: newScore,
-          threshold: 0.75
-        });
-        return newData;
-      });
-    }, 5000);
-    
-    return () => clearInterval(interval);
+    const refreshSnapshot = async () => {
+      const [windowRes, summaryRes, modelRes, projectionRes] = await Promise.allSettled([
+        fetch(`${DRIFT_API}/v1/drift/status`),
+        fetch(`${DRIFT_API}/v1/drift/summary`),
+        fetch(`${TRAINER_API}/v1/models`),
+        fetch(`${DRIFT_API}/v1/embeddings/projection`),
+      ]);
+
+      if (windowRes.status === 'fulfilled' && windowRes.value.ok) {
+        const body = (await windowRes.value.json()) as DriftWindow[];
+        setWindows(body.reverse());
+      }
+      if (summaryRes.status === 'fulfilled' && summaryRes.value.ok) {
+        setSummary((await summaryRes.value.json()) as DriftSummary);
+      }
+      if (modelRes.status === 'fulfilled' && modelRes.value.ok) {
+        setModels((await modelRes.value.json()) as ModelVersion[]);
+      }
+      if (projectionRes.status === 'fulfilled' && projectionRes.value.ok) {
+        const body = (await projectionRes.value.json()) as { points: ProjectionPoint[] };
+        setPoints(body.points);
+      }
+    };
+
+    void refreshSnapshot();
+
+    if (typeof EventSource === 'undefined') {
+      const interval = setInterval(() => {
+        void refreshSnapshot();
+      }, 3000);
+      return () => {
+        clearInterval(interval);
+      };
+    }
+
+    const driftEvents = new EventSource(`${DRIFT_API}/v1/drift/events`);
+    const trainingEvents = new EventSource(`${TRAINER_API}/v1/training/events`);
+
+    driftEvents.addEventListener('drift', (event) => {
+      const payload = JSON.parse(event.data as string) as DriftEventPayload;
+      setWindows(payload.windows.reverse());
+      setSummary(payload.summary);
+      setPoints(payload.projection.points);
+    });
+
+    trainingEvents.addEventListener('training', (event) => {
+      const payload = JSON.parse(event.data as string) as TrainingEventPayload;
+      setModels(payload.models);
+    });
+
+    return () => {
+      driftEvents.close();
+      trainingEvents.close();
+    };
   }, []);
 
-  const currentDrift = data.length > 0 ? data[data.length - 1].driftScore : 0;
-  const isBreached = currentDrift > 0.75;
+  const activeModel = models.find((model) => model.status === 'ACTIVE');
+  const latestScore = summary?.latestDriftScore ?? windows.at(-1)?.driftScore ?? 0;
+  const threshold = summary?.threshold ?? windows.at(-1)?.threshold ?? 0.35;
+  const isBreached = summary?.breached ?? latestScore > threshold;
+  const chartData = windows.map((window) => ({
+    time: format(new Date(window.windowStart), 'HH:mm:ss'),
+    driftScore: window.driftScore,
+    threshold: window.threshold,
+  }));
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Overview</h1>
-        <p className="text-muted-foreground">Monitor real-time semantic drift across your embeddings.</p>
+        <p className="text-muted-foreground">
+          Monitor real semantic drift from the local pipeline.
+        </p>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-3">
-        <Card className="bg-card/50 backdrop-blur-sm border-border/50 shadow-sm transition-all hover:shadow-md">
+      <div className="grid gap-6 md:grid-cols-4">
+        <Card className="bg-card/50 backdrop-blur-sm border-border/50 shadow-sm">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Current Drift Score</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Current Drift Score
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-4xl font-bold tracking-tighter flex items-center gap-3">
-              {currentDrift.toFixed(3)}
-              {isBreached ? (
-                <Badge variant="destructive" className="animate-pulse">Breached</Badge>
-              ) : (
-                <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20">Healthy</Badge>
-              )}
+              {latestScore.toFixed(3)}
+              <Badge variant={isBreached ? 'destructive' : 'secondary'}>
+                {isBreached ? 'Breached' : 'Healthy'}
+              </Badge>
             </div>
-          </CardContent>
-        </Card>
-        
-        <Card className="bg-card/50 backdrop-blur-sm border-border/50 shadow-sm transition-all hover:shadow-md">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Active Model</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold tracking-tight truncate">
-              2026.07.26-1a2b
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">all-MiniLM-L6-v2 (LoRA)</p>
           </CardContent>
         </Card>
 
-        <Card className="bg-card/50 backdrop-blur-sm border-border/50 shadow-sm transition-all hover:shadow-md">
+        <Card className="bg-card/50 backdrop-blur-sm border-border/50 shadow-sm">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Active Training Jobs</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Documents</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-4xl font-bold tracking-tighter">
-              {isBreached ? '1' : '0'}
+            <div className="text-4xl font-bold tracking-tighter">{summary?.documentCount ?? 0}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {summary?.embeddingCount ?? 0} embedded
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-card/50 backdrop-blur-sm border-border/50 shadow-sm">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Active Model
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold tracking-tight truncate">
+              {activeModel?.version ?? 'none'}
             </div>
-            {isBreached && <p className="text-xs text-amber-500 mt-1 animate-pulse">Adaptation in progress...</p>}
+            <p className="text-xs text-muted-foreground mt-1">
+              {activeModel?.baseModel ?? 'waiting for registry'}
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-card/50 backdrop-blur-sm border-border/50 shadow-sm">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Model Versions
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-4xl font-bold tracking-tighter">{models.length}</div>
           </CardContent>
         </Card>
       </div>
 
-      <Card className="bg-card/50 backdrop-blur-sm border-border/50 shadow-sm overflow-hidden">
-        <CardHeader>
-          <CardTitle>Semantic Drift History (5m windows)</CardTitle>
-          <CardDescription>Cosine distance between current window centroid and baseline.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="h-[400px] w-full mt-4">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={data} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                <XAxis 
-                  dataKey="time" 
-                  stroke="hsl(var(--muted-foreground))" 
-                  fontSize={12} 
-                  tickLine={false}
-                  axisLine={false}
+      <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
+        <Card className="bg-card/50 backdrop-blur-sm border-border/50 shadow-sm overflow-hidden">
+          <CardHeader>
+            <CardTitle>Semantic Drift History</CardTitle>
+            <CardDescription>
+              Cosine distance between rolling centroid and baseline.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[360px] w-full mt-4">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={chartData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="hsl(var(--border))"
+                    vertical={false}
+                  />
+                  <XAxis
+                    dataKey="time"
+                    stroke="hsl(var(--muted-foreground))"
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <YAxis
+                    domain={[0, 1]}
+                    stroke="hsl(var(--muted-foreground))"
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--card))',
+                      borderColor: 'hsl(var(--border))',
+                      borderRadius: '8px',
+                    }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="threshold"
+                    stroke="hsl(var(--destructive))"
+                    strokeWidth={2}
+                    strokeDasharray="5 5"
+                    dot={false}
+                    name="Threshold"
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="driftScore"
+                    stroke="hsl(var(--primary))"
+                    strokeWidth={3}
+                    dot={false}
+                    name="Drift Score"
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-card/50 backdrop-blur-sm border-border/50 shadow-sm">
+          <CardHeader>
+            <CardTitle>Embedding Projection</CardTitle>
+            <CardDescription>First two normalized embedding dimensions by source.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="relative h-[360px] rounded-md border border-border/60 bg-background overflow-hidden">
+              {points.map((point, index) => (
+                <span
+                  key={`${point.source}-${String(index)}`}
+                  title={point.label}
+                  className={`absolute size-2 rounded-full ${point.source.includes('medical') ? 'bg-rose-400' : 'bg-cyan-400'}`}
+                  style={{
+                    left: `${Math.max(4, Math.min(96, 50 + point.x * 140)).toFixed(2)}%`,
+                    top: `${Math.max(4, Math.min(96, 50 - point.y * 140)).toFixed(2)}%`,
+                  }}
                 />
-                <YAxis 
-                  domain={[0, 1]} 
-                  stroke="hsl(var(--muted-foreground))" 
-                  fontSize={12} 
-                  tickLine={false}
-                  axisLine={false}
-                  tickFormatter={(val) => val.toFixed(1)}
-                />
-                <Tooltip 
-                  contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: '8px' }}
-                  itemStyle={{ color: 'hsl(var(--foreground))' }}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="threshold" 
-                  stroke="hsl(var(--destructive))" 
-                  strokeWidth={2} 
-                  strokeDasharray="5 5" 
-                  dot={false} 
-                  activeDot={false}
-                  name="Threshold"
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="driftScore" 
-                  stroke="hsl(var(--primary))" 
-                  strokeWidth={3} 
-                  dot={false}
-                  activeDot={{ r: 6, fill: 'hsl(var(--primary))', strokeWidth: 0 }}
-                  name="Drift Score"
-                  animationDuration={300}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </CardContent>
-      </Card>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

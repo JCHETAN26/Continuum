@@ -7,9 +7,39 @@
 # Run from the repository root so `--env-file .env` resolves. Every value has a
 # local-development default, so the stack still starts with no .env present.
 #
-# Application containers arrive in later phases; this file is infrastructure only.
-
 name: continuum
+
+x-app-env: &app-env
+  NODE_ENV: development
+  LOG_LEVEL: info
+  POSTGRES_USER: continuum
+  POSTGRES_PASSWORD: continuum
+  POSTGRES_DB: continuum
+  POSTGRES_PORT: 5432
+  DATABASE_URL: postgresql://continuum:continuum@postgres:5432/continuum?schema=public
+  SHADOW_DATABASE_URL: postgresql://continuum:continuum@postgres:5432/continuum_shadow?schema=public
+  KAFKA_BROKERS: redpanda:9092
+  KAFKA_CLIENT_ID: continuum
+  REDPANDA_KAFKA_PORT: 19092
+  REDPANDA_ADMIN_PORT: 9644
+  REDPANDA_CONSOLE_PORT: 8080
+  REDIS_URL: redis://redis:6379
+  REDIS_PORT: 6379
+  MINIO_ROOT_USER: continuum
+  MINIO_ROOT_PASSWORD: continuum-local-dev
+  MINIO_API_PORT: 9000
+  MINIO_CONSOLE_PORT: 9001
+  S3_ENDPOINT: http://minio:9000
+  S3_REGION: us-east-1
+  S3_ACCESS_KEY_ID: continuum
+  S3_SECRET_ACCESS_KEY: continuum-local-dev
+  S3_BUCKET_DOCUMENTS: continuum-documents
+  S3_BUCKET_MODELS: continuum-models
+  S3_FORCE_PATH_STYLE: 'true'
+  EMBEDDING_MODEL: continuum/hash-embedding-demo
+  EMBEDDING_DIM: 384
+  DRIFT_THRESHOLD: 0.35
+  OTEL_SERVICE_NAME: continuum
 
 services:
   # -------------------------------------------------------------------------
@@ -87,9 +117,9 @@ services:
       - postgres-data:/var/lib/postgresql/data
       # Runs once, on an empty data directory.
       - ./postgres/init:/docker-entrypoint-initdb.d:ro
+      - ../packages/shared/prisma/migrations/20260726000000_init/migration.sql:/docker-entrypoint-initdb.d/02-schema.sql:ro
     healthcheck:
-      test:
-        ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-continuum} -d ${POSTGRES_DB:-continuum}']
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-continuum} -d ${POSTGRES_DB:-continuum}']
       interval: 5s
       timeout: 5s
       retries: 20
@@ -168,13 +198,58 @@ services:
       context: ..
       dockerfile: docker/Dockerfile.python
     container_name: continuum-ingest
-    command: ["uv", "run", "--package", "continuum-ingest", "fastapi", "run", "continuum_ingest/api/main.py", "--port", "8000", "--host", "0.0.0.0"]
+    command:
+      [
+        'uv',
+        'run',
+        '--package',
+        'continuum-ingest',
+        'uvicorn',
+        'continuum_ingest.api.main:app',
+        '--host',
+        '0.0.0.0',
+        '--port',
+        '8000',
+      ]
     ports:
-      - "8000:8000"
+      - '8000:8000'
     env_file:
       - ../.env.example
+    environment: *app-env
     depends_on:
       redpanda:
+        condition: service_healthy
+
+  ingest-worker:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.python
+    container_name: continuum-ingest-worker
+    command:
+      ['uv', 'run', '--package', 'continuum-ingest', 'python', '-m', 'continuum_ingest.worker.main']
+    env_file:
+      - ../.env.example
+    environment: *app-env
+    depends_on:
+      redpanda:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+
+  embedding:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.python
+    container_name: continuum-embedding
+    command:
+      ['uv', 'run', '--package', 'continuum-embedding', 'python', '-m', 'continuum_embedding.main']
+    env_file:
+      - ../.env.example
+    environment: *app-env
+    depends_on:
+      postgres:
         condition: service_healthy
 
   drift:
@@ -182,25 +257,43 @@ services:
       context: ..
       dockerfile: docker/Dockerfile.python
     container_name: continuum-drift
-    command: ["uv", "run", "--package", "continuum-drift", "fastapi", "run", "continuum_drift/api/main.py", "--port", "8001", "--host", "0.0.0.0"]
+    command: ['uv', 'run', '--package', 'continuum-drift', 'python', '-m', 'continuum_drift.main']
     ports:
-      - "8001:8001"
+      - '8001:8001'
     env_file:
       - ../.env.example
+    environment: *app-env
     depends_on:
       redpanda:
         condition: service_healthy
       postgres:
         condition: service_healthy
+      embedding:
+        condition: service_started
 
-  trainer:
+  trainer-api:
     build:
       context: ..
       dockerfile: docker/Dockerfile.python
-    container_name: continuum-trainer
-    command: ["uv", "run", "--package", "continuum-trainer", "python", "-m", "continuum_trainer.worker"]
+    container_name: continuum-trainer-api
+    command:
+      [
+        'uv',
+        'run',
+        '--package',
+        'continuum-trainer',
+        'uvicorn',
+        'continuum_trainer.api:app',
+        '--host',
+        '0.0.0.0',
+        '--port',
+        '8003',
+      ]
+    ports:
+      - '8003:8003'
     env_file:
       - ../.env.example
+    environment: *app-env
     depends_on:
       redis:
         condition: service_healthy
@@ -209,17 +302,36 @@ services:
       minio:
         condition: service_healthy
 
+  trainer-worker:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.python
+    container_name: continuum-trainer-worker
+    command:
+      ['uv', 'run', '--package', 'continuum-trainer', 'python', '-m', 'continuum_trainer.worker']
+    env_file:
+      - ../.env.example
+    environment: *app-env
+    depends_on:
+      redpanda:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+
   server:
     build:
       context: ..
       dockerfile: docker/Dockerfile.python
     container_name: continuum-server
-    command: ["uv", "run", "--package", "continuum-server", "python", "-m", "continuum_server.main"]
+    command: ['uv', 'run', '--package', 'continuum-server', 'python', '-m', 'continuum_server.main']
     ports:
-      - "8002:8002"
-      - "50051:50051"
+      - '8002:8002'
+      - '50051:50051'
     env_file:
       - ../.env.example
+    environment: *app-env
     depends_on:
       postgres:
         condition: service_healthy
@@ -232,11 +344,11 @@ services:
       dockerfile: docker/Dockerfile.node
     container_name: continuum-dashboard
     ports:
-      - "3000:3000"
+      - '3000:3000'
     depends_on:
       drift:
         condition: service_started
-      trainer:
+      trainer-api:
         condition: service_started
 
 volumes:

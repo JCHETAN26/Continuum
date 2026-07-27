@@ -21,6 +21,8 @@
     "test": "pnpm test:ts && pnpm test:py",
     "test:ts": "pnpm -r --if-present test",
     "test:py": "uv run pytest",
+    "test:integration": "RUN_DOCKER_INTEGRATION=1 uv run pytest -m integration tests/integration",
+    "demo:verify": "uv run scripts/verify_demo.py",
     "build": "pnpm -r --if-present build",
     "db:generate": "pnpm --filter @continuum/shared db:generate",
     "db:migrate": "pnpm --filter @continuum/shared db:migrate",

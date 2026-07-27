@@ -4,9 +4,11 @@ build/
 .next/
 coverage/
 .venv/
+apps/dashboard/next-env.d.ts
 pnpm-lock.yaml
 uv.lock
 packages/shared/generated/
+packages/shared/python/continuum_shared/prisma/generator/*.json
 docs/brief/
 
 # Formatted by `prisma format`, not prettier.

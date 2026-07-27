@@ -58,12 +58,12 @@ export type Config = z.infer<typeof configSchema>;
  */
 export function validateConfig(env: Record<string, string | undefined> = process.env): Config {
   const parsed = configSchema.safeParse(env);
-  
+
   if (!parsed.success) {
     console.error('❌ Invalid environment configuration:', parsed.error.format());
     process.exit(1);
   }
-  
+
   return parsed.data;
 }
 

@@ -1,72 +1,98 @@
-"use client";
+'use client';
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { useEffect, useState } from "react";
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useEffect, useState } from 'react';
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
 
-const generateMockLoss = () => {
-  const data = [];
-  let loss = 2.5;
-  for (let i = 0; i < 50; i++) {
-    loss = loss * 0.95 + (Math.random() * 0.1);
-    data.push({
-      step: i * 10,
-      loss: Math.max(0.2, loss)
-    });
-  }
-  return data;
-};
+const TRAINER_API = process.env.NEXT_PUBLIC_TRAINER_API_URL ?? 'http://localhost:8003';
+
+interface TrainingJob {
+  id: string;
+  status: string;
+  trigger: string;
+  sampleCount: number | null;
+  lossHistory: { step: number; loss: number }[] | null;
+  queuedAt: string;
+}
+
+interface TrainingEventPayload {
+  jobs: TrainingJob[];
+}
 
 export default function TrainingPage() {
-  const [lossData, setLossData] = useState<any[]>([]);
+  const [jobs, setJobs] = useState<TrainingJob[]>([]);
 
   useEffect(() => {
-    // Animate the line drawing in by adding data points over time
-    const fullData = generateMockLoss();
-    let index = 0;
-    
-    const interval = setInterval(() => {
-      if (index < fullData.length) {
-        setLossData(prev => [...prev, fullData[index]]);
-        index++;
-      } else {
-        clearInterval(interval);
+    const refreshSnapshot = async () => {
+      const response = await fetch(`${TRAINER_API}/v1/training/jobs`);
+      if (response.ok) {
+        setJobs((await response.json()) as TrainingJob[]);
       }
-    }, 100);
-    
-    return () => clearInterval(interval);
+    };
+
+    void refreshSnapshot();
+
+    if (typeof EventSource === 'undefined') {
+      const interval = setInterval(() => {
+        void refreshSnapshot();
+      }, 3000);
+      return () => {
+        clearInterval(interval);
+      };
+    }
+
+    const trainingEvents = new EventSource(`${TRAINER_API}/v1/training/events`);
+    trainingEvents.addEventListener('training', (event) => {
+      const payload = JSON.parse(event.data as string) as TrainingEventPayload;
+      setJobs(payload.jobs);
+    });
+
+    return () => {
+      trainingEvents.close();
+    };
   }, []);
+
+  const activeJob = jobs.length > 0 ? jobs[0] : null;
+  const lossData = activeJob?.lossHistory ?? [];
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Training Monitor</h1>
-        <p className="text-muted-foreground">Live telemetry for background LoRA fine-tuning jobs.</p>
+        <p className="text-muted-foreground">Telemetry from drift-triggered adaptation jobs.</p>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
         <Card className="bg-card/50 backdrop-blur-sm border-border/50 shadow-sm">
           <CardHeader>
-            <CardTitle>Active Job Details</CardTitle>
-            <CardDescription>Job ID: 2026.07.26-1a2b</CardDescription>
+            <CardTitle>Latest Job</CardTitle>
+            <CardDescription>{activeJob?.id ?? 'Waiting for drift alert'}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex justify-between items-center py-2 border-b border-border/50">
               <span className="text-muted-foreground">Status</span>
-              <Badge className="bg-blue-500/20 text-blue-500 animate-pulse">TRAINING</Badge>
+              <Badge>{activeJob?.status ?? 'IDLE'}</Badge>
             </div>
             <div className="flex justify-between items-center py-2 border-b border-border/50">
-              <span className="text-muted-foreground">Base Model</span>
-              <span className="font-medium">sentence-transformers/all-MiniLM-L6-v2</span>
+              <span className="text-muted-foreground">Trigger</span>
+              <span className="font-medium">{activeJob?.trigger ?? 'none'}</span>
             </div>
             <div className="flex justify-between items-center py-2 border-b border-border/50">
               <span className="text-muted-foreground">Technique</span>
-              <span className="font-medium">PEFT LoRA (rank=8, alpha=16)</span>
+              <span className="font-medium">Demo LoRA gate</span>
             </div>
             <div className="flex justify-between items-center py-2 border-b border-border/50">
               <span className="text-muted-foreground">Dataset Size</span>
-              <span className="font-medium">4,250 examples</span>
+              <span className="font-medium">{activeJob?.sampleCount ?? 0} examples</span>
             </div>
           </CardContent>
         </Card>
@@ -74,40 +100,44 @@ export default function TrainingPage() {
         <Card className="bg-card/50 backdrop-blur-sm border-border/50 shadow-sm overflow-hidden">
           <CardHeader>
             <CardTitle>Training Loss</CardTitle>
-            <CardDescription>Multiple Negatives Ranking (MNR) Loss</CardDescription>
+            <CardDescription>Recorded by the local training worker.</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="h-[250px] w-full mt-4">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={lossData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                  <XAxis 
-                    dataKey="step" 
-                    stroke="hsl(var(--muted-foreground))" 
-                    fontSize={12} 
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="hsl(var(--border))"
+                    vertical={false}
+                  />
+                  <XAxis
+                    dataKey="step"
+                    stroke="hsl(var(--muted-foreground))"
+                    fontSize={12}
                     tickLine={false}
                     axisLine={false}
                   />
-                  <YAxis 
-                    domain={[0, 3]} 
-                    stroke="hsl(var(--muted-foreground))" 
-                    fontSize={12} 
+                  <YAxis
+                    domain={[0, 2]}
+                    stroke="hsl(var(--muted-foreground))"
+                    fontSize={12}
                     tickLine={false}
                     axisLine={false}
                   />
-                  <Tooltip 
-                    contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: '8px' }}
-                    itemStyle={{ color: 'hsl(var(--foreground))' }}
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--card))',
+                      borderColor: 'hsl(var(--border))',
+                      borderRadius: '8px',
+                    }}
                   />
-                  <Line 
-                    type="monotone" 
-                    dataKey="loss" 
-                    stroke="hsl(var(--primary))" 
-                    strokeWidth={3} 
+                  <Line
+                    type="monotone"
+                    dataKey="loss"
+                    stroke="hsl(var(--primary))"
+                    strokeWidth={3}
                     dot={false}
-                    activeDot={{ r: 6, fill: 'hsl(var(--primary))', strokeWidth: 0 }}
-                    animationDuration={300}
-                    isAnimationActive={false}
                   />
                 </LineChart>
               </ResponsiveContainer>

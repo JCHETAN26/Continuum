@@ -8,6 +8,7 @@ import structlog
 from confluent_kafka import Producer
 from continuum_shared.config import settings
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 
 from continuum_ingest.api.schema import DocumentPayload
 
@@ -15,14 +16,15 @@ logger = structlog.get_logger()
 
 producer_instance: Producer | None = None
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     global producer_instance
     conf = {
-        'bootstrap.servers': settings.kafka_brokers,
-        'client.id': settings.kafka_client_id,
-        'acks': 'all',
-        'enable.idempotence': True
+        "bootstrap.servers": settings.kafka_brokers,
+        "client.id": settings.kafka_client_id,
+        "acks": "all",
+        "enable.idempotence": True,
     }
     producer_instance = Producer(conf)
     logger.info("Kafka producer initialized", brokers=settings.kafka_brokers)
@@ -31,7 +33,21 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         producer_instance.flush()
         logger.info("Kafka producer flushed")
 
+
 app = FastAPI(title="Continuum Ingest API", lifespan=lifespan)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+@app.get("/health")
+async def health_check() -> dict[str, str]:
+    return {"status": "healthy"}
+
 
 @app.post("/v1/ingest/batch", status_code=202)
 async def ingest_batch(payloads: list[DocumentPayload]) -> dict[str, Any]:
@@ -58,7 +74,7 @@ async def ingest_batch(payloads: list[DocumentPayload]) -> dict[str, Any]:
             producer_instance.produce(
                 topic="document-stream",
                 key=idempotency_key.encode(),
-                value=json.dumps(message).encode()
+                value=json.dumps(message).encode(),
             )
         except Exception as e:
             logger.error("Failed to enqueue message", error=str(e), document_id=payload.document_id)

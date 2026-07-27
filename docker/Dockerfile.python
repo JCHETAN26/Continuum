@@ -9,10 +9,11 @@ RUN curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR="/usr/local/
 WORKDIR /app
 COPY pyproject.toml uv.lock ./
 COPY apps/ingest/pyproject.toml apps/ingest/
+COPY apps/embedding/pyproject.toml apps/embedding/
 COPY apps/drift/pyproject.toml apps/drift/
 COPY apps/trainer/pyproject.toml apps/trainer/
 COPY apps/server/pyproject.toml apps/server/
-COPY packages/shared/pyproject.toml packages/shared/
+COPY packages/shared/python/pyproject.toml packages/shared/python/
 
 # Install dependencies for all workspace members
 RUN uv sync --no-install-project

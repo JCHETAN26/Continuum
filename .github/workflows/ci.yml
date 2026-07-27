@@ -54,3 +54,46 @@ jobs:
 
       - name: Run Tests
         run: pnpm test
+
+      - name: Build Packages
+        run: pnpm build
+
+      - name: Validate Compose Config
+        run: docker compose config -q
+
+  integration:
+    name: Integration (Testcontainers)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.13.0'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9.15.9
+
+      - name: Install Node dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: 'uv.lock'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: '.python-version'
+
+      - name: Install Python dependencies
+        run: uv sync --all-extras --dev
+
+      - name: Run Docker Integration Tests
+        run: pnpm test:integration
