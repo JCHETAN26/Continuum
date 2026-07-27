@@ -64,6 +64,11 @@ jobs:
       - name: Run Type Checks
         run: pnpm type-check
 
+      # Settings validate at import, so test collection needs a .env. Every value in
+      # .env.example is a non-secret local default, which is exactly what CI wants.
+      - name: Create .env from example
+        run: cp .env.example .env
+
       - name: Run Tests
         run: pnpm test
 
