@@ -18,17 +18,22 @@ def _container_host_port(container, port: int) -> tuple[str, int]:
 
 
 def _wait_for_postgres_ready(container, user: str, database: str, timeout: int = 60) -> None:
-    """Poll pg_isready until the post-init server accepts connections.
+    """Poll over TCP until the post-init postgres server accepts connections.
 
-    The postgres entrypoint logs "ready to accept connections" twice: once for the
-    temporary socket-only server that runs /docker-entrypoint-initdb.d, and again
-    after it restarts for real. Waiting on that log line races the restart, so poll
-    the server itself instead.
+    The entrypoint starts postgres twice: a temporary server that runs the files in
+    /docker-entrypoint-initdb.d, then the real one. Both log "ready to accept
+    connections", so waiting on that line can return during the first, and the
+    restart then kills the connection mid-test.
+
+    The temporary server is started with ``listen_addresses=''``, so it is reachable
+    only over the unix socket — which is why a default (socket) pg_isready also
+    passes too early. Forcing TCP with ``-h localhost`` matches the real server
+    alone, making this unambiguous rather than merely less likely to race.
     """
     deadline = time.time() + timeout
     last_output = b""
     while time.time() < deadline:
-        result = container.exec(["pg_isready", "-U", user, "-d", database])
+        result = container.exec(["pg_isready", "-h", "localhost", "-U", user, "-d", database])
         if result.exit_code == 0:
             return
         last_output = result.output
@@ -68,6 +73,8 @@ def test_postgres_pgvector_migration_accepts_embeddings():
         result = postgres.exec(
             [
                 "psql",
+                "-h",
+                "localhost",
                 "-U",
                 "continuum",
                 "-d",
