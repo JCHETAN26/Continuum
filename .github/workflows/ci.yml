@@ -41,10 +41,22 @@ jobs:
           python-version-file: '.python-version'
 
       - name: Install Python dependencies
-        run: uv sync --all-extras --dev
+        run: uv sync --all-packages --all-extras --dev
 
+      # prisma generate shells out to the prisma-client-py binary by name, so the
+      # workspace virtualenv has to be on PATH rather than reached via `uv run`.
+      - name: Put workspace virtualenv on PATH
+        run: echo "$GITHUB_WORKSPACE/.venv/bin" >> "$GITHUB_PATH"
+
+      # prisma-client-py 0.15.0 asserts it was invoked by Prisma 5.17.0, but the
+      # schema uses Prisma 6 syntax (uuid(7)) that 5.17 cannot parse — its own CLI
+      # fails validation outright. The Node CLI parses the schema and hands the
+      # DMMF to the Python generator, which only the version assert rejects, so
+      # bypass that assert. Drop this once prisma-client-py ships Prisma 6 support.
       - name: Generate Prisma Client
         run: pnpm db:generate
+        env:
+          PRISMA_PY_DEBUG_GENERATOR: '1'
 
       - name: Run Linters
         run: pnpm lint
@@ -93,7 +105,7 @@ jobs:
           python-version-file: '.python-version'
 
       - name: Install Python dependencies
-        run: uv sync --all-extras --dev
+        run: uv sync --all-packages --all-extras --dev
 
       - name: Run Docker Integration Tests
         run: pnpm test:integration
