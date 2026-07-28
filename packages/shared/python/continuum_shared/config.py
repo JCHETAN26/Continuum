@@ -59,6 +59,11 @@ class Settings(BaseSettings):
     drift_trigger_min_linguistic_drift: float = Field(default=0.60, ge=0.0, le=1.0)
     drift_trigger_cooldown_hours: float = Field(default=6.0, ge=0.0)
     drift_trigger_max_daily_trains: int = Field(default=3, ge=0)
+    # Fractional retrieval-quality gain a candidate must show over the active model before
+    # it is eligible for activation. Held well above measurement noise: an adapter that
+    # merely reshuffles near-tied neighbours can move quality by a fraction of a percent
+    # without retrieving anything better.
+    activation_min_improvement: float = Field(default=0.10, ge=0.0, le=1.0)
 
     # Trainer
     trainer_backend: Literal["demo_adapter", "peft"] = "demo_adapter"

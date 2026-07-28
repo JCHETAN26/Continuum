@@ -1,5 +1,6 @@
 import argparse
 import asyncio
+import os
 import time
 from dataclasses import dataclass
 
@@ -7,6 +8,9 @@ import httpx
 
 DRIFT_API = "http://localhost:8001"
 TRAINER_API = "http://localhost:8003"
+# Mirrors settings.activation_min_improvement. Read from the environment so the check
+# tracks whatever bar the stack under test is actually configured with.
+ACTIVATION_MIN_IMPROVEMENT = float(os.environ.get("ACTIVATION_MIN_IMPROVEMENT", "0.10"))
 SERVER_API = "http://localhost:8002"
 API_KEY = "continuum-secret-key"
 
@@ -75,6 +79,9 @@ async def check_training_job(client: httpx.AsyncClient) -> DemoCheckResult:
     ]
     if completed:
         latest = completed[0]
+        # SUCCEEDED means the pipeline ran to completion. Whether the candidate earned
+        # activation is a separate outcome carried by the model's PASSED/REJECTED status,
+        # and a rejection is a correct decision rather than a failed job.
         return DemoCheckResult(
             "training job",
             latest["status"] == "SUCCEEDED",
@@ -90,17 +97,32 @@ async def check_model_registry(client: httpx.AsyncClient) -> DemoCheckResult:
     models = response.json()
     active = next((model for model in models if model["status"] == "ACTIVE"), None)
     passed = next((model for model in models if model["status"] in {"ACTIVE", "PASSED"}), None)
-    model = active or passed
+    rejected = next((model for model in models if model["status"] == "REJECTED"), None)
+    model = active or passed or rejected
 
     if not model:
-        return DemoCheckResult("model registry", False, f"{len(models)} models, none active/passed")
+        return DemoCheckResult(
+            "model registry", False, f"{len(models)} models, none reached a decision"
+        )
 
     improvement = model.get("improvementPct")
     metric = "n/a" if improvement is None else f"{float(improvement):+.1%}"
+
+    # Assert the decision matches the evidence, in both directions. A base model that is
+    # already strong on the drifted domain has no headroom left, so REJECTED is the
+    # correct result and the registry must not promote anyway.
+    decided = model["status"] in {"ACTIVE", "PASSED", "REJECTED"}
+    consistent = True
+    if improvement is not None:
+        promoted = model["status"] in {"ACTIVE", "PASSED"}
+        cleared_bar = float(improvement) > ACTIVATION_MIN_IMPROVEMENT
+        consistent = promoted == cleared_bar
+
     return DemoCheckResult(
         "model registry",
-        True,
-        f"version={model['version']}, status={model['status']}, improvement={metric}",
+        decided and consistent,
+        f"version={model['version']}, status={model['status']}, improvement={metric}, "
+        f"gate={ACTIVATION_MIN_IMPROVEMENT:+.0%}, decision_consistent={consistent}",
     )
 
 

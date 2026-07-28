@@ -19,6 +19,7 @@ from continuum_trainer.peft_engine import (
     mark_model_pending_eval,
     train_peft_model,
     upload_peft_artifacts,
+    validate_onnx_export,
 )
 
 
@@ -77,7 +78,22 @@ class FakeBaseModel:
         return cls()
 
 
+class FakeParameter:
+    def __init__(self, count: int, trainable: bool):
+        self._count = count
+        self.requires_grad = trainable
+
+    def numel(self) -> int:
+        return self._count
+
+
 class FakePeftModel:
+    config = SimpleNamespace(hidden_size=128)
+
+    def parameters(self):
+        # A LoRA run has a small trainable slice over a frozen base.
+        return [FakeParameter(1_000, False), FakeParameter(50, True)]
+
     def merge_and_unload(self):
         return self
 
@@ -230,6 +246,48 @@ def test_contrastive_loss_is_symmetric_in_its_views():
     assert forward == pytest.approx(reverse, rel=1e-9)
 
 
+def build_tiny_onnx(path: Path, output_dim: int) -> Path:
+    """A minimal graph shaped like a feature extractor, for validating the validator."""
+    pytest.importorskip("onnx")
+    from onnx import TensorProto, helper
+
+    ids = helper.make_tensor_value_info("input_ids", TensorProto.INT64, ["b", "s"])
+    out = helper.make_tensor_value_info(
+        "last_hidden_state", TensorProto.FLOAT, ["b", "s", output_dim]
+    )
+    table = helper.make_tensor(
+        "table", TensorProto.FLOAT, [4, output_dim], [0.1] * (4 * output_dim)
+    )
+    node = helper.make_node("Gather", ["table", "input_ids"], ["last_hidden_state"], axis=0)
+    graph = helper.make_graph([node], "tiny", [ids], [out], initializer=[table])
+    model = helper.make_model(graph, opset_imports=[helper.make_opsetid("", 13)])
+    model.ir_version = 9
+    path.write_bytes(model.SerializeToString())
+    return path
+
+
+def test_validate_onnx_export_accepts_the_expected_width(tmp_path: Path):
+    path = build_tiny_onnx(tmp_path / "good.onnx", output_dim=384)
+
+    assert validate_onnx_export(path, expected_dim=384) == 384
+
+
+def test_validate_onnx_export_rejects_a_mismatched_width(tmp_path: Path):
+    """A merge that changes the hidden width would otherwise reach the registry silently."""
+    path = build_tiny_onnx(tmp_path / "narrow.onnx", output_dim=128)
+
+    with pytest.raises(ValueError, match="emits 128-dimensional vectors, expected 384"):
+        validate_onnx_export(path, expected_dim=384)
+
+
+def test_validate_onnx_export_rejects_a_graph_that_does_not_load(tmp_path: Path):
+    corrupt = tmp_path / "corrupt.onnx"
+    corrupt.write_bytes(b"not an onnx graph")
+
+    with pytest.raises(Exception):  # noqa: B017 - onnxruntime raises its own Fail type
+        validate_onnx_export(corrupt, expected_dim=384)
+
+
 def test_build_contrastive_dataset_requires_at_least_two_texts():
     with pytest.raises(ValueError, match="at least two"):
         build_contrastive_dataset(
@@ -274,6 +332,12 @@ def test_train_peft_model_orchestrates_tiny_model_export(tmp_path: Path):
         output_dir.mkdir(parents=True, exist_ok=True)
         (output_dir / "model.onnx").write_bytes(b"onnx")
 
+    validated: list[tuple[Path, int]] = []
+
+    def recording_validator(path: Path, expected_dim: int) -> int:
+        validated.append((path, expected_dim))
+        return expected_dim
+
     telemetry, adapter_dir, onnx_dir = train_peft_model(
         texts,
         PeftTrainingConfig(
@@ -285,6 +349,7 @@ def test_train_peft_model_orchestrates_tiny_model_export(tmp_path: Path):
         ),
         deps=fake_deps(),
         exporter=fake_exporter,
+        validator=recording_validator,
     )
 
     assert telemetry.sample_count == 2
@@ -292,6 +357,10 @@ def test_train_peft_model_orchestrates_tiny_model_export(tmp_path: Path):
     assert telemetry.domain_tag == "medical"
     assert (adapter_dir / "adapter_config.json").exists()
     assert (onnx_dir / "model.onnx").exists()
+
+    # A successful optimum-cli exit says nothing about whether the graph loads or kept its
+    # hidden width, so the export has to be checked against the merged model's config.
+    assert validated == [(onnx_dir / "model.onnx", 128)]
 
 
 def test_upload_peft_artifacts_writes_adapter_onnx_and_metadata(tmp_path: Path):
