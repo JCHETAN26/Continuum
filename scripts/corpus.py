@@ -5,9 +5,9 @@ The seed corpus used to be twenty hand-written sentences sampled with replacemen
 detector almost nothing to measure: every window is a permutation of the same twenty
 vectors, and any separation it reports is an artifact of how those sentences were written.
 
-These are real newsgroup posts written by people. `comp.*` stands in for the software
-baseline and `sci.med` for the drifted clinical domain, so the domain shift the demo
-narrates is a genuine shift in subject matter rather than a change of keyword list.
+These are real newsgroup posts written by people, and the two groups were selected by
+measuring drift separation against retrieval headroom rather than by picking the most
+dramatic-sounding shift.
 
 The dataset is fetched as plain JSONL through huggingface_hub, which the embedding model
 already depends on. scikit-learn ships `fetch_20newsgroups` and is already a dependency,
@@ -28,16 +28,21 @@ DATASET_REPO = "SetFit/20_newsgroups"
 # train split alone yields only 403 usable sci.med posts against the 500 the demo needs.
 DATASET_FILES = ("train.jsonl", "test.jsonl")
 
-SOFTWARE_CATEGORIES = frozenset(
-    {
-        "comp.graphics",
-        "comp.os.ms-windows.misc",
-        "comp.sys.ibm.pc.hardware",
-        "comp.sys.mac.hardware",
-        "comp.windows.x",
-    }
-)
-MEDICAL_CATEGORIES = frozenset({"sci.med"})
+# The pair was chosen by measurement, not by narrative. A domain shift only demonstrates
+# adaptation if the base model has somewhere left to improve:
+#
+#   pair                          drift   baseline MRR
+#   comp.* vs sci.med             0.9156       0.9833   no headroom
+#   sci.med vs sci.electronics    0.8886       0.9670   no headroom
+#   rec.sport.baseball vs hockey  0.3457       0.9352   usable
+#   pc.hardware vs mac.hardware   0.1760       0.8591   chosen
+#
+# MiniLM already separates medical text from computer text almost perfectly — a live run
+# measured baseline MRR 0.9993 — so no adapter can register an improvement there. Two
+# flavours of hardware support discussion share vocabulary and structure, which leaves
+# real headroom while still drifting well clear of the detection threshold.
+BASELINE_CATEGORIES = frozenset({"comp.sys.ibm.pc.hardware"})
+DRIFT_CATEGORIES = frozenset({"comp.sys.mac.hardware"})
 
 # Posts shorter than this are mostly quoted signatures and say little about the domain.
 # The upper bound keeps a single rambling thread from dominating a window's centroid, and
@@ -80,9 +85,11 @@ def load_documents(categories: frozenset[str], limit: int, seed: int) -> list[st
     return unique[:limit]
 
 
-def software_documents(limit: int, seed: int) -> list[str]:
-    return load_documents(SOFTWARE_CATEGORIES, limit, seed)
+def load_baseline_documents(limit: int, seed: int) -> list[str]:
+    """PC hardware posts: the distribution the deployed model is calibrated on."""
+    return load_documents(BASELINE_CATEGORIES, limit, seed)
 
 
-def medical_documents(limit: int, seed: int) -> list[str]:
-    return load_documents(MEDICAL_CATEGORIES, limit, seed)
+def load_drift_documents(limit: int, seed: int) -> list[str]:
+    """Mac hardware posts: the shifted distribution that should trigger adaptation."""
+    return load_documents(DRIFT_CATEGORIES, limit, seed)

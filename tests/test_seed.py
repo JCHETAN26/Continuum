@@ -46,7 +46,7 @@ async def test_send_corpus_posts_expected_batches(monkeypatch):
             client,
             config,
             ["alpha", "beta", "gamma"],
-            "github_issues",
+            "pc_hardware",
             3,
             seed.random.Random(7),
         )
@@ -73,7 +73,7 @@ async def test_send_corpus_refuses_to_pad_a_short_corpus():
     async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
         with pytest.raises(ValueError, match="holds 2 documents, need 5"):
             await seed.send_corpus(
-                client, config, ["alpha", "beta"], "github_issues", 5, seed.random.Random(7)
+                client, config, ["alpha", "beta"], "pc_hardware", 5, seed.random.Random(7)
             )
 
 
@@ -88,7 +88,7 @@ async def test_send_batch_raises_on_ingest_failure():
                 client,
                 "http://ingest.local/v1/ingest/batch",
                 ["bad document"],
-                "github_issues",
+                "pc_hardware",
             )
 
 

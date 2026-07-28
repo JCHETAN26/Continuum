@@ -14,11 +14,11 @@ import httpx
 # spec_from_file_location, which does not put its directory on sys.path.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from corpus import medical_documents, software_documents  # noqa: E402
+from corpus import load_baseline_documents, load_drift_documents  # noqa: E402
 
 DEFAULT_INGEST_URL = "http://localhost:8000/v1/ingest/batch"
 DEFAULT_BATCH_SIZE = 10
-DEFAULT_BASELINE_DOCUMENTS = 1_000
+DEFAULT_BASELINE_DOCUMENTS = 700
 DEFAULT_DRIFT_DOCUMENTS = 500
 DEFAULT_INTER_BATCH_DELAY_SECONDS = 0.2
 DEFAULT_WINDOW_SETTLE_SECONDS = 15.0
@@ -75,12 +75,12 @@ async def run_seed(config: SeedConfig) -> SeedResult:
     print(f"Using deterministic seed {config.seed}")
 
     async with httpx.AsyncClient() as client:
-        print("\n--- PHASE 1: Baseline Distribution ---")
+        print("\n--- PHASE 1: Baseline Distribution (PC hardware) ---")
         baseline_sent = await send_corpus(
             client,
             config,
-            software_documents(config.baseline_documents, config.seed),
-            "github_issues",
+            load_baseline_documents(config.baseline_documents, config.seed),
+            "pc_hardware",
             config.baseline_documents,
             rng,
         )
@@ -88,12 +88,12 @@ async def run_seed(config: SeedConfig) -> SeedResult:
         print("\n⏳ Baseline established. Waiting for drift window to compute...")
         await asyncio.sleep(config.window_settle_seconds)
 
-        print("\n--- PHASE 2: Drift Distribution (Healthcare Data) ---")
+        print("\n--- PHASE 2: Drift Distribution (Mac hardware) ---")
         drift_sent = await send_corpus(
             client,
             config,
-            medical_documents(config.drift_documents, config.seed),
-            "medical_records",
+            load_drift_documents(config.drift_documents, config.seed),
+            "mac_hardware",
             config.drift_documents,
             rng,
         )
