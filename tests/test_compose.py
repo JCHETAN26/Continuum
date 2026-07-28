@@ -84,6 +84,81 @@ def test_app_services_wait_for_migrations():
         )
 
 
+LONG_RUNNING_SERVICES = [
+    "redpanda",
+    "redpanda-console",
+    "postgres",
+    "redis",
+    "minio",
+    "ingest",
+    "ingest-worker",
+    "embedding",
+    "drift",
+    "linguistic-drift",
+    "trainer-api",
+    "trainer-worker",
+    "server",
+    "retention-worker",
+    "dashboard",
+]
+
+# These run to completion and are awaited via service_completed_successfully. A restart
+# policy would put them in a loop and hold the dependent services back forever.
+ONE_SHOT_SERVICES = ["redpanda-init", "minio-init", "migrations"]
+
+
+def test_long_running_services_restart_on_failure():
+    services = load_compose()["services"]
+
+    for service_name in LONG_RUNNING_SERVICES:
+        assert services[service_name].get("restart") == "unless-stopped", (
+            f"{service_name} would stay down after a crash"
+        )
+
+
+def test_one_shot_services_have_no_restart_policy():
+    services = load_compose()["services"]
+
+    for service_name in ONE_SHOT_SERVICES:
+        assert "restart" not in services[service_name], (
+            f"{service_name} runs once; a restart policy would loop it"
+        )
+
+
+def test_database_url_pins_connection_pool_size():
+    compose = load_compose()
+    database_url = compose["x-app-env"]["DATABASE_URL"]
+
+    # Left implicit, Prisma derives the pool from visible CPUs, which the per-service
+    # cpus limits shrink to 3 and the drift services then exhaust.
+    assert "connection_limit=10" in database_url
+    assert "pool_timeout=30" in database_url
+
+
+def test_postgres_allows_headroom_over_the_summed_pools():
+    postgres = load_compose()["services"]["postgres"]
+
+    assert postgres["command"] == ["postgres", "-c", "max_connections=200"]
+
+
+def test_trigger_threshold_is_reachable_by_scores_that_raise_an_alert():
+    """The throttler gate and the alert threshold must share a scale.
+
+    Both are centroid cosine distance. If the throttler demands more drift than the
+    drift service alerts on, every alert is suppressed and only linguistic drift can
+    ever trigger training.
+    """
+    app_env = load_compose()["x-app-env"]
+
+    alert_threshold = float(app_env["DRIFT_THRESHOLD"])
+    trigger_threshold = float(app_env["DRIFT_TRIGGER_MIN_EMBEDDING_DRIFT"])
+
+    assert trigger_threshold <= alert_threshold, (
+        f"drift alerts fire at {alert_threshold} but training needs {trigger_threshold}, "
+        "so embedding drift can never trigger a training job"
+    )
+
+
 def test_python_and_node_images_run_as_non_root():
     python_dockerfile = Path("docker/Dockerfile.python").read_text()
     node_dockerfile = Path("docker/Dockerfile.node").read_text()

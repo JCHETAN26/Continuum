@@ -21,7 +21,10 @@ class ThrottleDecision:
 @dataclass(frozen=True)
 class TriggerThrottler:
     min_documents: int = 100
-    min_embedding_drift: float = 0.75
+    # Cosine distance between window centroids, the same scale the drift service alerts
+    # on. Keep this within reach of drift_threshold: set far above it, the embedding
+    # signal can never clear the gate and only linguistic drift can trigger training.
+    min_embedding_drift: float = 0.08
     min_linguistic_drift: float = 0.60
     cooldown_hours: float = 6.0
     max_daily_trains: int = 3
