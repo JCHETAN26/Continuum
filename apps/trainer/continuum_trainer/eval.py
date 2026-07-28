@@ -4,6 +4,7 @@ from tempfile import NamedTemporaryFile
 import numpy as np
 import onnxruntime as ort
 import structlog
+from continuum_shared.config import settings
 
 logger = structlog.get_logger()
 
@@ -32,7 +33,7 @@ async def evaluate_model(
     improvement = (metrics["quality"] - baseline_metrics["quality"]) / max(
         baseline_metrics["quality"], 1e-6
     )
-    passed = improvement > 0.005
+    passed = improvement > settings.activation_min_improvement
 
     logger.info(
         "Evaluation completed",

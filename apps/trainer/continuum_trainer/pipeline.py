@@ -110,13 +110,17 @@ async def _async_run_training_pipeline(model_id: str, training_job_id: str | Non
             await db.trainingjob.update(
                 where={"id": training_job_id},
                 data={
-                    "status": TrainingJobStatus.SUCCEEDED if passed else TrainingJobStatus.FAILED,
+                    # The job ran to completion either way. A candidate that misses the
+                    # improvement gate is a correct decision, not a failure, and the
+                    # outcome is carried by ModelStatus.PASSED / REJECTED. Conflating the
+                    # two made "rejected because it did not help" indistinguishable from
+                    # "crashed", and left the worker's genuine failure path (which sets
+                    # FAILED after exhausting retries) with no distinct signal.
+                    "status": TrainingJobStatus.SUCCEEDED,
                     "finishedAt": datetime.now(UTC),
                     "sampleCount": telemetry["sample_count"],
                     "lossHistory": Json(telemetry["loss_history"]),
-                    "error": None
-                    if passed
-                    else "Model did not exceed the retrieval quality improvement gate.",
+                    "error": None,
                 },
             )
 

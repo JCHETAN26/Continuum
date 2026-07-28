@@ -10,6 +10,7 @@ from pathlib import Path
 from tempfile import mkdtemp
 from typing import Any
 
+import numpy as np
 import structlog
 from continuum_shared.artifacts import sha256_hex
 from continuum_shared.config import settings
@@ -188,9 +189,11 @@ def train_peft_model(
     config: PeftTrainingConfig,
     deps: PeftDependencies | None = None,
     exporter: Callable[[Path, Path, str], None] | None = None,
+    validator: Callable[[Path, int], int] | None = None,
 ) -> tuple[PeftTrainingTelemetry, Path, Path]:
     deps = deps or load_peft_dependencies()
     exporter = exporter or export_onnx_with_optimum
+    validator = validator or validate_onnx_export
     dataset = build_contrastive_dataset(training_texts, deps.datasets)
     domain_tag = infer_domain_tag(training_texts)
 
@@ -223,10 +226,22 @@ def train_peft_model(
     trainer = trainer_cls(model=model, args=training_args, train_dataset=tokenized)
     train_output = trainer.train()
 
+    # Counted before merge_and_unload, which folds the adapter into the base weights and
+    # leaves nothing marked trainable to count.
+    trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    total = sum(p.numel() for p in model.parameters())
+    logger.info(
+        "LoRA parameter budget",
+        trainable_parameters=trainable,
+        total_parameters=total,
+        trainable_percent=round(100.0 * trainable / max(total, 1), 4),
+    )
+
     merged_model = model.merge_and_unload()
     merged_model.save_pretrained(adapter_dir)
     tokenizer.save_pretrained(adapter_dir)
     exporter(adapter_dir, onnx_dir, "feature-extraction")
+    validator(find_onnx_file(onnx_dir), int(merged_model.config.hidden_size))
 
     loss_history = extract_loss_history(trainer.state.log_history)
     if not loss_history and getattr(train_output, "training_loss", None) is not None:
@@ -268,6 +283,39 @@ def export_onnx_with_optimum(model_dir: Path, output_dir: Path, task: str) -> No
         ],
         check=True,
     )
+
+
+def validate_onnx_export(onnx_path: Path, expected_dim: int) -> int:
+    """Load the exported graph and confirm it runs and emits the expected width.
+
+    Exporting only proves optimum-cli exited zero. It does not prove the graph loads, that
+    its inputs are wired the way the serving engine calls them, or that the hidden width
+    survived the adapter merge. A model that fails any of those still reaches the registry
+    and is served, producing vectors that are incomparable with the baseline centroids
+    drift is measured against — with no error anywhere along the way.
+    """
+    import onnxruntime as ort
+
+    session = ort.InferenceSession(str(onnx_path), providers=["CPUExecutionProvider"])
+    feeds = {}
+    for model_input in session.get_inputs():
+        # Symbolic dims come back as strings; a 1x8 probe is enough to exercise the graph.
+        shape = [1 if isinstance(dim, str) or dim is None else dim for dim in model_input.shape]
+        if len(shape) >= 2:
+            shape[1] = 8
+        feeds[model_input.name] = np.ones(shape, dtype=np.int64)
+
+    outputs = session.run(None, feeds)
+    if not outputs:
+        raise ValueError(f"ONNX export at {onnx_path} produced no outputs")
+
+    actual_dim = int(outputs[0].shape[-1])
+    if actual_dim != expected_dim:
+        raise ValueError(
+            f"ONNX export at {onnx_path} emits {actual_dim}-dimensional vectors, "
+            f"expected {expected_dim} from the merged model config"
+        )
+    return actual_dim
 
 
 def find_onnx_file(onnx_dir: Path) -> Path:
