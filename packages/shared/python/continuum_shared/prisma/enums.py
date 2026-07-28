@@ -49,6 +49,7 @@ class DriftWindowSize(StrEnum):
 class ModelStatus(StrEnum):
     DRAFT = 'DRAFT'
     EVALUATING = 'EVALUATING'
+    PENDING_EVAL = 'PENDING_EVAL'
     PASSED = 'PASSED'
     REJECTED = 'REJECTED'
     ACTIVE = 'ACTIVE'

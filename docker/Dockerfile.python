@@ -1,30 +1,61 @@
-FROM python:3.12-slim as builder
+FROM python:3.12-slim AS builder
 
 # Install system dependencies
-RUN apt-get update && apt-get install -y curl build-essential && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y curl build-essential openssl && rm -rf /var/lib/apt/lists/*
 
 # Install uv
 RUN curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR="/usr/local/bin" sh
 
 WORKDIR /app
+ENV PRISMA_BINARY_CACHE_DIR=/app/.cache/prisma-python/binaries
 COPY pyproject.toml uv.lock ./
 COPY apps/ingest/pyproject.toml apps/ingest/
+COPY apps/embedding/pyproject.toml apps/embedding/
 COPY apps/drift/pyproject.toml apps/drift/
+COPY apps/linguistic-drift/pyproject.toml apps/linguistic-drift/
 COPY apps/trainer/pyproject.toml apps/trainer/
 COPY apps/server/pyproject.toml apps/server/
-COPY packages/shared/pyproject.toml packages/shared/
+COPY packages/shared/python/pyproject.toml packages/shared/python/
 
 # Install dependencies for all workspace members
 RUN uv sync --no-install-project
 
 COPY . /app
-RUN uv sync
+# --all-packages installs every workspace member. A bare `uv sync` installs only the
+# root project, which leaves continuum_ingest, continuum_drift, and friends missing
+# from the venv even though their dependencies are present.
+RUN uv sync --all-packages
+RUN uv run prisma py fetch
+RUN set -eux; \
+    arch="$(dpkg --print-architecture)"; \
+    if [ "$arch" = "arm64" ]; then \
+      prisma_target="linux-arm64-openssl-3.0.x"; \
+    else \
+      prisma_target="debian-openssl-3.0.x"; \
+    fi; \
+    node_bin="$(find /root/.cache/prisma-python -path '*/bin/node' -type f | head -n 1)"; \
+    cd "$PRISMA_BINARY_CACHE_DIR"; \
+    PRISMA_FETCH_TARGET="$prisma_target" "$node_bin" -e 'const { download, BinaryType } = require("@prisma/fetch-engine"); download({ binaries: { [BinaryType.QueryEngineBinary]: process.cwd() }, binaryTargets: [process.env.PRISMA_FETCH_TARGET], version: "393aa359c9ad4a4bb28630fb5613f9c281cde053", showProgress: false }).catch((error) => { console.error(error); process.exit(1); });'; \
+    engine_path="$(find "$PRISMA_BINARY_CACHE_DIR" -maxdepth 1 -type f -name "*query-engine*$prisma_target*" | head -n 1)"; \
+    test -n "$engine_path"; \
+    cp "$engine_path" "$PRISMA_BINARY_CACHE_DIR/prisma-query-engine"; \
+    chmod +x "$PRISMA_BINARY_CACHE_DIR/prisma-query-engine"
 
 FROM python:3.12-slim
 
 WORKDIR /app
-COPY --from=builder /app /app
+RUN apt-get update && apt-get install -y openssl libatomic1 && rm -rf /var/lib/apt/lists/* \
+    && groupadd --system continuum \
+    && useradd --system --gid continuum --home-dir /home/continuum --create-home continuum
+COPY --from=builder --chown=continuum:continuum /app /app
+# The compose commands invoke `uv run`, so uv has to exist in the runtime stage too —
+# copying /app alone leaves it behind in the builder.
+COPY --from=builder /usr/local/bin/uv /usr/local/bin/uv
 ENV PATH="/app/.venv/bin:$PATH"
+ENV PRISMA_BINARY_CACHE_DIR=/app/.cache/prisma-python/binaries
+ENV PRISMA_QUERY_ENGINE_BINARY=/app/.cache/prisma-python/binaries/prisma-query-engine
+ENV UV_CACHE_DIR=/home/continuum/.cache/uv
+USER continuum
 
 # The command will be overridden by docker-compose for each service
 CMD ["python"]

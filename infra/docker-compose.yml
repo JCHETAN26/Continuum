@@ -7,9 +7,71 @@
 # Run from the repository root so `--env-file .env` resolves. Every value has a
 # local-development default, so the stack still starts with no .env present.
 #
-# Application containers arrive in later phases; this file is infrastructure only.
-
 name: continuum
+
+x-app-env: &app-env
+  NODE_ENV: development
+  LOG_LEVEL: info
+  POSTGRES_USER: continuum
+  POSTGRES_PASSWORD: continuum
+  POSTGRES_DB: continuum
+  POSTGRES_PORT: 5432
+  DATABASE_URL: postgresql://continuum:continuum@postgres:5432/continuum?schema=public
+  SHADOW_DATABASE_URL: postgresql://continuum:continuum@postgres:5432/continuum_shadow?schema=public
+  KAFKA_BROKERS: redpanda:9092
+  KAFKA_CLIENT_ID: continuum
+  REDPANDA_KAFKA_PORT: 19092
+  REDPANDA_ADMIN_PORT: 9644
+  REDPANDA_CONSOLE_PORT: 8080
+  REDIS_URL: redis://redis:6379
+  REDIS_PORT: 6379
+  MINIO_ROOT_USER: continuum
+  MINIO_ROOT_PASSWORD: continuum-local-dev
+  MINIO_API_PORT: 9000
+  MINIO_CONSOLE_PORT: 9001
+  S3_ENDPOINT: http://minio:9000
+  S3_REGION: us-east-1
+  S3_ACCESS_KEY_ID: continuum
+  S3_SECRET_ACCESS_KEY: continuum-local-dev
+  S3_BUCKET_DOCUMENTS: continuum-documents
+  S3_BUCKET_MODELS: continuum-models
+  S3_FORCE_PATH_STYLE: 'true'
+  EMBEDDING_MODEL: continuum/hash-embedding-demo
+  EMBEDDING_DIM: 384
+  DRIFT_THRESHOLD: 0.08
+  LINGUISTIC_DRIFT_THRESHOLD: 0.65
+  LINGUISTIC_DRIFT_WINDOW_MINUTES: 2
+  LINGUISTIC_DRIFT_POLL_SECONDS: 30
+  DRIFT_TRIGGER_MIN_DOCUMENTS: 100
+  DRIFT_TRIGGER_MIN_EMBEDDING_DRIFT: 0.75
+  DRIFT_TRIGGER_MIN_LINGUISTIC_DRIFT: 0.60
+  DRIFT_TRIGGER_COOLDOWN_HOURS: 6
+  DRIFT_TRIGGER_MAX_DAILY_TRAINS: 3
+  TRAINER_BACKEND: demo_adapter
+  RETRAIN_COOLDOWN_MINUTES: 10
+  TRAINING_RETRY_BASE_SECONDS: 1.0
+  OTEL_SERVICE_NAME: continuum
+  API_KEY: continuum-secret-key
+  API_KEY_BCRYPT_HASH: ''
+  RETENTION_CLEANUP_INTERVAL_SECONDS: 86400
+  RETENTION_EMBEDDINGS_DAYS: 90
+  RETENTION_DRIFT_WINDOWS_DAYS: 30
+  RETENTION_TRAINING_JOBS_DAYS: 365
+  ROLLBACK_ERROR_RATE_THRESHOLD: 0.05
+  ROLLBACK_WINDOW_SECONDS: 300
+  ROLLBACK_MIN_REQUESTS: 100
+
+x-api-limits: &api-limits
+  cpus: '0.50'
+  mem_limit: 512m
+
+x-worker-limits: &worker-limits
+  cpus: '0.75'
+  mem_limit: 768m
+
+x-trainer-limits: &trainer-limits
+  cpus: '2.00'
+  mem_limit: 3g
 
 services:
   # -------------------------------------------------------------------------
@@ -69,6 +131,21 @@ services:
       redpanda:
         condition: service_healthy
 
+  redpanda-init:
+    image: redpandadata/redpanda:v24.3.4
+    container_name: continuum-redpanda-init
+    depends_on:
+      redpanda:
+        condition: service_healthy
+    entrypoint: /bin/sh
+    command:
+      - -ec
+      - |
+        rpk topic create document-stream --brokers redpanda:9092 --partitions 3 --replicas 1 || true
+        rpk topic create drift-alerts --brokers redpanda:9092 --partitions 1 --replicas 1 || true
+        rpk topic create linguistic-drift-alerts --brokers redpanda:9092 --partitions 1 --replicas 1 || true
+        echo "topics ready: document-stream drift-alerts linguistic-drift-alerts"
+
   # -------------------------------------------------------------------------
   # Postgres 16 with pgvector preinstalled.
   # -------------------------------------------------------------------------
@@ -82,14 +159,16 @@ services:
       # Deterministic collation so index ordering matches CI.
       POSTGRES_INITDB_ARGS: '--encoding=UTF8 --locale=C'
     ports:
-      - '${POSTGRES_PORT:-5432}:5432'
+      - '${POSTGRES_PORT:-55432}:5432'
     volumes:
       - postgres-data:/var/lib/postgresql/data
-      # Runs once, on an empty data directory.
-      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+      # Runs once, on an empty data directory. Mounted file by file: bind-mounting the
+      # directory read-only and then mounting the migration *into* it fails, because the
+      # nested mount cannot create its target inside a read-only mount.
+      - ./postgres/init/01-shadow-database.sh:/docker-entrypoint-initdb.d/01-shadow-database.sh:ro
+      - ../packages/shared/prisma/migrations/20260726000000_init/migration.sql:/docker-entrypoint-initdb.d/02-schema.sql:ro
     healthcheck:
-      test:
-        ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-continuum} -d ${POSTGRES_DB:-continuum}']
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-continuum} -d ${POSTGRES_DB:-continuum}']
       interval: 5s
       timeout: 5s
       retries: 20
@@ -160,84 +239,376 @@ services:
         mc version enable "local/$$S3_BUCKET_MODELS"
         echo "buckets ready: $$S3_BUCKET_DOCUMENTS $$S3_BUCKET_MODELS"
 
+  migrations:
+    <<: *worker-limits
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.python
+    container_name: continuum-migrations
+    command: ['uv', 'run', 'alembic', '-c', 'packages/shared/alembic.ini', 'upgrade', 'head']
+    env_file:
+      - ../.env.example
+    environment: *app-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   # -------------------------------------------------------------------------
   # Application Services
   # -------------------------------------------------------------------------
   ingest:
+    <<: *api-limits
     build:
       context: ..
       dockerfile: docker/Dockerfile.python
     container_name: continuum-ingest
-    command: ["uv", "run", "--package", "continuum-ingest", "fastapi", "run", "continuum_ingest/api/main.py", "--port", "8000", "--host", "0.0.0.0"]
+    command:
+      [
+        'uv',
+        'run',
+        '--package',
+        'continuum-ingest',
+        'uvicorn',
+        'continuum_ingest.api.main:app',
+        '--host',
+        '0.0.0.0',
+        '--port',
+        '8000',
+      ]
     ports:
-      - "8000:8000"
+      - '8000:8000'
     env_file:
       - ../.env.example
+    environment: *app-env
     depends_on:
-      redpanda:
+      redpanda-init:
+        condition: service_completed_successfully
+      postgres:
         condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'python',
+          '-c',
+          'import urllib.request; urllib.request.urlopen("http://localhost:8000/health", timeout=2)',
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+
+  ingest-worker:
+    <<: *worker-limits
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.python
+    container_name: continuum-ingest-worker
+    command:
+      ['uv', 'run', '--package', 'continuum-ingest', 'python', '-m', 'continuum_ingest.worker.main']
+    env_file:
+      - ../.env.example
+    environment: *app-env
+    depends_on:
+      redpanda-init:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
+      minio-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'python',
+          'scripts/container_health.py',
+          '--tcp',
+          'redpanda:9092',
+          '--tcp',
+          'postgres:5432',
+          '--tcp',
+          'minio:9000',
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+
+  embedding:
+    <<: *worker-limits
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.python
+    container_name: continuum-embedding
+    command:
+      ['uv', 'run', '--package', 'continuum-embedding', 'python', '-m', 'continuum_embedding.main']
+    env_file:
+      - ../.env.example
+    environment: *app-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ['CMD', 'python', 'scripts/container_health.py', '--tcp', 'postgres:5432']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
 
   drift:
+    <<: *api-limits
     build:
       context: ..
       dockerfile: docker/Dockerfile.python
     container_name: continuum-drift
-    command: ["uv", "run", "--package", "continuum-drift", "fastapi", "run", "continuum_drift/api/main.py", "--port", "8001", "--host", "0.0.0.0"]
+    command: ['uv', 'run', '--package', 'continuum-drift', 'python', '-m', 'continuum_drift.main']
     ports:
-      - "8001:8001"
+      - '8001:8001'
     env_file:
       - ../.env.example
+    environment: *app-env
     depends_on:
-      redpanda:
-        condition: service_healthy
+      redpanda-init:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
+      embedding:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'python',
+          '-c',
+          'import urllib.request; urllib.request.urlopen("http://localhost:8001/health", timeout=2)',
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
 
-  trainer:
+  linguistic-drift:
+    <<: *api-limits
     build:
       context: ..
       dockerfile: docker/Dockerfile.python
-    container_name: continuum-trainer
-    command: ["uv", "run", "--package", "continuum-trainer", "python", "-m", "continuum_trainer.worker"]
+    container_name: continuum-linguistic-drift
+    command:
+      [
+        'uv',
+        'run',
+        '--package',
+        'continuum-linguistic-drift',
+        'python',
+        '-m',
+        'continuum_linguistic_drift.main',
+      ]
+    ports:
+      - '8004:8004'
     env_file:
       - ../.env.example
+    environment: *app-env
+    depends_on:
+      redpanda-init:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
+      drift:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'python',
+          '-c',
+          'import urllib.request; urllib.request.urlopen("http://localhost:8004/health", timeout=2)',
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+
+  trainer-api:
+    <<: *api-limits
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.python
+    container_name: continuum-trainer-api
+    command:
+      [
+        'uv',
+        'run',
+        '--package',
+        'continuum-trainer',
+        'uvicorn',
+        'continuum_trainer.api:app',
+        '--host',
+        '0.0.0.0',
+        '--port',
+        '8003',
+      ]
+    ports:
+      - '8003:8003'
+    env_file:
+      - ../.env.example
+    environment: *app-env
     depends_on:
       redis:
         condition: service_healthy
       postgres:
         condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
       minio:
         condition: service_healthy
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'python',
+          '-c',
+          'import urllib.request; urllib.request.urlopen("http://localhost:8003/health", timeout=2)',
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+
+  trainer-worker:
+    <<: *trainer-limits
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.python
+    container_name: continuum-trainer-worker
+    command:
+      ['uv', 'run', '--package', 'continuum-trainer', 'python', '-m', 'continuum_trainer.worker']
+    env_file:
+      - ../.env.example
+    environment: *app-env
+    depends_on:
+      redpanda-init:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
+      minio-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'python',
+          'scripts/container_health.py',
+          '--tcp',
+          'redpanda:9092',
+          '--tcp',
+          'postgres:5432',
+          '--tcp',
+          'minio:9000',
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
 
   server:
+    <<: *api-limits
     build:
       context: ..
       dockerfile: docker/Dockerfile.python
     container_name: continuum-server
-    command: ["uv", "run", "--package", "continuum-server", "python", "-m", "continuum_server.main"]
+    command: ['uv', 'run', '--package', 'continuum-server', 'python', '-m', 'continuum_server.main']
     ports:
-      - "8002:8002"
-      - "50051:50051"
+      - '8002:8002'
+      - '50051:50051'
     env_file:
       - ../.env.example
+    environment: *app-env
     depends_on:
       postgres:
         condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
       minio:
         condition: service_healthy
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'python',
+          '-c',
+          'import urllib.request; urllib.request.urlopen("http://localhost:8002/health", timeout=2)',
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+
+  retention-worker:
+    <<: *worker-limits
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.python
+    container_name: continuum-retention-worker
+    command:
+      [
+        'sh',
+        '-c',
+        'while true; do uv run python scripts/retention_cleanup.py --embeddings-days "$$RETENTION_EMBEDDINGS_DAYS" --drift-windows-days "$$RETENTION_DRIFT_WINDOWS_DAYS" --training-jobs-days "$$RETENTION_TRAINING_JOBS_DAYS"; sleep "$$RETENTION_CLEANUP_INTERVAL_SECONDS"; done',
+      ]
+    env_file:
+      - ../.env.example
+    environment: *app-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ['CMD', 'python', 'scripts/container_health.py', '--tcp', 'postgres:5432']
+      interval: 30s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
 
   dashboard:
+    <<: *api-limits
     build:
       context: ..
       dockerfile: docker/Dockerfile.node
     container_name: continuum-dashboard
     ports:
-      - "3000:3000"
+      - '3000:3000'
     depends_on:
       drift:
-        condition: service_started
-      trainer:
-        condition: service_started
+        condition: service_healthy
+      linguistic-drift:
+        condition: service_healthy
+      trainer-api:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          'fetch("http://localhost:3000").then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))',
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
 
 volumes:
   redpanda-data:

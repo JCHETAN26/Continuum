@@ -385,6 +385,7 @@ class DriftWindow(bases.BaseDriftWindow):
     baseline: Optional['models.DriftWindow'] = None
     derived: Optional[List['models.DriftWindow']] = None
     trainingJobs: Optional[List['models.TrainingJob']] = None
+    linguisticSignals: Optional[List['models.TrainingLinguisticSignal']] = None
     createdAt: datetime.datetime
 
     # take *args and **kwargs so that other metaclasses can define arguments
@@ -510,6 +511,149 @@ class DriftWindow(bases.BaseDriftWindow):
         _created_partial_types.add(name)
 
 
+class LinguisticWindow(bases.BaseLinguisticWindow):
+    """NLP-level drift over a document text window: entity, topic, and vocabulary movement.
+    """
+
+    id: _str
+    windowStart: datetime.datetime
+    windowEnd: datetime.datetime
+    documentCount: _int
+    entityKlDivergence: _float
+    topicWasserstein: _float
+    vocabChi2Pvalue: _float
+    compositeScore: _float
+    threshold: _float
+    breached: _bool
+    newEntities: 'fields.Json'
+    emergingTopics: 'fields.Json'
+    emergingTerms: 'fields.Json'
+    trainingSignals: Optional[List['models.TrainingLinguisticSignal']] = None
+    createdAt: datetime.datetime
+
+    # take *args and **kwargs so that other metaclasses can define arguments
+    def __init_subclass__(
+        cls,
+        *args: Any,
+        warn_subclass: Optional[bool] = None,
+        **kwargs: Any,
+    ) -> None:
+        super().__init_subclass__()
+        if warn_subclass is not None:
+            warnings.warn(
+                'The `warn_subclass` argument is deprecated as it is no longer necessary and will be removed in the next release',
+                DeprecationWarning,
+                stacklevel=3,
+            )
+
+
+    @staticmethod
+    def create_partial(
+        name: str,
+        include: Optional[Iterable['types.LinguisticWindowKeys']] = None,
+        exclude: Optional[Iterable['types.LinguisticWindowKeys']] = None,
+        required: Optional[Iterable['types.LinguisticWindowKeys']] = None,
+        optional: Optional[Iterable['types.LinguisticWindowKeys']] = None,
+        relations: Optional[Mapping['types.LinguisticWindowRelationalFieldKeys', str]] = None,
+        exclude_relational_fields: bool = False,
+    ) -> None:
+        if not os.environ.get('PRISMA_GENERATOR_INVOCATION'):
+            raise RuntimeError(
+                'Attempted to create a partial type outside of client generation.'
+            )
+
+        if name in _created_partial_types:
+            raise ValueError(f'Partial type "{name}" has already been created.')
+
+        if include is not None:
+            if exclude is not None:
+                raise TypeError('Exclude and include are mutually exclusive.')
+            if exclude_relational_fields is True:
+                raise TypeError('Include and exclude_relational_fields=True are mutually exclusive.')
+
+        if required and optional:
+            shared = set(required) & set(optional)
+            if shared:
+                raise ValueError(f'Cannot make the same field(s) required and optional {shared}')
+
+        if exclude_relational_fields and relations:
+            raise ValueError(
+                'exclude_relational_fields and relations are mutually exclusive'
+            )
+
+        fields: Dict['types.LinguisticWindowKeys', PartialModelField] = OrderedDict()
+
+        try:
+            if include:
+                for field in include:
+                    fields[field] = _LinguisticWindow_fields[field].copy()
+            elif exclude:
+                for field in exclude:
+                    if field not in _LinguisticWindow_fields:
+                        raise KeyError(field)
+
+                fields = {
+                    key: data.copy()
+                    for key, data in _LinguisticWindow_fields.items()
+                    if key not in exclude
+                }
+            else:
+                fields = {
+                    key: data.copy()
+                    for key, data in _LinguisticWindow_fields.items()
+                }
+
+            if required:
+                for field in required:
+                    fields[field]['optional'] = False
+
+            if optional:
+                for field in optional:
+                    fields[field]['optional'] = True
+
+            if exclude_relational_fields:
+                fields = {
+                    key: data
+                    for key, data in fields.items()
+                    if key not in _LinguisticWindow_relational_fields
+                }
+
+            if relations:
+                for field, type_ in relations.items():
+                    if field not in _LinguisticWindow_relational_fields:
+                        raise errors.UnknownRelationalFieldError('LinguisticWindow', field)
+
+                    # TODO: this method of validating types is not ideal
+                    # as it means we cannot two create partial types that
+                    # reference each other
+                    if type_ not in _created_partial_types:
+                        raise ValueError(
+                            f'Unknown partial type: "{type_}". '
+                            f'Did you remember to generate the {type_} type before this one?'
+                        )
+
+                    # TODO: support non prisma.partials models
+                    info = fields[field]
+                    if info['is_list']:
+                        info['type'] = f'List[\'partials.{type_}\']'
+                    else:
+                        info['type'] = f'\'partials.{type_}\''
+        except KeyError as exc:
+            raise ValueError(
+                f'{exc.args[0]} is not a valid LinguisticWindow / {name} field.'
+            ) from None
+
+        models = partial_models_ctx.get()
+        models.append(
+            {
+                'name': name,
+                'fields': cast(Mapping[str, PartialModelField], fields),
+                'from_model': 'LinguisticWindow',
+            }
+        )
+        _created_partial_types.add(name)
+
+
 class ModelVersion(bases.BaseModelVersion):
     """An entry in the model registry.
     """
@@ -533,6 +677,14 @@ class ModelVersion(bases.BaseModelVersion):
     """
 
     artifactBytes: Optional[_int] = None
+    domainTag: Optional[_str] = None
+    """Domain that produced this adapter, e.g. "medical_records".
+    """
+
+    onnxPath: Optional[_str] = None
+    """Direct MinIO URI for a PEFT-exported ONNX feature-extraction model.
+    """
+
     embeddingDim: _int
     loraRank: Optional[_int] = None
     """LoRA rank used for this adapter. Null for the base model.
@@ -548,6 +700,10 @@ class ModelVersion(bases.BaseModelVersion):
 
     improvementPct: Optional[_float] = None
     """Relative MRR improvement over baseline, as a fraction. Gate requires > 0.10.
+    """
+
+    evalMrr: Optional[_float] = None
+    """Raw MRR for the PEFT artifact before promotion.
     """
 
     activatedAt: Optional[datetime.datetime] = None
@@ -715,6 +871,7 @@ class TrainingJob(bases.BaseTrainingJob):
     """Per-step loss, streamed to the dashboard: [{ "step": 1, "loss": 0.42 }, ...].
     """
 
+    linguisticSignals: Optional[List['models.TrainingLinguisticSignal']] = None
     queuedAt: datetime.datetime
     startedAt: Optional[datetime.datetime] = None
     finishedAt: Optional[datetime.datetime] = None
@@ -837,6 +994,143 @@ class TrainingJob(bases.BaseTrainingJob):
                 'name': name,
                 'fields': cast(Mapping[str, PartialModelField], fields),
                 'from_model': 'TrainingJob',
+            }
+        )
+        _created_partial_types.add(name)
+
+
+class TrainingLinguisticSignal(bases.BaseTrainingLinguisticSignal):
+    """Signals that connect a training job to the linguistic drift windows that influenced it.
+    """
+
+    id: _str
+    trainingJobId: _str
+    trainingJob: Optional['models.TrainingJob'] = None
+    linguisticWindowId: _str
+    linguisticWindow: Optional['models.LinguisticWindow'] = None
+    driftWindowId: Optional[_str] = None
+    driftWindow: Optional['models.DriftWindow'] = None
+    signalWeight: _float
+    createdAt: datetime.datetime
+
+    # take *args and **kwargs so that other metaclasses can define arguments
+    def __init_subclass__(
+        cls,
+        *args: Any,
+        warn_subclass: Optional[bool] = None,
+        **kwargs: Any,
+    ) -> None:
+        super().__init_subclass__()
+        if warn_subclass is not None:
+            warnings.warn(
+                'The `warn_subclass` argument is deprecated as it is no longer necessary and will be removed in the next release',
+                DeprecationWarning,
+                stacklevel=3,
+            )
+
+
+    @staticmethod
+    def create_partial(
+        name: str,
+        include: Optional[Iterable['types.TrainingLinguisticSignalKeys']] = None,
+        exclude: Optional[Iterable['types.TrainingLinguisticSignalKeys']] = None,
+        required: Optional[Iterable['types.TrainingLinguisticSignalKeys']] = None,
+        optional: Optional[Iterable['types.TrainingLinguisticSignalKeys']] = None,
+        relations: Optional[Mapping['types.TrainingLinguisticSignalRelationalFieldKeys', str]] = None,
+        exclude_relational_fields: bool = False,
+    ) -> None:
+        if not os.environ.get('PRISMA_GENERATOR_INVOCATION'):
+            raise RuntimeError(
+                'Attempted to create a partial type outside of client generation.'
+            )
+
+        if name in _created_partial_types:
+            raise ValueError(f'Partial type "{name}" has already been created.')
+
+        if include is not None:
+            if exclude is not None:
+                raise TypeError('Exclude and include are mutually exclusive.')
+            if exclude_relational_fields is True:
+                raise TypeError('Include and exclude_relational_fields=True are mutually exclusive.')
+
+        if required and optional:
+            shared = set(required) & set(optional)
+            if shared:
+                raise ValueError(f'Cannot make the same field(s) required and optional {shared}')
+
+        if exclude_relational_fields and relations:
+            raise ValueError(
+                'exclude_relational_fields and relations are mutually exclusive'
+            )
+
+        fields: Dict['types.TrainingLinguisticSignalKeys', PartialModelField] = OrderedDict()
+
+        try:
+            if include:
+                for field in include:
+                    fields[field] = _TrainingLinguisticSignal_fields[field].copy()
+            elif exclude:
+                for field in exclude:
+                    if field not in _TrainingLinguisticSignal_fields:
+                        raise KeyError(field)
+
+                fields = {
+                    key: data.copy()
+                    for key, data in _TrainingLinguisticSignal_fields.items()
+                    if key not in exclude
+                }
+            else:
+                fields = {
+                    key: data.copy()
+                    for key, data in _TrainingLinguisticSignal_fields.items()
+                }
+
+            if required:
+                for field in required:
+                    fields[field]['optional'] = False
+
+            if optional:
+                for field in optional:
+                    fields[field]['optional'] = True
+
+            if exclude_relational_fields:
+                fields = {
+                    key: data
+                    for key, data in fields.items()
+                    if key not in _TrainingLinguisticSignal_relational_fields
+                }
+
+            if relations:
+                for field, type_ in relations.items():
+                    if field not in _TrainingLinguisticSignal_relational_fields:
+                        raise errors.UnknownRelationalFieldError('TrainingLinguisticSignal', field)
+
+                    # TODO: this method of validating types is not ideal
+                    # as it means we cannot two create partial types that
+                    # reference each other
+                    if type_ not in _created_partial_types:
+                        raise ValueError(
+                            f'Unknown partial type: "{type_}". '
+                            f'Did you remember to generate the {type_} type before this one?'
+                        )
+
+                    # TODO: support non prisma.partials models
+                    info = fields[field]
+                    if info['is_list']:
+                        info['type'] = f'List[\'partials.{type_}\']'
+                    else:
+                        info['type'] = f'\'partials.{type_}\''
+        except KeyError as exc:
+            raise ValueError(
+                f'{exc.args[0]} is not a valid TrainingLinguisticSignal / {name} field.'
+            ) from None
+
+        models = partial_models_ctx.get()
+        models.append(
+            {
+                'name': name,
+                'fields': cast(Mapping[str, PartialModelField], fields),
+                'from_model': 'TrainingLinguisticSignal',
             }
         )
         _created_partial_types.add(name)
@@ -1009,6 +1303,7 @@ _DriftWindow_relational_fields: Set[str] = {
         'baseline',
         'derived',
         'trainingJobs',
+        'linguisticSignals',
     }
 _DriftWindow_fields: Dict['types.DriftWindowKeys', PartialModelField] = OrderedDict(
     [
@@ -1124,6 +1419,142 @@ _DriftWindow_fields: Dict['types.DriftWindowKeys', PartialModelField] = OrderedD
             'is_relational': True,
             'documentation': None,
         }),
+        ('linguisticSignals', {
+            'name': 'linguisticSignals',
+            'is_list': True,
+            'optional': True,
+            'type': 'List[\'models.TrainingLinguisticSignal\']',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('createdAt', {
+            'name': 'createdAt',
+            'is_list': False,
+            'optional': False,
+            'type': 'datetime.datetime',
+            'is_relational': False,
+            'documentation': None,
+        }),
+    ],
+)
+
+_LinguisticWindow_relational_fields: Set[str] = {
+        'trainingSignals',
+    }
+_LinguisticWindow_fields: Dict['types.LinguisticWindowKeys', PartialModelField] = OrderedDict(
+    [
+        ('id', {
+            'name': 'id',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('windowStart', {
+            'name': 'windowStart',
+            'is_list': False,
+            'optional': False,
+            'type': 'datetime.datetime',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('windowEnd', {
+            'name': 'windowEnd',
+            'is_list': False,
+            'optional': False,
+            'type': 'datetime.datetime',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('documentCount', {
+            'name': 'documentCount',
+            'is_list': False,
+            'optional': False,
+            'type': '_int',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('entityKlDivergence', {
+            'name': 'entityKlDivergence',
+            'is_list': False,
+            'optional': False,
+            'type': '_float',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('topicWasserstein', {
+            'name': 'topicWasserstein',
+            'is_list': False,
+            'optional': False,
+            'type': '_float',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('vocabChi2Pvalue', {
+            'name': 'vocabChi2Pvalue',
+            'is_list': False,
+            'optional': False,
+            'type': '_float',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('compositeScore', {
+            'name': 'compositeScore',
+            'is_list': False,
+            'optional': False,
+            'type': '_float',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('threshold', {
+            'name': 'threshold',
+            'is_list': False,
+            'optional': False,
+            'type': '_float',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('breached', {
+            'name': 'breached',
+            'is_list': False,
+            'optional': False,
+            'type': '_bool',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('newEntities', {
+            'name': 'newEntities',
+            'is_list': False,
+            'optional': False,
+            'type': 'fields.Json',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('emergingTopics', {
+            'name': 'emergingTopics',
+            'is_list': False,
+            'optional': False,
+            'type': 'fields.Json',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('emergingTerms', {
+            'name': 'emergingTerms',
+            'is_list': False,
+            'optional': False,
+            'type': 'fields.Json',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('trainingSignals', {
+            'name': 'trainingSignals',
+            'is_list': True,
+            'optional': True,
+            'type': 'List[\'models.TrainingLinguisticSignal\']',
+            'is_relational': True,
+            'documentation': None,
+        }),
         ('createdAt', {
             'name': 'createdAt',
             'is_list': False,
@@ -1197,6 +1628,22 @@ _ModelVersion_fields: Dict['types.ModelVersionKeys', PartialModelField] = Ordere
             'is_relational': False,
             'documentation': None,
         }),
+        ('domainTag', {
+            'name': 'domainTag',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''Domain that produced this adapter, e.g. "medical_records".''',
+        }),
+        ('onnxPath', {
+            'name': 'onnxPath',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': '''Direct MinIO URI for a PEFT-exported ONNX feature-extraction model.''',
+        }),
         ('embeddingDim', {
             'name': 'embeddingDim',
             'is_list': False,
@@ -1236,6 +1683,14 @@ _ModelVersion_fields: Dict['types.ModelVersionKeys', PartialModelField] = Ordere
             'type': '_float',
             'is_relational': False,
             'documentation': '''Relative MRR improvement over baseline, as a fraction. Gate requires > 0.10.''',
+        }),
+        ('evalMrr', {
+            'name': 'evalMrr',
+            'is_list': False,
+            'optional': True,
+            'type': '_float',
+            'is_relational': False,
+            'documentation': '''Raw MRR for the PEFT artifact before promotion.''',
         }),
         ('activatedAt', {
             'name': 'activatedAt',
@@ -1283,6 +1738,7 @@ _ModelVersion_fields: Dict['types.ModelVersionKeys', PartialModelField] = Ordere
 _TrainingJob_relational_fields: Set[str] = {
         'driftWindow',
         'modelVersion',
+        'linguisticSignals',
     }
 _TrainingJob_fields: Dict['types.TrainingJobKeys', PartialModelField] = OrderedDict(
     [
@@ -1398,6 +1854,14 @@ _TrainingJob_fields: Dict['types.TrainingJobKeys', PartialModelField] = OrderedD
             'is_relational': False,
             'documentation': '''Per-step loss, streamed to the dashboard: [{ "step": 1, "loss": 0.42 }, ...].''',
         }),
+        ('linguisticSignals', {
+            'name': 'linguisticSignals',
+            'is_list': True,
+            'optional': True,
+            'type': 'List[\'models.TrainingLinguisticSignal\']',
+            'is_relational': True,
+            'documentation': None,
+        }),
         ('queuedAt', {
             'name': 'queuedAt',
             'is_list': False,
@@ -1425,6 +1889,88 @@ _TrainingJob_fields: Dict['types.TrainingJobKeys', PartialModelField] = OrderedD
     ],
 )
 
+_TrainingLinguisticSignal_relational_fields: Set[str] = {
+        'trainingJob',
+        'linguisticWindow',
+        'driftWindow',
+    }
+_TrainingLinguisticSignal_fields: Dict['types.TrainingLinguisticSignalKeys', PartialModelField] = OrderedDict(
+    [
+        ('id', {
+            'name': 'id',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('trainingJobId', {
+            'name': 'trainingJobId',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('trainingJob', {
+            'name': 'trainingJob',
+            'is_list': False,
+            'optional': True,
+            'type': 'models.TrainingJob',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('linguisticWindowId', {
+            'name': 'linguisticWindowId',
+            'is_list': False,
+            'optional': False,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('linguisticWindow', {
+            'name': 'linguisticWindow',
+            'is_list': False,
+            'optional': True,
+            'type': 'models.LinguisticWindow',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('driftWindowId', {
+            'name': 'driftWindowId',
+            'is_list': False,
+            'optional': True,
+            'type': '_str',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('driftWindow', {
+            'name': 'driftWindow',
+            'is_list': False,
+            'optional': True,
+            'type': 'models.DriftWindow',
+            'is_relational': True,
+            'documentation': None,
+        }),
+        ('signalWeight', {
+            'name': 'signalWeight',
+            'is_list': False,
+            'optional': False,
+            'type': '_float',
+            'is_relational': False,
+            'documentation': None,
+        }),
+        ('createdAt', {
+            'name': 'createdAt',
+            'is_list': False,
+            'optional': False,
+            'type': 'datetime.datetime',
+            'is_relational': False,
+            'documentation': None,
+        }),
+    ],
+)
+
 
 
 # we have to import ourselves as relation types are namespaced to models
@@ -1435,5 +1981,7 @@ from . import models, actions
 model_rebuild(Document)
 model_rebuild(Embedding)
 model_rebuild(DriftWindow)
+model_rebuild(LinguisticWindow)
 model_rebuild(ModelVersion)
 model_rebuild(TrainingJob)
+model_rebuild(TrainingLinguisticSignal)

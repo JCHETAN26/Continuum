@@ -9,8 +9,8 @@ on:
       - main
 
 jobs:
-  validate:
-    name: Validate (Lint, Type Check, Test)
+  unit:
+    name: Unit (lint, type-check, test, build)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -41,10 +41,18 @@ jobs:
           python-version-file: '.python-version'
 
       - name: Install Python dependencies
-        run: uv sync --all-extras --dev
+        run: uv sync --all-packages --dev
+
+      - name: Put workspace virtualenv on PATH
+        run: echo "$GITHUB_WORKSPACE/.venv/bin" >> "$GITHUB_PATH"
 
       - name: Generate Prisma Client
         run: pnpm db:generate
+        env:
+          PRISMA_PY_DEBUG_GENERATOR: '1'
+
+      - name: Create .env from example
+        run: cp .env.example .env
 
       - name: Run Linters
         run: pnpm lint
@@ -54,3 +62,120 @@ jobs:
 
       - name: Run Tests
         run: pnpm test
+
+      - name: Build Packages
+        run: pnpm build
+
+      - name: Validate Compose Config
+        run: docker compose -f infra/docker-compose.yml config -q
+
+  integration:
+    name: Integration (Testcontainers)
+    runs-on: ubuntu-latest
+    services:
+      # Only postgres runs as a service container, for the Alembic reversibility
+      # step. Redis and MinIO are started by Testcontainers inside the tests
+      # themselves; a `services:` block cannot pass the `server /data` command
+      # MinIO's entrypoint requires, so it could never become healthy here.
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: continuum
+          POSTGRES_PASSWORD: continuum
+          POSTGRES_DB: continuum
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U continuum -d continuum"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.13.0'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9.15.9
+
+      - name: Install Node dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: 'uv.lock'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: '.python-version'
+
+      - name: Install Python dependencies
+        run: uv sync --all-packages --dev
+
+      - name: Create .env from example
+        run: cp .env.example .env
+
+      - name: Test Alembic Reversibility
+        run: pnpm ops:migrate:test
+        env:
+          DATABASE_URL: postgresql://continuum:continuum@localhost:5432/continuum?schema=public
+
+      - name: Run Docker Integration Tests
+        run: pnpm test:integration
+
+  e2e-compose:
+    name: E2E (Docker Compose)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.13.0'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9.15.9
+
+      - name: Install Node dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: 'uv.lock'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: '.python-version'
+
+      - name: Install Python dependencies
+        run: uv sync --all-packages --dev
+
+      - name: Start Compose Stack
+        run: docker compose --env-file .env.example -f infra/docker-compose.yml up --build -d --wait
+
+      - name: Run E2E Smoke
+        run: pnpm e2e:smoke
+
+      - name: Capture Compose Logs
+        if: failure()
+        run: docker compose --env-file .env.example -f infra/docker-compose.yml logs --tail=300
+
+      - name: Stop Compose Stack
+        if: always()
+        run: docker compose --env-file .env.example -f infra/docker-compose.yml down -v

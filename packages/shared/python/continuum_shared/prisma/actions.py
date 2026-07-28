@@ -3168,6 +3168,1074 @@ class DriftWindowActions(Generic[_PrismaModelT]):
         return resp['data']['result']  # type: ignore[no-any-return]
 
 
+class LinguisticWindowActions(Generic[_PrismaModelT]):
+    __slots__ = (
+        '_client',
+        '_model',
+    )
+
+    def __init__(self, client: Prisma, model: Type[_PrismaModelT]) -> None:
+        self._client = client
+        self._model = model
+
+    async def query_raw(
+        self,
+        query: LiteralString,
+        *args: Any,
+    ) -> List[_PrismaModelT]:
+        """Execute a raw SQL query
+
+        Parameters
+        ----------
+        query
+            The raw SQL query string to be executed
+        *args
+            Parameters to be passed to the SQL query, these MUST be used over
+            string formatting to avoid an SQL injection vulnerability
+
+        Returns
+        -------
+        List[prisma.models.LinguisticWindow]
+            The records returned by the SQL query
+
+        Raises
+        ------
+        prisma_errors.RawQueryError
+            This could be due to invalid syntax, mismatched number of parameters or any other error
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        users = await LinguisticWindow.prisma().query_raw(
+            'SELECT * FROM LinguisticWindow WHERE id = $1',
+            'cafeiaccbc',
+        )
+        ```
+        """
+        return await self._client.query_raw(query, *args, model=self._model)
+
+    async def query_first(
+        self,
+        query: LiteralString,
+        *args: Any,
+    ) -> Optional[_PrismaModelT]:
+        """Execute a raw SQL query, returning the first result
+
+        Parameters
+        ----------
+        query
+            The raw SQL query string to be executed
+        *args
+            Parameters to be passed to the SQL query, these MUST be used over
+            string formatting to avoid an SQL injection vulnerability
+
+        Returns
+        -------
+        prisma.models.LinguisticWindow
+            The first record returned by the SQL query
+        None
+            The raw SQL query did not return any records
+
+        Raises
+        ------
+        prisma_errors.RawQueryError
+            This could be due to invalid syntax, mismatched number of parameters or any other error
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        user = await LinguisticWindow.prisma().query_first(
+            'SELECT * FROM LinguisticWindow WHERE windowStart = $1',
+            datetime.datetime.utcnow(),
+        )
+        ```
+        """
+        return await self._client.query_first(query, *args, model=self._model)
+
+    async def create(
+        self,
+        data: types.LinguisticWindowCreateInput,
+        include: Optional[types.LinguisticWindowInclude] = None
+    ) -> _PrismaModelT:
+        """Create a new LinguisticWindow record.
+
+        Parameters
+        ----------
+        data
+            LinguisticWindow record data
+        include
+            Specifies which relations should be loaded on the returned LinguisticWindow model
+
+        Returns
+        -------
+        prisma.models.LinguisticWindow
+            The created LinguisticWindow record
+
+        Raises
+        ------
+        prisma.errors.MissingRequiredValueError
+            Value is required but was not found
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # create a LinguisticWindow record from just the required fields
+        linguisticwindow = await LinguisticWindow.prisma().create(
+            data={
+                # data to create a LinguisticWindow record
+                'windowStart': datetime.datetime.utcnow(),
+                'windowEnd': datetime.datetime.utcnow(),
+                'documentCount': 60335757,
+                'entityKlDivergence': 684462146.162550,
+                'topicWasserstein': 521827728.126603,
+                'vocabChi2Pvalue': 93253262.205304,
+                'compositeScore': 685333180.12747,
+                'newEntities': Json({'jeijcbhfe': True}),
+                'emergingTopics': Json({'bjgejjabff': True}),
+                'emergingTerms': Json({'bcciijbibg': True}),
+            },
+        )
+        ```
+        """
+        resp = await self._client._execute(
+            method='create',
+            model=self._model,
+            arguments={
+                'data': data,
+                'include': include,
+            },
+        )
+        return model_parse(self._model, resp['data']['result'])
+
+    async def create_many(
+        self,
+        data: List[types.LinguisticWindowCreateWithoutRelationsInput],
+        *,
+        skip_duplicates: Optional[bool] = None,
+    ) -> int:
+        """Create multiple LinguisticWindow records at once.
+
+        This function is *not* available when using SQLite.
+
+        Parameters
+        ----------
+        data
+            List of LinguisticWindow record data
+        skip_duplicates
+            Boolean flag for ignoring unique constraint errors
+
+        Returns
+        -------
+        int
+            The total number of records created
+
+        Raises
+        ------
+        prisma.errors.UnsupportedDatabaseError
+            Attempting to query when using SQLite
+        prisma.errors.UniqueViolationError
+            A unique constraint check has failed, these can be ignored with the `skip_duplicates` argument
+        prisma.errors.MissingRequiredValueError
+            Value is required but was not found
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        total = await LinguisticWindow.prisma().create_many(
+            data=[
+                {
+                    # data to create a LinguisticWindow record
+                    'windowStart': datetime.datetime.utcnow(),
+                    'windowEnd': datetime.datetime.utcnow(),
+                    'documentCount': 255202753,
+                    'entityKlDivergence': 1223573862.54126,
+                    'topicWasserstein': 1064846676.50838,
+                    'vocabChi2Pvalue': 1024265714.87207,
+                    'compositeScore': 1874748096.91689,
+                    'newEntities': Json({'hgjcghfbi': True}),
+                    'emergingTopics': Json({'icadbcehj': True}),
+                    'emergingTerms': Json({'jchciaee': True}),
+                },
+                {
+                    # data to create a LinguisticWindow record
+                    'windowStart': datetime.datetime.utcnow(),
+                    'windowEnd': datetime.datetime.utcnow(),
+                    'documentCount': 344858293,
+                    'entityKlDivergence': 1121741130.149589,
+                    'topicWasserstein': 208521688.86081,
+                    'vocabChi2Pvalue': 1660932118.52576,
+                    'compositeScore': 736209796.49390,
+                    'newEntities': Json({'gdjgigfgc': True}),
+                    'emergingTopics': Json({'gfeaahdeh': True}),
+                    'emergingTerms': Json({'bjafcgbffc': True}),
+                },
+            ],
+            skip_duplicates=True,
+        )
+        ```
+        """
+        if skip_duplicates and self._client._active_provider in CREATE_MANY_SKIP_DUPLICATES_UNSUPPORTED:
+            raise errors.UnsupportedDatabaseError(self._client._active_provider, 'create_many_skip_duplicates')
+
+        resp = await self._client._execute(
+            method='create_many',
+            model=self._model,
+            arguments={
+                'data': data,
+                'skipDuplicates': skip_duplicates,
+            },
+            root_selection=['count'],
+        )
+        return int(resp['data']['result']['count'])
+
+    async def delete(
+        self,
+        where: types.LinguisticWindowWhereUniqueInput,
+        include: Optional[types.LinguisticWindowInclude] = None
+    ) -> Optional[_PrismaModelT]:
+        """Delete a single LinguisticWindow record.
+
+        Parameters
+        ----------
+        where
+            LinguisticWindow filter to select the record to be deleted, must be unique
+        include
+            Specifies which relations should be loaded on the returned LinguisticWindow model
+
+        Returns
+        -------
+        prisma.models.LinguisticWindow
+            The deleted LinguisticWindow record
+        None
+            Could not find a record to delete
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+        prisma.errors.MissingRequiredValueError
+            Value is required but was not found
+
+        Example
+        -------
+        ```py
+        linguisticwindow = await LinguisticWindow.prisma().delete(
+            where={
+                'id': 'hihegjif',
+            },
+        )
+        ```
+        """
+        try:
+            resp = await self._client._execute(
+                method='delete',
+                model=self._model,
+                arguments={
+                    'where': where,
+                    'include': include,
+                },
+            )
+        except errors.RecordNotFoundError:
+            return None
+
+        return model_parse(self._model, resp['data']['result'])
+
+    async def find_unique(
+        self,
+        where: types.LinguisticWindowWhereUniqueInput,
+        include: Optional[types.LinguisticWindowInclude] = None
+    ) -> Optional[_PrismaModelT]:
+        """Find a unique LinguisticWindow record.
+
+        Parameters
+        ----------
+        where
+            LinguisticWindow filter to find the record, must be unique
+        include
+            Specifies which relations should be loaded on the returned LinguisticWindow model
+
+        Returns
+        -------
+        prisma.models.LinguisticWindow
+            The found LinguisticWindow record
+        None
+            No record matching the given input could be found
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+        prisma.errors.MissingRequiredValueError
+            Value is required but was not found
+
+        Example
+        -------
+        ```py
+        linguisticwindow = await LinguisticWindow.prisma().find_unique(
+            where={
+                'id': 'bdjidcidac',
+            },
+        )
+        ```
+        """
+        resp = await self._client._execute(
+            method='find_unique',
+            model=self._model,
+            arguments={
+                'where': where,
+                'include': include,
+            },
+        )
+        result = resp['data']['result']
+        if result is None:
+            return None
+        return model_parse(self._model, result)
+
+    async def find_unique_or_raise(
+        self,
+        where: types.LinguisticWindowWhereUniqueInput,
+        include: Optional[types.LinguisticWindowInclude] = None
+    ) -> _PrismaModelT:
+        """Find a unique LinguisticWindow record. Raises `RecordNotFoundError` if no record is found.
+
+        Parameters
+        ----------
+        where
+            LinguisticWindow filter to find the record, must be unique
+        include
+            Specifies which relations should be loaded on the returned LinguisticWindow model
+
+        Returns
+        -------
+        prisma.models.LinguisticWindow
+            The found LinguisticWindow record
+
+        Raises
+        ------
+        prisma.errors.RecordNotFoundError
+            No record was found
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+        prisma.errors.MissingRequiredValueError
+            Value is required but was not found
+
+        Example
+        -------
+        ```py
+        linguisticwindow = await LinguisticWindow.prisma().find_unique_or_raise(
+            where={
+                'id': 'ifgaaagff',
+            },
+        )
+        ```
+        """
+        resp = await self._client._execute(
+            method='find_unique_or_raise',
+            model=self._model,
+            arguments={
+                'where': where,
+                'include': include,
+            },
+        )
+        return model_parse(self._model, resp['data']['result'])
+
+    async def find_many(
+        self,
+        take: Optional[int] = None,
+        skip: Optional[int] = None,
+        where: Optional[types.LinguisticWindowWhereInput] = None,
+        cursor: Optional[types.LinguisticWindowWhereUniqueInput] = None,
+        include: Optional[types.LinguisticWindowInclude] = None,
+        order: Optional[Union[types.LinguisticWindowOrderByInput, List[types.LinguisticWindowOrderByInput]]] = None,
+        distinct: Optional[List[types.LinguisticWindowScalarFieldKeys]] = None,
+    ) -> List[_PrismaModelT]:
+        """Find multiple LinguisticWindow records.
+
+        An empty list is returned if no records could be found.
+
+        Parameters
+        ----------
+        take
+            Limit the maximum number of LinguisticWindow records returned
+        skip
+            Ignore the first N results
+        where
+            LinguisticWindow filter to select records
+        cursor
+            Specifies the position in the list to start returning results from, (typically an ID field)
+        include
+            Specifies which relations should be loaded on the returned LinguisticWindow model
+        order
+            Order the returned LinguisticWindow records by any field
+        distinct
+            Filter LinguisticWindow records by either a single distinct field or distinct combinations of fields
+
+        Returns
+        -------
+        List[prisma.models.LinguisticWindow]
+            The list of all LinguisticWindow records that could be found
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # find the first 10 LinguisticWindow records
+        linguisticwindows = await LinguisticWindow.prisma().find_many(take=10)
+
+        # find the first 5 LinguisticWindow records ordered by the windowEnd field
+        linguisticwindows = await LinguisticWindow.prisma().find_many(
+            take=5,
+            order={
+                'windowEnd': 'desc',
+            },
+        )
+        ```
+        """
+        resp = await self._client._execute(
+            method='find_many',
+            model=self._model,
+            arguments={
+                'take': take,
+                'skip': skip,
+                'where': where,
+                'order_by': order,
+                'cursor': cursor,
+                'include': include,
+                'distinct': distinct,
+            },
+        )
+        return [model_parse(self._model, r) for r in resp['data']['result']]
+
+    async def find_first(
+        self,
+        skip: Optional[int] = None,
+        where: Optional[types.LinguisticWindowWhereInput] = None,
+        cursor: Optional[types.LinguisticWindowWhereUniqueInput] = None,
+        include: Optional[types.LinguisticWindowInclude] = None,
+        order: Optional[Union[types.LinguisticWindowOrderByInput, List[types.LinguisticWindowOrderByInput]]] = None,
+        distinct: Optional[List[types.LinguisticWindowScalarFieldKeys]] = None,
+    ) -> Optional[_PrismaModelT]:
+        """Find a single LinguisticWindow record.
+
+        Parameters
+        ----------
+        skip
+            Ignore the first N records
+        where
+            LinguisticWindow filter to select the record
+        cursor
+            Specifies the position in the list to start returning results from, (typically an ID field)
+        include
+            Specifies which relations should be loaded on the returned LinguisticWindow model
+        order
+            Order the returned LinguisticWindow records by any field
+        distinct
+            Filter LinguisticWindow records by either a single distinct field or distinct combinations of fields
+
+        Returns
+        -------
+        prisma.models.LinguisticWindow
+            The first LinguisticWindow record found, matching the given arguments
+        None
+            No record could be found
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # find the second LinguisticWindow record ordered by the documentCount field
+        linguisticwindow = await LinguisticWindow.prisma().find_first(
+            skip=1,
+            order={
+                'documentCount': 'desc',
+            },
+        )
+        ```
+        """
+        resp = await self._client._execute(
+            method='find_first',
+            model=self._model,
+            arguments={
+                'skip': skip,
+                'where': where,
+                'order_by': order,
+                'cursor': cursor,
+                'include': include,
+                'distinct': distinct,
+            },
+        )
+        result = resp['data']['result']
+        if result is None:
+            return None
+
+        return model_parse(self._model, result)
+
+    async def find_first_or_raise(
+        self,
+        skip: Optional[int] = None,
+        where: Optional[types.LinguisticWindowWhereInput] = None,
+        cursor: Optional[types.LinguisticWindowWhereUniqueInput] = None,
+        include: Optional[types.LinguisticWindowInclude] = None,
+        order: Optional[Union[types.LinguisticWindowOrderByInput, List[types.LinguisticWindowOrderByInput]]] = None,
+        distinct: Optional[List[types.LinguisticWindowScalarFieldKeys]] = None,
+    ) -> _PrismaModelT:
+        """Find a single LinguisticWindow record. Raises `RecordNotFoundError` if no record was found.
+
+        Parameters
+        ----------
+        skip
+            Ignore the first N records
+        where
+            LinguisticWindow filter to select the record
+        cursor
+            Specifies the position in the list to start returning results from, (typically an ID field)
+        include
+            Specifies which relations should be loaded on the returned LinguisticWindow model
+        order
+            Order the returned LinguisticWindow records by any field
+        distinct
+            Filter LinguisticWindow records by either a single distinct field or distinct combinations of fields
+
+        Returns
+        -------
+        prisma.models.LinguisticWindow
+            The first LinguisticWindow record found, matching the given arguments
+
+        Raises
+        ------
+        prisma.errors.RecordNotFoundError
+            No record was found
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # find the second LinguisticWindow record ordered by the entityKlDivergence field
+        linguisticwindow = await LinguisticWindow.prisma().find_first_or_raise(
+            skip=1,
+            order={
+                'entityKlDivergence': 'desc',
+            },
+        )
+        ```
+        """
+        resp = await self._client._execute(
+            method='find_first_or_raise',
+            model=self._model,
+            arguments={
+                'skip': skip,
+                'where': where,
+                'order_by': order,
+                'cursor': cursor,
+                'include': include,
+                'distinct': distinct,
+            },
+        )
+        return model_parse(self._model, resp['data']['result'])
+
+    async def update(
+        self,
+        data: types.LinguisticWindowUpdateInput,
+        where: types.LinguisticWindowWhereUniqueInput,
+        include: Optional[types.LinguisticWindowInclude] = None
+    ) -> Optional[_PrismaModelT]:
+        """Update a single LinguisticWindow record.
+
+        Parameters
+        ----------
+        data
+            LinguisticWindow record data specifying what to update
+        where
+            LinguisticWindow filter to select the unique record to create / update
+        include
+            Specifies which relations should be loaded on the returned LinguisticWindow model
+
+        Returns
+        -------
+        prisma.models.LinguisticWindow
+            The updated LinguisticWindow record
+        None
+            No record could be found
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        linguisticwindow = await LinguisticWindow.prisma().update(
+            where={
+                'id': 'befcddgjce',
+            },
+            data={
+                # data to update the LinguisticWindow record to
+            },
+        )
+        ```
+        """
+        try:
+            resp = await self._client._execute(
+                method='update',
+                model=self._model,
+                arguments={
+                    'data': data,
+                    'where': where,
+                    'include': include,
+                },
+            )
+        except errors.RecordNotFoundError:
+            return None
+
+        return model_parse(self._model, resp['data']['result'])
+
+    async def upsert(
+        self,
+        where: types.LinguisticWindowWhereUniqueInput,
+        data: types.LinguisticWindowUpsertInput,
+        include: Optional[types.LinguisticWindowInclude] = None,
+    ) -> _PrismaModelT:
+        """Updates an existing record or create a new one
+
+        Parameters
+        ----------
+        where
+            LinguisticWindow filter to select the unique record to create / update
+        data
+            Data specifying what fields to set on create and update
+        include
+            Specifies which relations should be loaded on the returned LinguisticWindow model
+
+        Returns
+        -------
+        prisma.models.LinguisticWindow
+            The created or updated LinguisticWindow record
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+        prisma.errors.MissingRequiredValueError
+            Value is required but was not found
+
+        Example
+        -------
+        ```py
+        linguisticwindow = await LinguisticWindow.prisma().upsert(
+            where={
+                'id': 'bfhdbjjgfd',
+            },
+            data={
+                'create': {
+                    'id': 'bfhdbjjgfd',
+                    'windowStart': datetime.datetime.utcnow(),
+                    'windowEnd': datetime.datetime.utcnow(),
+                    'documentCount': 344858293,
+                    'entityKlDivergence': 1121741130.149589,
+                    'topicWasserstein': 208521688.86081,
+                    'vocabChi2Pvalue': 1660932118.52576,
+                    'compositeScore': 736209796.49390,
+                    'newEntities': Json({'gdjgigfgc': True}),
+                    'emergingTopics': Json({'gfeaahdeh': True}),
+                    'emergingTerms': Json({'bjafcgbffc': True}),
+                },
+                'update': {
+                    'windowStart': datetime.datetime.utcnow(),
+                    'windowEnd': datetime.datetime.utcnow(),
+                    'documentCount': 344858293,
+                    'entityKlDivergence': 1121741130.149589,
+                    'topicWasserstein': 208521688.86081,
+                    'vocabChi2Pvalue': 1660932118.52576,
+                    'compositeScore': 736209796.49390,
+                    'newEntities': Json({'gdjgigfgc': True}),
+                    'emergingTopics': Json({'gfeaahdeh': True}),
+                    'emergingTerms': Json({'bjafcgbffc': True}),
+                },
+            },
+        )
+        ```
+        """
+        resp = await self._client._execute(
+            method='upsert',
+            model=self._model,
+            arguments={
+                'where': where,
+                'include': include,
+                'create': data.get('create'),
+                'update': data.get('update'),
+            },
+        )
+        return model_parse(self._model, resp['data']['result'])
+
+    async def update_many(
+        self,
+        data: types.LinguisticWindowUpdateManyMutationInput,
+        where: types.LinguisticWindowWhereInput,
+    ) -> int:
+        """Update multiple LinguisticWindow records
+
+        Parameters
+        ----------
+        data
+            LinguisticWindow data to update the selected LinguisticWindow records to
+        where
+            Filter to select the LinguisticWindow records to update
+
+        Returns
+        -------
+        int
+            The total number of LinguisticWindow records that were updated
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # update all LinguisticWindow records
+        total = await LinguisticWindow.prisma().update_many(
+            data={
+                'topicWasserstein': 2013903098.50096
+            },
+            where={}
+        )
+        ```
+        """
+        resp = await self._client._execute(
+            method='update_many',
+            model=self._model,
+            arguments={'data': data, 'where': where,},
+            root_selection=['count'],
+        )
+        return int(resp['data']['result']['count'])
+
+    @overload
+    async def count(
+        self,
+        select: None = None,
+        take: Optional[int] = None,
+        skip: Optional[int] = None,
+        where: Optional[types.LinguisticWindowWhereInput] = None,
+        cursor: Optional[types.LinguisticWindowWhereUniqueInput] = None,
+    ) -> int:
+        """Count the number of LinguisticWindow records present in the database
+
+        Parameters
+        ----------
+        select
+            Select the LinguisticWindow fields to be counted
+        take
+            Limit the maximum result
+        skip
+            Ignore the first N records
+        where
+            LinguisticWindow filter to find records
+        cursor
+            Specifies the position in the list to start counting results from, (typically an ID field)
+        order
+            This parameter is deprecated and will be removed in a future release
+
+        Returns
+        -------
+        int
+            The total number of records found, returned if `select` is not given
+
+        prisma.types.LinguisticWindowCountAggregateOutput
+            Data returned when `select` is used, the fields present in this dictionary will
+            match the fields passed in the `select` argument
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # total: int
+        total = await LinguisticWindow.prisma().count()
+
+        # results: prisma.types.LinguisticWindowCountAggregateOutput
+        results = await LinguisticWindow.prisma().count(
+            select={
+                '_all': True,
+                'vocabChi2Pvalue': True,
+            },
+        )
+        ```
+        """
+
+
+    @overload
+    async def count(
+        self,
+        select: types.LinguisticWindowCountAggregateInput,
+        take: Optional[int] = None,
+        skip: Optional[int] = None,
+        where: Optional[types.LinguisticWindowWhereInput] = None,
+        cursor: Optional[types.LinguisticWindowWhereUniqueInput] = None,
+    ) -> types.LinguisticWindowCountAggregateOutput:
+        ...
+
+    async def count(
+        self,
+        select: Optional[types.LinguisticWindowCountAggregateInput] = None,
+        take: Optional[int] = None,
+        skip: Optional[int] = None,
+        where: Optional[types.LinguisticWindowWhereInput] = None,
+        cursor: Optional[types.LinguisticWindowWhereUniqueInput] = None,
+    ) -> Union[int, types.LinguisticWindowCountAggregateOutput]:
+        """Count the number of LinguisticWindow records present in the database
+
+        Parameters
+        ----------
+        select
+            Select the LinguisticWindow fields to be counted
+        take
+            Limit the maximum result
+        skip
+            Ignore the first N records
+        where
+            LinguisticWindow filter to find records
+        cursor
+            Specifies the position in the list to start counting results from, (typically an ID field)
+        order
+            This parameter is deprecated and will be removed in a future release
+
+        Returns
+        -------
+        int
+            The total number of records found, returned if `select` is not given
+
+        prisma.types.LinguisticWindowCountAggregateOutput
+            Data returned when `select` is used, the fields present in this dictionary will
+            match the fields passed in the `select` argument
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # total: int
+        total = await LinguisticWindow.prisma().count()
+
+        # results: prisma.types.LinguisticWindowCountAggregateOutput
+        results = await LinguisticWindow.prisma().count(
+            select={
+                '_all': True,
+                'compositeScore': True,
+            },
+        )
+        ```
+        """
+
+        # TODO: this selection building should be moved to the QueryBuilder
+        #
+        # note the distinction between checking for `not select` here and `select is None`
+        # later is to handle the case that the given select dictionary is empty, this
+        # is a limitation of our types.
+        if not select:
+            root_selection = ['_count { _all }']
+        else:
+
+            root_selection = [
+                '_count {{ {0} }}'.format(' '.join(k for k, v in select.items() if v is True))
+            ]
+
+        resp = await self._client._execute(
+            method='count',
+            model=self._model,
+            arguments={
+                'take': take,
+                'skip': skip,
+                'where': where,
+                'cursor': cursor,
+            },
+            root_selection=root_selection,
+        )
+
+        if select is None:
+            return cast(int, resp['data']['result']['_count']['_all'])
+        else:
+            return cast(types.LinguisticWindowCountAggregateOutput, resp['data']['result']['_count'])
+
+    async def delete_many(
+        self,
+        where: Optional[types.LinguisticWindowWhereInput] = None
+    ) -> int:
+        """Delete multiple LinguisticWindow records.
+
+        Parameters
+        ----------
+        where
+            Optional LinguisticWindow filter to find the records to be deleted
+
+        Returns
+        -------
+        int
+            The total number of LinguisticWindow records that were deleted
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # delete all LinguisticWindow records
+        total = await LinguisticWindow.prisma().delete_many()
+        ```
+        """
+        resp = await self._client._execute(
+            method='delete_many',
+            model=self._model,
+            arguments={'where': where},
+            root_selection=['count'],
+        )
+        return int(resp['data']['result']['count'])
+
+    # TODO: make this easier to work with safely, currently output fields are typed as
+    #       not required, we should refactor the return type
+    # TODO: consider returning a Dict where the keys are a Tuple of the `by` selection
+    # TODO: statically type that the order argument is required when take or skip are present
+    async def group_by(
+        self,
+        by: List['types.LinguisticWindowScalarFieldKeys'],
+        *,
+        where: Optional['types.LinguisticWindowWhereInput'] = None,
+        take: Optional[int] = None,
+        skip: Optional[int] = None,
+        avg: Optional['types.LinguisticWindowAvgAggregateInput'] = None,
+        sum: Optional['types.LinguisticWindowSumAggregateInput'] = None,
+        min: Optional['types.LinguisticWindowMinAggregateInput'] = None,
+        max: Optional['types.LinguisticWindowMaxAggregateInput'] = None,
+        having: Optional['types.LinguisticWindowScalarWhereWithAggregatesInput'] = None,
+        count: Optional[Union[bool, 'types.LinguisticWindowCountAggregateInput']] = None,
+        order: Optional[Union[Mapping['types.LinguisticWindowScalarFieldKeys', 'types.SortOrder'], List[Mapping['types.LinguisticWindowScalarFieldKeys', 'types.SortOrder']]]] = None,
+    ) -> List['types.LinguisticWindowGroupByOutput']:
+        """Group LinguisticWindow records by one or more field values and perform aggregations
+        each group such as finding the average.
+
+        Parameters
+        ----------
+        by
+            List of scalar LinguisticWindow fields to group records by
+        where
+            LinguisticWindow filter to select records
+        take
+            Limit the maximum number of LinguisticWindow records returned
+        skip
+            Ignore the first N records
+        avg
+            Adds the average of all values of the specified fields to the `_avg` field
+            in the returned data.
+        sum
+            Adds the sum of all values of the specified fields to the `_sum` field
+            in the returned data.
+        min
+            Adds the smallest available value for the specified fields to the `_min` field
+            in the returned data.
+        max
+            Adds the largest available value for the specified fields to the `_max` field
+            in the returned data.
+        count
+            Adds a count of non-fields to the `_count` field in the returned data.
+        having
+            Allows you to filter groups by an aggregate value - for example only return
+            groups having an average age less than 50.
+        order
+            Lets you order the returned list by any property that is also present in `by`.
+            Only **one** field is allowed at a time.
+
+        Returns
+        -------
+        List[prisma.types.LinguisticWindowGroupByOutput]
+            A list of dictionaries representing the LinguisticWindow record,
+            this will also have additional fields present if aggregation arguments
+            are used (see the above parameters)
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # group LinguisticWindow records by threshold values
+        # and count how many records are in each group
+        results = await LinguisticWindow.prisma().group_by(
+            ['threshold'],
+            count=True,
+        )
+        ```
+        """
+        if order is None:
+            if take is not None:
+                raise TypeError('Missing argument: \'order\' which is required when \'take\' is present')
+
+            if skip is not None:
+                raise TypeError('Missing argument: \'order\' which is required when \'skip\' is present')
+
+        root_selection: List[str] = [*by]
+        if avg is not None:
+            root_selection.append(_select_fields('_avg', avg))
+
+        if min is not None:
+            root_selection.append(_select_fields('_min', min))
+
+        if sum is not None:
+            root_selection.append(_select_fields('_sum', sum))
+
+        if max is not None:
+            root_selection.append(_select_fields('_max', max))
+
+        if count is not None:
+            if count is True:
+                root_selection.append('_count { _all }')
+            elif isinstance(count, dict):
+                root_selection.append(_select_fields('_count', count))
+
+        resp = await self._client._execute(
+            method='group_by',
+            model=self._model,
+            arguments={
+                'by': by,
+                'take': take,
+                'skip': skip,
+                'where': where,
+                'having': having,
+                'orderBy': order,
+            },
+            root_selection=root_selection,
+        )
+        return resp['data']['result']  # type: ignore[no-any-return]
+
+
 class ModelVersionActions(Generic[_PrismaModelT]):
     __slots__ = (
         '_client',
@@ -3210,7 +4278,7 @@ class ModelVersionActions(Generic[_PrismaModelT]):
         ```py
         users = await ModelVersion.prisma().query_raw(
             'SELECT * FROM ModelVersion WHERE id = $1',
-            'cafeiaccbc',
+            'biaagcedjc',
         )
         ```
         """
@@ -3250,7 +4318,7 @@ class ModelVersionActions(Generic[_PrismaModelT]):
         ```py
         user = await ModelVersion.prisma().query_first(
             'SELECT * FROM ModelVersion WHERE version = $1',
-            'gaddfhfh',
+            'cahhaghecf',
         )
         ```
         """
@@ -3289,8 +4357,8 @@ class ModelVersionActions(Generic[_PrismaModelT]):
         modelversion = await ModelVersion.prisma().create(
             data={
                 # data to create a ModelVersion record
-                'version': 'gieegcbeg',
-                'baseModel': 'bgcffadich',
+                'version': 'bghcbbcidi',
+                'baseModel': 'jcgghhgdj',
             },
         )
         ```
@@ -3345,13 +4413,13 @@ class ModelVersionActions(Generic[_PrismaModelT]):
             data=[
                 {
                     # data to create a ModelVersion record
-                    'version': 'fcbichhci',
-                    'baseModel': 'bcggadccgf',
+                    'version': 'beehgcebbg',
+                    'baseModel': 'bhdiaidiaf',
                 },
                 {
                     # data to create a ModelVersion record
-                    'version': 'jdcfdcgc',
-                    'baseModel': 'cafdaehjid',
+                    'version': 'deajegcfi',
+                    'baseModel': 'gabahhhjf',
                 },
             ],
             skip_duplicates=True,
@@ -3405,7 +4473,7 @@ class ModelVersionActions(Generic[_PrismaModelT]):
         ```py
         modelversion = await ModelVersion.prisma().delete(
             where={
-                'id': 'gifdddbia',
+                'id': 'cjagadcjg',
             },
         )
         ```
@@ -3457,7 +4525,7 @@ class ModelVersionActions(Generic[_PrismaModelT]):
         ```py
         modelversion = await ModelVersion.prisma().find_unique(
             where={
-                'id': 'bchehecef',
+                'id': 'bifficggej',
             },
         )
         ```
@@ -3508,7 +4576,7 @@ class ModelVersionActions(Generic[_PrismaModelT]):
         ```py
         modelversion = await ModelVersion.prisma().find_unique_or_raise(
             where={
-                'id': 'jeijcbhfe',
+                'id': 'bgbbaajbic',
             },
         )
         ```
@@ -3760,7 +4828,7 @@ class ModelVersionActions(Generic[_PrismaModelT]):
         ```py
         modelversion = await ModelVersion.prisma().update(
             where={
-                'id': 'bjgejjabff',
+                'id': 'eegghdhjb',
             },
             data={
                 # data to update the ModelVersion record to
@@ -3817,17 +4885,17 @@ class ModelVersionActions(Generic[_PrismaModelT]):
         ```py
         modelversion = await ModelVersion.prisma().upsert(
             where={
-                'id': 'bcciijbibg',
+                'id': 'daafgidjg',
             },
             data={
                 'create': {
-                    'id': 'bcciijbibg',
-                    'version': 'jdcfdcgc',
-                    'baseModel': 'cafdaehjid',
+                    'id': 'daafgidjg',
+                    'version': 'deajegcfi',
+                    'baseModel': 'gabahhhjf',
                 },
                 'update': {
-                    'version': 'jdcfdcgc',
-                    'baseModel': 'cafdaehjid',
+                    'version': 'deajegcfi',
+                    'baseModel': 'gabahhhjf',
                 },
             },
         )
@@ -3875,7 +4943,7 @@ class ModelVersionActions(Generic[_PrismaModelT]):
         # update all ModelVersion records
         total = await ModelVersion.prisma().update_many(
             data={
-                'artifactSha256': 'cffcachfd'
+                'artifactSha256': 'gdcgcgagj'
             },
             where={}
         )
@@ -4006,7 +5074,7 @@ class ModelVersionActions(Generic[_PrismaModelT]):
         results = await ModelVersion.prisma().count(
             select={
                 '_all': True,
-                'embeddingDim': True,
+                'domainTag': True,
             },
         )
         ```
@@ -4146,10 +5214,10 @@ class ModelVersionActions(Generic[_PrismaModelT]):
         Example
         -------
         ```py
-        # group ModelVersion records by loraRank values
+        # group ModelVersion records by onnxPath values
         # and count how many records are in each group
         results = await ModelVersion.prisma().group_by(
-            ['loraRank'],
+            ['onnxPath'],
             count=True,
         )
         ```
@@ -4238,7 +5306,7 @@ class TrainingJobActions(Generic[_PrismaModelT]):
         ```py
         users = await TrainingJob.prisma().query_raw(
             'SELECT * FROM TrainingJob WHERE id = $1',
-            'bccdfhdigc',
+            'bhceabbgja',
         )
         ```
         """
@@ -4318,8 +5386,8 @@ class TrainingJobActions(Generic[_PrismaModelT]):
             data={
                 # data to create a TrainingJob record
                 'trigger': enums.TrainingTrigger.DRIFT_ALERT,
-                'baseModel': 'febcgjbfj',
-                'hyperparameters': Json({'bageiegghg': True}),
+                'baseModel': 'ehabfhegh',
+                'hyperparameters': Json({'bcajcajjbc': True}),
             },
         )
         ```
@@ -4375,14 +5443,14 @@ class TrainingJobActions(Generic[_PrismaModelT]):
                 {
                     # data to create a TrainingJob record
                     'trigger': enums.TrainingTrigger.DRIFT_ALERT,
-                    'baseModel': 'faidicegb',
-                    'hyperparameters': Json({'bacecgfhbe': True}),
+                    'baseModel': 'bfdgheeegf',
+                    'hyperparameters': Json({'ececbijji': True}),
                 },
                 {
                     # data to create a TrainingJob record
                     'trigger': enums.TrainingTrigger.DRIFT_ALERT,
-                    'baseModel': 'ihcahiead',
-                    'hyperparameters': Json({'biheheiajg': True}),
+                    'baseModel': 'cbcfgdcdhf',
+                    'hyperparameters': Json({'fdgjfbhia': True}),
                 },
             ],
             skip_duplicates=True,
@@ -4436,7 +5504,7 @@ class TrainingJobActions(Generic[_PrismaModelT]):
         ```py
         trainingjob = await TrainingJob.prisma().delete(
             where={
-                'id': 'jbgijghgb',
+                'id': 'jcehcdchh',
             },
         )
         ```
@@ -4488,7 +5556,7 @@ class TrainingJobActions(Generic[_PrismaModelT]):
         ```py
         trainingjob = await TrainingJob.prisma().find_unique(
             where={
-                'id': 'hgjcghfbi',
+                'id': 'bgcbjdhjcc',
             },
         )
         ```
@@ -4539,7 +5607,7 @@ class TrainingJobActions(Generic[_PrismaModelT]):
         ```py
         trainingjob = await TrainingJob.prisma().find_unique_or_raise(
             where={
-                'id': 'icadbcehj',
+                'id': 'bieiidcabj',
             },
         )
         ```
@@ -4791,7 +5859,7 @@ class TrainingJobActions(Generic[_PrismaModelT]):
         ```py
         trainingjob = await TrainingJob.prisma().update(
             where={
-                'id': 'jchciaee',
+                'id': 'bjcbfcieaa',
             },
             data={
                 # data to update the TrainingJob record to
@@ -4848,19 +5916,19 @@ class TrainingJobActions(Generic[_PrismaModelT]):
         ```py
         trainingjob = await TrainingJob.prisma().upsert(
             where={
-                'id': 'deeificjd',
+                'id': 'cbaaechiej',
             },
             data={
                 'create': {
-                    'id': 'deeificjd',
+                    'id': 'cbaaechiej',
                     'trigger': enums.TrainingTrigger.DRIFT_ALERT,
-                    'baseModel': 'ihcahiead',
-                    'hyperparameters': Json({'biheheiajg': True}),
+                    'baseModel': 'cbcfgdcdhf',
+                    'hyperparameters': Json({'fdgjfbhia': True}),
                 },
                 'update': {
                     'trigger': enums.TrainingTrigger.DRIFT_ALERT,
-                    'baseModel': 'ihcahiead',
-                    'hyperparameters': Json({'biheheiajg': True}),
+                    'baseModel': 'cbcfgdcdhf',
+                    'hyperparameters': Json({'fdgjfbhia': True}),
                 },
             },
         )
@@ -4908,7 +5976,7 @@ class TrainingJobActions(Generic[_PrismaModelT]):
         # update all TrainingJob records
         total = await TrainingJob.prisma().update_many(
             data={
-                'baseModel': 'bbcbhebbda'
+                'baseModel': 'iejbeaaeg'
             },
             where={}
         )
@@ -5183,6 +6251,1034 @@ class TrainingJobActions(Generic[_PrismaModelT]):
         # and count how many records are in each group
         results = await TrainingJob.prisma().group_by(
             ['attempts'],
+            count=True,
+        )
+        ```
+        """
+        if order is None:
+            if take is not None:
+                raise TypeError('Missing argument: \'order\' which is required when \'take\' is present')
+
+            if skip is not None:
+                raise TypeError('Missing argument: \'order\' which is required when \'skip\' is present')
+
+        root_selection: List[str] = [*by]
+        if avg is not None:
+            root_selection.append(_select_fields('_avg', avg))
+
+        if min is not None:
+            root_selection.append(_select_fields('_min', min))
+
+        if sum is not None:
+            root_selection.append(_select_fields('_sum', sum))
+
+        if max is not None:
+            root_selection.append(_select_fields('_max', max))
+
+        if count is not None:
+            if count is True:
+                root_selection.append('_count { _all }')
+            elif isinstance(count, dict):
+                root_selection.append(_select_fields('_count', count))
+
+        resp = await self._client._execute(
+            method='group_by',
+            model=self._model,
+            arguments={
+                'by': by,
+                'take': take,
+                'skip': skip,
+                'where': where,
+                'having': having,
+                'orderBy': order,
+            },
+            root_selection=root_selection,
+        )
+        return resp['data']['result']  # type: ignore[no-any-return]
+
+
+class TrainingLinguisticSignalActions(Generic[_PrismaModelT]):
+    __slots__ = (
+        '_client',
+        '_model',
+    )
+
+    def __init__(self, client: Prisma, model: Type[_PrismaModelT]) -> None:
+        self._client = client
+        self._model = model
+
+    async def query_raw(
+        self,
+        query: LiteralString,
+        *args: Any,
+    ) -> List[_PrismaModelT]:
+        """Execute a raw SQL query
+
+        Parameters
+        ----------
+        query
+            The raw SQL query string to be executed
+        *args
+            Parameters to be passed to the SQL query, these MUST be used over
+            string formatting to avoid an SQL injection vulnerability
+
+        Returns
+        -------
+        List[prisma.models.TrainingLinguisticSignal]
+            The records returned by the SQL query
+
+        Raises
+        ------
+        prisma_errors.RawQueryError
+            This could be due to invalid syntax, mismatched number of parameters or any other error
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        users = await TrainingLinguisticSignal.prisma().query_raw(
+            'SELECT * FROM TrainingLinguisticSignal WHERE id = $1',
+            'jcibfcbhf',
+        )
+        ```
+        """
+        return await self._client.query_raw(query, *args, model=self._model)
+
+    async def query_first(
+        self,
+        query: LiteralString,
+        *args: Any,
+    ) -> Optional[_PrismaModelT]:
+        """Execute a raw SQL query, returning the first result
+
+        Parameters
+        ----------
+        query
+            The raw SQL query string to be executed
+        *args
+            Parameters to be passed to the SQL query, these MUST be used over
+            string formatting to avoid an SQL injection vulnerability
+
+        Returns
+        -------
+        prisma.models.TrainingLinguisticSignal
+            The first record returned by the SQL query
+        None
+            The raw SQL query did not return any records
+
+        Raises
+        ------
+        prisma_errors.RawQueryError
+            This could be due to invalid syntax, mismatched number of parameters or any other error
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        user = await TrainingLinguisticSignal.prisma().query_first(
+            'SELECT * FROM TrainingLinguisticSignal WHERE trainingJobId = $1',
+            'chdadcaga',
+        )
+        ```
+        """
+        return await self._client.query_first(query, *args, model=self._model)
+
+    async def create(
+        self,
+        data: types.TrainingLinguisticSignalCreateInput,
+        include: Optional[types.TrainingLinguisticSignalInclude] = None
+    ) -> _PrismaModelT:
+        """Create a new TrainingLinguisticSignal record.
+
+        Parameters
+        ----------
+        data
+            TrainingLinguisticSignal record data
+        include
+            Specifies which relations should be loaded on the returned TrainingLinguisticSignal model
+
+        Returns
+        -------
+        prisma.models.TrainingLinguisticSignal
+            The created TrainingLinguisticSignal record
+
+        Raises
+        ------
+        prisma.errors.MissingRequiredValueError
+            Value is required but was not found
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # create a TrainingLinguisticSignal record from just the required fields
+        traininglinguisticsignal = await TrainingLinguisticSignal.prisma().create(
+            data={
+                # data to create a TrainingLinguisticSignal record
+                'trainingJobId': 'jicieifbh',
+                'linguisticWindowId': 'fbahdheji',
+            },
+        )
+        ```
+        """
+        resp = await self._client._execute(
+            method='create',
+            model=self._model,
+            arguments={
+                'data': data,
+                'include': include,
+            },
+        )
+        return model_parse(self._model, resp['data']['result'])
+
+    async def create_many(
+        self,
+        data: List[types.TrainingLinguisticSignalCreateWithoutRelationsInput],
+        *,
+        skip_duplicates: Optional[bool] = None,
+    ) -> int:
+        """Create multiple TrainingLinguisticSignal records at once.
+
+        This function is *not* available when using SQLite.
+
+        Parameters
+        ----------
+        data
+            List of TrainingLinguisticSignal record data
+        skip_duplicates
+            Boolean flag for ignoring unique constraint errors
+
+        Returns
+        -------
+        int
+            The total number of records created
+
+        Raises
+        ------
+        prisma.errors.UnsupportedDatabaseError
+            Attempting to query when using SQLite
+        prisma.errors.UniqueViolationError
+            A unique constraint check has failed, these can be ignored with the `skip_duplicates` argument
+        prisma.errors.MissingRequiredValueError
+            Value is required but was not found
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        total = await TrainingLinguisticSignal.prisma().create_many(
+            data=[
+                {
+                    # data to create a TrainingLinguisticSignal record
+                    'trainingJobId': 'cbbheiicgh',
+                    'linguisticWindowId': 'beabjeejdg',
+                },
+                {
+                    # data to create a TrainingLinguisticSignal record
+                    'trainingJobId': 'bcjhgahffd',
+                    'linguisticWindowId': 'fbjeiiffa',
+                },
+            ],
+            skip_duplicates=True,
+        )
+        ```
+        """
+        if skip_duplicates and self._client._active_provider in CREATE_MANY_SKIP_DUPLICATES_UNSUPPORTED:
+            raise errors.UnsupportedDatabaseError(self._client._active_provider, 'create_many_skip_duplicates')
+
+        resp = await self._client._execute(
+            method='create_many',
+            model=self._model,
+            arguments={
+                'data': data,
+                'skipDuplicates': skip_duplicates,
+            },
+            root_selection=['count'],
+        )
+        return int(resp['data']['result']['count'])
+
+    async def delete(
+        self,
+        where: types.TrainingLinguisticSignalWhereUniqueInput,
+        include: Optional[types.TrainingLinguisticSignalInclude] = None
+    ) -> Optional[_PrismaModelT]:
+        """Delete a single TrainingLinguisticSignal record.
+
+        Parameters
+        ----------
+        where
+            TrainingLinguisticSignal filter to select the record to be deleted, must be unique
+        include
+            Specifies which relations should be loaded on the returned TrainingLinguisticSignal model
+
+        Returns
+        -------
+        prisma.models.TrainingLinguisticSignal
+            The deleted TrainingLinguisticSignal record
+        None
+            Could not find a record to delete
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+        prisma.errors.MissingRequiredValueError
+            Value is required but was not found
+
+        Example
+        -------
+        ```py
+        traininglinguisticsignal = await TrainingLinguisticSignal.prisma().delete(
+            where={
+                'id': 'jhgidcgbf',
+            },
+        )
+        ```
+        """
+        try:
+            resp = await self._client._execute(
+                method='delete',
+                model=self._model,
+                arguments={
+                    'where': where,
+                    'include': include,
+                },
+            )
+        except errors.RecordNotFoundError:
+            return None
+
+        return model_parse(self._model, resp['data']['result'])
+
+    async def find_unique(
+        self,
+        where: types.TrainingLinguisticSignalWhereUniqueInput,
+        include: Optional[types.TrainingLinguisticSignalInclude] = None
+    ) -> Optional[_PrismaModelT]:
+        """Find a unique TrainingLinguisticSignal record.
+
+        Parameters
+        ----------
+        where
+            TrainingLinguisticSignal filter to find the record, must be unique
+        include
+            Specifies which relations should be loaded on the returned TrainingLinguisticSignal model
+
+        Returns
+        -------
+        prisma.models.TrainingLinguisticSignal
+            The found TrainingLinguisticSignal record
+        None
+            No record matching the given input could be found
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+        prisma.errors.MissingRequiredValueError
+            Value is required but was not found
+
+        Example
+        -------
+        ```py
+        traininglinguisticsignal = await TrainingLinguisticSignal.prisma().find_unique(
+            where={
+                'id': 'bgjgecfejc',
+            },
+        )
+        ```
+        """
+        resp = await self._client._execute(
+            method='find_unique',
+            model=self._model,
+            arguments={
+                'where': where,
+                'include': include,
+            },
+        )
+        result = resp['data']['result']
+        if result is None:
+            return None
+        return model_parse(self._model, result)
+
+    async def find_unique_or_raise(
+        self,
+        where: types.TrainingLinguisticSignalWhereUniqueInput,
+        include: Optional[types.TrainingLinguisticSignalInclude] = None
+    ) -> _PrismaModelT:
+        """Find a unique TrainingLinguisticSignal record. Raises `RecordNotFoundError` if no record is found.
+
+        Parameters
+        ----------
+        where
+            TrainingLinguisticSignal filter to find the record, must be unique
+        include
+            Specifies which relations should be loaded on the returned TrainingLinguisticSignal model
+
+        Returns
+        -------
+        prisma.models.TrainingLinguisticSignal
+            The found TrainingLinguisticSignal record
+
+        Raises
+        ------
+        prisma.errors.RecordNotFoundError
+            No record was found
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+        prisma.errors.MissingRequiredValueError
+            Value is required but was not found
+
+        Example
+        -------
+        ```py
+        traininglinguisticsignal = await TrainingLinguisticSignal.prisma().find_unique_or_raise(
+            where={
+                'id': 'bgjcgchib',
+            },
+        )
+        ```
+        """
+        resp = await self._client._execute(
+            method='find_unique_or_raise',
+            model=self._model,
+            arguments={
+                'where': where,
+                'include': include,
+            },
+        )
+        return model_parse(self._model, resp['data']['result'])
+
+    async def find_many(
+        self,
+        take: Optional[int] = None,
+        skip: Optional[int] = None,
+        where: Optional[types.TrainingLinguisticSignalWhereInput] = None,
+        cursor: Optional[types.TrainingLinguisticSignalWhereUniqueInput] = None,
+        include: Optional[types.TrainingLinguisticSignalInclude] = None,
+        order: Optional[Union[types.TrainingLinguisticSignalOrderByInput, List[types.TrainingLinguisticSignalOrderByInput]]] = None,
+        distinct: Optional[List[types.TrainingLinguisticSignalScalarFieldKeys]] = None,
+    ) -> List[_PrismaModelT]:
+        """Find multiple TrainingLinguisticSignal records.
+
+        An empty list is returned if no records could be found.
+
+        Parameters
+        ----------
+        take
+            Limit the maximum number of TrainingLinguisticSignal records returned
+        skip
+            Ignore the first N results
+        where
+            TrainingLinguisticSignal filter to select records
+        cursor
+            Specifies the position in the list to start returning results from, (typically an ID field)
+        include
+            Specifies which relations should be loaded on the returned TrainingLinguisticSignal model
+        order
+            Order the returned TrainingLinguisticSignal records by any field
+        distinct
+            Filter TrainingLinguisticSignal records by either a single distinct field or distinct combinations of fields
+
+        Returns
+        -------
+        List[prisma.models.TrainingLinguisticSignal]
+            The list of all TrainingLinguisticSignal records that could be found
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # find the first 10 TrainingLinguisticSignal records
+        traininglinguisticsignals = await TrainingLinguisticSignal.prisma().find_many(take=10)
+
+        # find the first 5 TrainingLinguisticSignal records ordered by the linguisticWindowId field
+        traininglinguisticsignals = await TrainingLinguisticSignal.prisma().find_many(
+            take=5,
+            order={
+                'linguisticWindowId': 'desc',
+            },
+        )
+        ```
+        """
+        resp = await self._client._execute(
+            method='find_many',
+            model=self._model,
+            arguments={
+                'take': take,
+                'skip': skip,
+                'where': where,
+                'order_by': order,
+                'cursor': cursor,
+                'include': include,
+                'distinct': distinct,
+            },
+        )
+        return [model_parse(self._model, r) for r in resp['data']['result']]
+
+    async def find_first(
+        self,
+        skip: Optional[int] = None,
+        where: Optional[types.TrainingLinguisticSignalWhereInput] = None,
+        cursor: Optional[types.TrainingLinguisticSignalWhereUniqueInput] = None,
+        include: Optional[types.TrainingLinguisticSignalInclude] = None,
+        order: Optional[Union[types.TrainingLinguisticSignalOrderByInput, List[types.TrainingLinguisticSignalOrderByInput]]] = None,
+        distinct: Optional[List[types.TrainingLinguisticSignalScalarFieldKeys]] = None,
+    ) -> Optional[_PrismaModelT]:
+        """Find a single TrainingLinguisticSignal record.
+
+        Parameters
+        ----------
+        skip
+            Ignore the first N records
+        where
+            TrainingLinguisticSignal filter to select the record
+        cursor
+            Specifies the position in the list to start returning results from, (typically an ID field)
+        include
+            Specifies which relations should be loaded on the returned TrainingLinguisticSignal model
+        order
+            Order the returned TrainingLinguisticSignal records by any field
+        distinct
+            Filter TrainingLinguisticSignal records by either a single distinct field or distinct combinations of fields
+
+        Returns
+        -------
+        prisma.models.TrainingLinguisticSignal
+            The first TrainingLinguisticSignal record found, matching the given arguments
+        None
+            No record could be found
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # find the second TrainingLinguisticSignal record ordered by the driftWindowId field
+        traininglinguisticsignal = await TrainingLinguisticSignal.prisma().find_first(
+            skip=1,
+            order={
+                'driftWindowId': 'desc',
+            },
+        )
+        ```
+        """
+        resp = await self._client._execute(
+            method='find_first',
+            model=self._model,
+            arguments={
+                'skip': skip,
+                'where': where,
+                'order_by': order,
+                'cursor': cursor,
+                'include': include,
+                'distinct': distinct,
+            },
+        )
+        result = resp['data']['result']
+        if result is None:
+            return None
+
+        return model_parse(self._model, result)
+
+    async def find_first_or_raise(
+        self,
+        skip: Optional[int] = None,
+        where: Optional[types.TrainingLinguisticSignalWhereInput] = None,
+        cursor: Optional[types.TrainingLinguisticSignalWhereUniqueInput] = None,
+        include: Optional[types.TrainingLinguisticSignalInclude] = None,
+        order: Optional[Union[types.TrainingLinguisticSignalOrderByInput, List[types.TrainingLinguisticSignalOrderByInput]]] = None,
+        distinct: Optional[List[types.TrainingLinguisticSignalScalarFieldKeys]] = None,
+    ) -> _PrismaModelT:
+        """Find a single TrainingLinguisticSignal record. Raises `RecordNotFoundError` if no record was found.
+
+        Parameters
+        ----------
+        skip
+            Ignore the first N records
+        where
+            TrainingLinguisticSignal filter to select the record
+        cursor
+            Specifies the position in the list to start returning results from, (typically an ID field)
+        include
+            Specifies which relations should be loaded on the returned TrainingLinguisticSignal model
+        order
+            Order the returned TrainingLinguisticSignal records by any field
+        distinct
+            Filter TrainingLinguisticSignal records by either a single distinct field or distinct combinations of fields
+
+        Returns
+        -------
+        prisma.models.TrainingLinguisticSignal
+            The first TrainingLinguisticSignal record found, matching the given arguments
+
+        Raises
+        ------
+        prisma.errors.RecordNotFoundError
+            No record was found
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # find the second TrainingLinguisticSignal record ordered by the signalWeight field
+        traininglinguisticsignal = await TrainingLinguisticSignal.prisma().find_first_or_raise(
+            skip=1,
+            order={
+                'signalWeight': 'desc',
+            },
+        )
+        ```
+        """
+        resp = await self._client._execute(
+            method='find_first_or_raise',
+            model=self._model,
+            arguments={
+                'skip': skip,
+                'where': where,
+                'order_by': order,
+                'cursor': cursor,
+                'include': include,
+                'distinct': distinct,
+            },
+        )
+        return model_parse(self._model, resp['data']['result'])
+
+    async def update(
+        self,
+        data: types.TrainingLinguisticSignalUpdateInput,
+        where: types.TrainingLinguisticSignalWhereUniqueInput,
+        include: Optional[types.TrainingLinguisticSignalInclude] = None
+    ) -> Optional[_PrismaModelT]:
+        """Update a single TrainingLinguisticSignal record.
+
+        Parameters
+        ----------
+        data
+            TrainingLinguisticSignal record data specifying what to update
+        where
+            TrainingLinguisticSignal filter to select the unique record to create / update
+        include
+            Specifies which relations should be loaded on the returned TrainingLinguisticSignal model
+
+        Returns
+        -------
+        prisma.models.TrainingLinguisticSignal
+            The updated TrainingLinguisticSignal record
+        None
+            No record could be found
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        traininglinguisticsignal = await TrainingLinguisticSignal.prisma().update(
+            where={
+                'id': 'bacdaibgfa',
+            },
+            data={
+                # data to update the TrainingLinguisticSignal record to
+            },
+        )
+        ```
+        """
+        try:
+            resp = await self._client._execute(
+                method='update',
+                model=self._model,
+                arguments={
+                    'data': data,
+                    'where': where,
+                    'include': include,
+                },
+            )
+        except errors.RecordNotFoundError:
+            return None
+
+        return model_parse(self._model, resp['data']['result'])
+
+    async def upsert(
+        self,
+        where: types.TrainingLinguisticSignalWhereUniqueInput,
+        data: types.TrainingLinguisticSignalUpsertInput,
+        include: Optional[types.TrainingLinguisticSignalInclude] = None,
+    ) -> _PrismaModelT:
+        """Updates an existing record or create a new one
+
+        Parameters
+        ----------
+        where
+            TrainingLinguisticSignal filter to select the unique record to create / update
+        data
+            Data specifying what fields to set on create and update
+        include
+            Specifies which relations should be loaded on the returned TrainingLinguisticSignal model
+
+        Returns
+        -------
+        prisma.models.TrainingLinguisticSignal
+            The created or updated TrainingLinguisticSignal record
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+        prisma.errors.MissingRequiredValueError
+            Value is required but was not found
+
+        Example
+        -------
+        ```py
+        traininglinguisticsignal = await TrainingLinguisticSignal.prisma().upsert(
+            where={
+                'id': 'dchgibach',
+            },
+            data={
+                'create': {
+                    'id': 'dchgibach',
+                    'trainingJobId': 'bcjhgahffd',
+                    'linguisticWindowId': 'fbjeiiffa',
+                },
+                'update': {
+                    'trainingJobId': 'bcjhgahffd',
+                    'linguisticWindowId': 'fbjeiiffa',
+                },
+            },
+        )
+        ```
+        """
+        resp = await self._client._execute(
+            method='upsert',
+            model=self._model,
+            arguments={
+                'where': where,
+                'include': include,
+                'create': data.get('create'),
+                'update': data.get('update'),
+            },
+        )
+        return model_parse(self._model, resp['data']['result'])
+
+    async def update_many(
+        self,
+        data: types.TrainingLinguisticSignalUpdateManyMutationInput,
+        where: types.TrainingLinguisticSignalWhereInput,
+    ) -> int:
+        """Update multiple TrainingLinguisticSignal records
+
+        Parameters
+        ----------
+        data
+            TrainingLinguisticSignal data to update the selected TrainingLinguisticSignal records to
+        where
+            Filter to select the TrainingLinguisticSignal records to update
+
+        Returns
+        -------
+        int
+            The total number of TrainingLinguisticSignal records that were updated
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # update all TrainingLinguisticSignal records
+        total = await TrainingLinguisticSignal.prisma().update_many(
+            data={
+                'createdAt': datetime.datetime.utcnow()
+            },
+            where={}
+        )
+        ```
+        """
+        resp = await self._client._execute(
+            method='update_many',
+            model=self._model,
+            arguments={'data': data, 'where': where,},
+            root_selection=['count'],
+        )
+        return int(resp['data']['result']['count'])
+
+    @overload
+    async def count(
+        self,
+        select: None = None,
+        take: Optional[int] = None,
+        skip: Optional[int] = None,
+        where: Optional[types.TrainingLinguisticSignalWhereInput] = None,
+        cursor: Optional[types.TrainingLinguisticSignalWhereUniqueInput] = None,
+    ) -> int:
+        """Count the number of TrainingLinguisticSignal records present in the database
+
+        Parameters
+        ----------
+        select
+            Select the TrainingLinguisticSignal fields to be counted
+        take
+            Limit the maximum result
+        skip
+            Ignore the first N records
+        where
+            TrainingLinguisticSignal filter to find records
+        cursor
+            Specifies the position in the list to start counting results from, (typically an ID field)
+        order
+            This parameter is deprecated and will be removed in a future release
+
+        Returns
+        -------
+        int
+            The total number of records found, returned if `select` is not given
+
+        prisma.types.TrainingLinguisticSignalCountAggregateOutput
+            Data returned when `select` is used, the fields present in this dictionary will
+            match the fields passed in the `select` argument
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # total: int
+        total = await TrainingLinguisticSignal.prisma().count()
+
+        # results: prisma.types.TrainingLinguisticSignalCountAggregateOutput
+        results = await TrainingLinguisticSignal.prisma().count(
+            select={
+                '_all': True,
+                'id': True,
+            },
+        )
+        ```
+        """
+
+
+    @overload
+    async def count(
+        self,
+        select: types.TrainingLinguisticSignalCountAggregateInput,
+        take: Optional[int] = None,
+        skip: Optional[int] = None,
+        where: Optional[types.TrainingLinguisticSignalWhereInput] = None,
+        cursor: Optional[types.TrainingLinguisticSignalWhereUniqueInput] = None,
+    ) -> types.TrainingLinguisticSignalCountAggregateOutput:
+        ...
+
+    async def count(
+        self,
+        select: Optional[types.TrainingLinguisticSignalCountAggregateInput] = None,
+        take: Optional[int] = None,
+        skip: Optional[int] = None,
+        where: Optional[types.TrainingLinguisticSignalWhereInput] = None,
+        cursor: Optional[types.TrainingLinguisticSignalWhereUniqueInput] = None,
+    ) -> Union[int, types.TrainingLinguisticSignalCountAggregateOutput]:
+        """Count the number of TrainingLinguisticSignal records present in the database
+
+        Parameters
+        ----------
+        select
+            Select the TrainingLinguisticSignal fields to be counted
+        take
+            Limit the maximum result
+        skip
+            Ignore the first N records
+        where
+            TrainingLinguisticSignal filter to find records
+        cursor
+            Specifies the position in the list to start counting results from, (typically an ID field)
+        order
+            This parameter is deprecated and will be removed in a future release
+
+        Returns
+        -------
+        int
+            The total number of records found, returned if `select` is not given
+
+        prisma.types.TrainingLinguisticSignalCountAggregateOutput
+            Data returned when `select` is used, the fields present in this dictionary will
+            match the fields passed in the `select` argument
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # total: int
+        total = await TrainingLinguisticSignal.prisma().count()
+
+        # results: prisma.types.TrainingLinguisticSignalCountAggregateOutput
+        results = await TrainingLinguisticSignal.prisma().count(
+            select={
+                '_all': True,
+                'trainingJobId': True,
+            },
+        )
+        ```
+        """
+
+        # TODO: this selection building should be moved to the QueryBuilder
+        #
+        # note the distinction between checking for `not select` here and `select is None`
+        # later is to handle the case that the given select dictionary is empty, this
+        # is a limitation of our types.
+        if not select:
+            root_selection = ['_count { _all }']
+        else:
+
+            root_selection = [
+                '_count {{ {0} }}'.format(' '.join(k for k, v in select.items() if v is True))
+            ]
+
+        resp = await self._client._execute(
+            method='count',
+            model=self._model,
+            arguments={
+                'take': take,
+                'skip': skip,
+                'where': where,
+                'cursor': cursor,
+            },
+            root_selection=root_selection,
+        )
+
+        if select is None:
+            return cast(int, resp['data']['result']['_count']['_all'])
+        else:
+            return cast(types.TrainingLinguisticSignalCountAggregateOutput, resp['data']['result']['_count'])
+
+    async def delete_many(
+        self,
+        where: Optional[types.TrainingLinguisticSignalWhereInput] = None
+    ) -> int:
+        """Delete multiple TrainingLinguisticSignal records.
+
+        Parameters
+        ----------
+        where
+            Optional TrainingLinguisticSignal filter to find the records to be deleted
+
+        Returns
+        -------
+        int
+            The total number of TrainingLinguisticSignal records that were deleted
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # delete all TrainingLinguisticSignal records
+        total = await TrainingLinguisticSignal.prisma().delete_many()
+        ```
+        """
+        resp = await self._client._execute(
+            method='delete_many',
+            model=self._model,
+            arguments={'where': where},
+            root_selection=['count'],
+        )
+        return int(resp['data']['result']['count'])
+
+    # TODO: make this easier to work with safely, currently output fields are typed as
+    #       not required, we should refactor the return type
+    # TODO: consider returning a Dict where the keys are a Tuple of the `by` selection
+    # TODO: statically type that the order argument is required when take or skip are present
+    async def group_by(
+        self,
+        by: List['types.TrainingLinguisticSignalScalarFieldKeys'],
+        *,
+        where: Optional['types.TrainingLinguisticSignalWhereInput'] = None,
+        take: Optional[int] = None,
+        skip: Optional[int] = None,
+        avg: Optional['types.TrainingLinguisticSignalAvgAggregateInput'] = None,
+        sum: Optional['types.TrainingLinguisticSignalSumAggregateInput'] = None,
+        min: Optional['types.TrainingLinguisticSignalMinAggregateInput'] = None,
+        max: Optional['types.TrainingLinguisticSignalMaxAggregateInput'] = None,
+        having: Optional['types.TrainingLinguisticSignalScalarWhereWithAggregatesInput'] = None,
+        count: Optional[Union[bool, 'types.TrainingLinguisticSignalCountAggregateInput']] = None,
+        order: Optional[Union[Mapping['types.TrainingLinguisticSignalScalarFieldKeys', 'types.SortOrder'], List[Mapping['types.TrainingLinguisticSignalScalarFieldKeys', 'types.SortOrder']]]] = None,
+    ) -> List['types.TrainingLinguisticSignalGroupByOutput']:
+        """Group TrainingLinguisticSignal records by one or more field values and perform aggregations
+        each group such as finding the average.
+
+        Parameters
+        ----------
+        by
+            List of scalar TrainingLinguisticSignal fields to group records by
+        where
+            TrainingLinguisticSignal filter to select records
+        take
+            Limit the maximum number of TrainingLinguisticSignal records returned
+        skip
+            Ignore the first N records
+        avg
+            Adds the average of all values of the specified fields to the `_avg` field
+            in the returned data.
+        sum
+            Adds the sum of all values of the specified fields to the `_sum` field
+            in the returned data.
+        min
+            Adds the smallest available value for the specified fields to the `_min` field
+            in the returned data.
+        max
+            Adds the largest available value for the specified fields to the `_max` field
+            in the returned data.
+        count
+            Adds a count of non-fields to the `_count` field in the returned data.
+        having
+            Allows you to filter groups by an aggregate value - for example only return
+            groups having an average age less than 50.
+        order
+            Lets you order the returned list by any property that is also present in `by`.
+            Only **one** field is allowed at a time.
+
+        Returns
+        -------
+        List[prisma.types.TrainingLinguisticSignalGroupByOutput]
+            A list of dictionaries representing the TrainingLinguisticSignal record,
+            this will also have additional fields present if aggregation arguments
+            are used (see the above parameters)
+
+        Raises
+        ------
+        prisma.errors.PrismaError
+            Catch all for every exception raised by Prisma Client Python
+
+        Example
+        -------
+        ```py
+        # group TrainingLinguisticSignal records by linguisticWindowId values
+        # and count how many records are in each group
+        results = await TrainingLinguisticSignal.prisma().group_by(
+            ['linguisticWindowId'],
             count=True,
         )
         ```

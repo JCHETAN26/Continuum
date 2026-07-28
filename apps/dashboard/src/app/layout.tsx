@@ -1,14 +1,14 @@
-import type { Metadata } from "next";
-import { Inter } from "next/font/google";
-import "./globals.css";
-import Link from "next/link";
-import { Activity, Database, LayoutDashboard } from "lucide-react";
+import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
+import './globals.css';
+import Link from 'next/link';
+import { Activity, Database, LayoutDashboard } from 'lucide-react';
 
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: "Continuum Dashboard",
-  description: "Mission control for your embedding models",
+  title: 'Continuum Dashboard',
+  description: 'Mission control for your embedding models',
 };
 
 export default function RootLayout({
@@ -28,15 +28,24 @@ export default function RootLayout({
             </h1>
           </div>
           <nav className="flex-1 px-4 space-y-2">
-            <Link href="/" className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-accent text-sm font-medium transition-colors">
+            <Link
+              href="/"
+              className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-accent text-sm font-medium transition-colors"
+            >
               <LayoutDashboard className="size-4" />
               Overview
             </Link>
-            <Link href="/models" className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-accent text-sm font-medium transition-colors">
+            <Link
+              href="/models"
+              className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-accent text-sm font-medium transition-colors"
+            >
               <Database className="size-4" />
               Model Registry
             </Link>
-            <Link href="/training" className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-accent text-sm font-medium transition-colors">
+            <Link
+              href="/training"
+              className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-accent text-sm font-medium transition-colors"
+            >
               <Activity className="size-4" />
               Training Monitor
             </Link>
@@ -48,9 +57,7 @@ export default function RootLayout({
           <header className="h-16 border-b border-border flex items-center px-8 bg-card/50 backdrop-blur-sm z-10">
             <h2 className="text-sm font-medium text-muted-foreground">Continuum / Dashboard</h2>
           </header>
-          <div className="flex-1 overflow-y-auto p-8">
-            {children}
-          </div>
+          <div className="flex-1 overflow-y-auto p-8">{children}</div>
         </main>
       </body>
     </html>

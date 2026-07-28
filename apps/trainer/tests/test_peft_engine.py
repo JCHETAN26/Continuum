@@ -1,0 +1,286 @@
+from __future__ import annotations
+
+from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
+
+import pytest
+from continuum_trainer.peft_engine import (
+    PeftDependencies,
+    PeftTrainingConfig,
+    PeftTrainingTelemetry,
+    TrainingText,
+    build_contrastive_dataset,
+    build_lora_config,
+    infer_domain_tag,
+    load_drifted_training_texts,
+    mark_model_pending_eval,
+    train_peft_model,
+    upload_peft_artifacts,
+)
+
+
+class FakeDataset:
+    def __init__(self, payload: dict[str, list[str]]):
+        self.payload = payload
+        self.mapped = False
+        self.formatted = False
+
+    def map(self, fn, batched: bool, remove_columns: list[str]):
+        assert batched is True
+        assert remove_columns == ["text"]
+        tokenized = fn(self.payload)
+        mapped = FakeDataset({"text": self.payload["text"]})
+        mapped.payload.update(tokenized)
+        mapped.mapped = True
+        return mapped
+
+    def with_format(self, format_name: str):
+        assert format_name == "torch"
+        self.formatted = True
+        return self
+
+
+class FakeDatasetsModule:
+    class Dataset:
+        @staticmethod
+        def from_dict(payload: dict[str, list[str]]) -> FakeDataset:
+            return FakeDataset(payload)
+
+
+class FakeTokenizer:
+    @classmethod
+    def from_pretrained(cls, model_name: str):
+        assert model_name == "prajjwal1/bert-tiny"
+        return cls()
+
+    def __call__(self, texts, padding: str, truncation: bool, max_length: int):
+        assert padding == "max_length"
+        assert truncation is True
+        assert max_length == 32
+        return {
+            "input_ids": [[1, 2, 0] for _ in texts],
+            "attention_mask": [[1, 1, 0] for _ in texts],
+        }
+
+    def save_pretrained(self, path: Path) -> None:
+        path.mkdir(parents=True, exist_ok=True)
+        (path / "tokenizer.json").write_text("{}", encoding="utf-8")
+
+
+class FakeBaseModel:
+    @classmethod
+    def from_pretrained(cls, model_name: str):
+        assert model_name == "prajjwal1/bert-tiny"
+        return cls()
+
+
+class FakePeftModel:
+    def merge_and_unload(self):
+        return self
+
+    def save_pretrained(self, path: Path) -> None:
+        path.mkdir(parents=True, exist_ok=True)
+        (path / "adapter_config.json").write_text('{"r":8}', encoding="utf-8")
+
+
+class FakeTrainingArguments:
+    def __init__(self, **kwargs):
+        self.__dict__.update(kwargs)
+
+
+class FakeTrainer:
+    def __init__(self, model, args, train_dataset):
+        self.model = model
+        self.args = args
+        self.train_dataset = train_dataset
+        self.state = SimpleNamespace(log_history=[{"step": 1, "loss": 0.4}])
+
+    def train(self):
+        return SimpleNamespace(training_loss=0.4)
+
+
+class FakeTransformersModule:
+    AutoTokenizer = FakeTokenizer
+    AutoModel = FakeBaseModel
+    TrainingArguments = FakeTrainingArguments
+    Trainer = FakeTrainer
+
+
+class FakePeftModule:
+    TaskType = SimpleNamespace(FEATURE_EXTRACTION="FEATURE_EXTRACTION")
+    captured_config = None
+
+    class LoraConfig:
+        def __init__(self, **kwargs):
+            self.kwargs = kwargs
+            FakePeftModule.captured_config = kwargs
+
+    @staticmethod
+    def get_peft_model(base_model, lora_config):
+        assert isinstance(base_model, FakeBaseModel)
+        assert lora_config.kwargs["r"] == 8
+        return FakePeftModel()
+
+
+class FakeMinio:
+    def __init__(self):
+        self.objects: dict[str, bytes] = {}
+
+    def bucket_exists(self, bucket: str) -> bool:
+        assert bucket
+        return True
+
+    def make_bucket(self, bucket: str) -> None:
+        raise AssertionError(f"unexpected make_bucket({bucket})")
+
+    def put_object(
+        self,
+        *,
+        bucket_name: str,
+        object_name: str,
+        data,
+        length: int,
+        content_type: str,
+        metadata: dict[str, str],
+    ) -> None:
+        payload = data.read()
+        assert len(payload) == length
+        assert content_type
+        assert metadata["sha256"]
+        self.objects[f"{bucket_name}/{object_name}"] = payload
+
+
+def fake_deps() -> PeftDependencies:
+    return PeftDependencies(
+        datasets=FakeDatasetsModule,
+        peft=FakePeftModule,
+        torch=SimpleNamespace(),
+        transformers=FakeTransformersModule,
+    )
+
+
+def test_build_contrastive_dataset_requires_at_least_two_texts():
+    with pytest.raises(ValueError, match="at least two"):
+        build_contrastive_dataset(
+            [TrainingText(text="one", source="medical", domain_tag="medical")],
+            FakeDatasetsModule,
+        )
+
+
+def test_infer_domain_tag_uses_majority_source():
+    texts = [
+        TrainingText(text="a", source="software", domain_tag="software"),
+        TrainingText(text="b", source="medical", domain_tag="medical"),
+        TrainingText(text="c", source="medical", domain_tag="medical"),
+    ]
+
+    assert infer_domain_tag(texts) == "medical"
+
+
+def test_build_lora_config_matches_phase_one_contract():
+    config = PeftTrainingConfig(base_model="prajjwal1/bert-tiny")
+
+    build_lora_config(config, FakePeftModule)
+
+    assert FakePeftModule.captured_config == {
+        "r": 8,
+        "lora_alpha": 16,
+        "target_modules": ["query", "key", "value", "dense"],
+        "lora_dropout": 0.05,
+        "task_type": "FEATURE_EXTRACTION",
+    }
+
+
+def test_train_peft_model_orchestrates_tiny_model_export(tmp_path: Path):
+    texts = [
+        TrainingText(text="patient respiratory distress", source="medical", domain_tag="medical"),
+        TrainingText(text="losartan hypertension", source="medical", domain_tag="medical"),
+    ]
+
+    def fake_exporter(model_dir: Path, output_dir: Path, task: str) -> None:
+        assert task == "feature-extraction"
+        assert (model_dir / "adapter_config.json").exists()
+        output_dir.mkdir(parents=True, exist_ok=True)
+        (output_dir / "model.onnx").write_bytes(b"onnx")
+
+    telemetry, adapter_dir, onnx_dir = train_peft_model(
+        texts,
+        PeftTrainingConfig(
+            base_model="prajjwal1/bert-tiny",
+            epochs=1,
+            batch_size=2,
+            max_length=32,
+            output_dir=str(tmp_path),
+        ),
+        deps=fake_deps(),
+        exporter=fake_exporter,
+    )
+
+    assert telemetry.sample_count == 2
+    assert telemetry.loss_history == [{"step": 1.0, "loss": 0.4}]
+    assert telemetry.domain_tag == "medical"
+    assert (adapter_dir / "adapter_config.json").exists()
+    assert (onnx_dir / "model.onnx").exists()
+
+
+def test_upload_peft_artifacts_writes_adapter_onnx_and_metadata(tmp_path: Path):
+    adapter_dir = tmp_path / "adapter"
+    onnx_dir = tmp_path / "onnx"
+    adapter_dir.mkdir()
+    onnx_dir.mkdir()
+    (adapter_dir / "adapter_config.json").write_text('{"r":8}', encoding="utf-8")
+    (onnx_dir / "model.onnx").write_bytes(b"onnx")
+    client = FakeMinio()
+
+    artifacts = upload_peft_artifacts(
+        version="2026.07.28-test",
+        telemetry=PeftTrainingTelemetry(
+            sample_count=2,
+            loss_history=[{"step": 1.0, "loss": 0.4}],
+            domain_tag="medical",
+        ),
+        adapter_dir=adapter_dir,
+        onnx_dir=onnx_dir,
+        client=client,
+    )
+
+    assert artifacts.domain_tag == "medical"
+    assert artifacts.onnx_uri.endswith("/2026.07.28-test/model.onnx")
+    assert any(key.endswith("peft-adapter-config.json") for key in client.objects)
+    assert any(key.endswith("peft-training-metadata.json") for key in client.objects)
+
+
+@pytest.mark.asyncio
+async def test_load_drifted_training_texts_queries_window_when_available():
+    db = SimpleNamespace()
+    db.query_raw = AsyncMock(return_value=[{"text": "patient care", "source": "medical"}])
+
+    texts = await load_drifted_training_texts(db, "11111111-1111-1111-1111-111111111111", limit=50)
+
+    assert texts == [TrainingText(text="patient care", source="medical", domain_tag="medical")]
+    assert "drift_windows" in db.query_raw.call_args.args[0]
+
+
+@pytest.mark.asyncio
+async def test_mark_model_pending_eval_updates_phase_one_columns():
+    db = SimpleNamespace()
+    db.execute_raw = AsyncMock(return_value=1)
+
+    await mark_model_pending_eval(
+        db,
+        model_id="11111111-1111-1111-1111-111111111111",
+        artifacts=SimpleNamespace(
+            domain_tag="medical",
+            onnx_uri="s3://models/model.onnx",
+            onnx_sha256="a" * 64,
+            onnx_bytes=123,
+        ),
+        eval_mrr=0.91,
+    )
+
+    query = db.execute_raw.call_args.args[0]
+    assert "PENDING_EVAL" in query
+    assert "domain_tag" in query
+    assert "onnx_path" in query
+    assert "eval_mrr" in query

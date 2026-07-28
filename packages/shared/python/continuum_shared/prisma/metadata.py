@@ -9,8 +9,10 @@ PRISMA_MODELS: set[str] = {
     'Document',
     'Embedding',
     'DriftWindow',
+    'LinguisticWindow',
     'ModelVersion',
     'TrainingJob',
+    'TrainingLinguisticSignal',
 }
 
 RELATIONAL_FIELD_MAPPINGS: dict[str, dict[str, str]] = {
@@ -25,6 +27,10 @@ RELATIONAL_FIELD_MAPPINGS: dict[str, dict[str, str]] = {
         'baseline': 'DriftWindow',
         'derived': 'DriftWindow',
         'trainingJobs': 'TrainingJob',
+        'linguisticSignals': 'TrainingLinguisticSignal',
+    },
+    'LinguisticWindow': {
+        'trainingSignals': 'TrainingLinguisticSignal',
     },
     'ModelVersion': {
         'trainingJob': 'TrainingJob',
@@ -33,6 +39,12 @@ RELATIONAL_FIELD_MAPPINGS: dict[str, dict[str, str]] = {
     'TrainingJob': {
         'driftWindow': 'DriftWindow',
         'modelVersion': 'ModelVersion',
+        'linguisticSignals': 'TrainingLinguisticSignal',
+    },
+    'TrainingLinguisticSignal': {
+        'trainingJob': 'TrainingJob',
+        'linguisticWindow': 'LinguisticWindow',
+        'driftWindow': 'DriftWindow',
     },
 }
 

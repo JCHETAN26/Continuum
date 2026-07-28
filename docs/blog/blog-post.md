@@ -1,12 +1,12 @@
 # When Your Embeddings Rot: Solving Semantic Drift in Production
 
-*Drafted for the Apple Cloud AI Platform Engineering Blog*
+_Drafted for the Apple Cloud AI Platform Engineering Blog_
 
 Every production RAG and semantic search system dies slowly. It’s a silent, invisible decay.
 
 When you first launch your embedding-based retrieval system, the results are magical. The vector space cleanly separates concepts, semantic searches return highly relevant documents, and your retrieval metrics are pristine. But then the real world happens.
 
-Your product evolves. Users start querying for new features. The industry vocabulary shifts (when was the last time you queried for "LLM" in 2021?). The distribution of data flowing through your system drifts away from the distribution your embedding model was trained on. 
+Your product evolves. Users start querying for new features. The industry vocabulary shifts (when was the last time you queried for "LLM" in 2021?). The distribution of data flowing through your system drifts away from the distribution your embedding model was trained on.
 
 We call this **Semantic Drift**, and it means your embeddings are rotting.
 
