@@ -41,7 +41,7 @@ x-app-env: &app-env
   S3_BUCKET_DOCUMENTS: continuum-documents
   S3_BUCKET_MODELS: continuum-models
   S3_FORCE_PATH_STYLE: 'true'
-  EMBEDDING_MODEL: continuum/hash-embedding-demo
+  EMBEDDING_MODEL: sentence-transformers/all-MiniLM-L6-v2
   EMBEDDING_DIM: 384
   DRIFT_THRESHOLD: 0.08
   LINGUISTIC_DRIFT_THRESHOLD: 0.65

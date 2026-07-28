@@ -131,6 +131,22 @@ rolling windows against the baseline corpus for entity movement, topic movement,
 vocabulary shift, stores results in `linguistic_windows`, publishes `linguistic-drift-alerts`,
 and streams live dashboard updates from `http://localhost:8004/v1/linguistic/events`.
 
+## Embeddings
+
+Documents are embedded with `sentence-transformers/all-MiniLM-L6-v2`, run through ONNX Runtime
+rather than torch: the published ONNX export plus a tokenizers vocabulary keeps the service
+images small, and the serving engine already loads ONNX sessions for adapted models.
+
+The weights are baked into the image at build time (`scripts/fetch_embedding_model.py`), so no
+container reaches the network at startup and every replica serves byte-identical vectors. Drift
+is measured by comparing centroids over time, so replicas on different revisions of the model
+would register as drift that never happened.
+
+Pooling — attention-masked mean, then L2 normalisation — is duplicated in
+`continuum_trainer.peft_engine`. The two must stay in step: an adapter trained under one
+pooling strategy and served under another yields vectors that are silently incomparable with
+the baseline centroids.
+
 ## Validation
 
 The default checks do not require Docker:
@@ -161,7 +177,7 @@ pnpm test:integration
 ## Services Overview
 
 - **`apps/ingest`**: FastAPI service that validates document payloads and produces idempotently to Kafka.
-- **`apps/embedding`**: Computes deterministic offline demo embeddings and stores them in pgvector.
+- **`apps/embedding`**: Embeds documents with `all-MiniLM-L6-v2` via ONNX Runtime and stores the vectors in pgvector.
 - **`apps/drift`**: Computes rolling centroids of the embedding space and fires alerts based on cosine distance.
 - **`apps/trainer`**: Runs a deterministic demo adaptation/evaluation job before registering models.
 - **`apps/server`**: REST + gRPC embedding service with active-model polling and hot-swap state.
