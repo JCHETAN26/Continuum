@@ -132,6 +132,45 @@ jobs:
       - name: Run Docker Integration Tests
         run: pnpm test:integration
 
+  # Exercises the real LoRA path: PEFT training, merge, and ONNX export. Kept separate
+  # from `unit` because the ML extra pulls torch and transformers, which no other job
+  # needs. No Docker: the trainer runs against prajjwal1/bert-tiny and a mocked client.
+  ml:
+    name: ML (PEFT LoRA training)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: 'uv.lock'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: '.python-version'
+
+      - name: Install Python dependencies with the PEFT extra
+        run: uv sync --all-packages --dev --extra peft
+
+      - name: Create .env from example
+        run: cp .env.example .env
+
+      - name: Cache Hugging Face model weights
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: hf-${{ runner.os }}-bert-tiny
+
+      - name: Run PEFT training integration test
+        run: uv run pytest -m integration tests/integration/test_peft_training.py -v
+        env:
+          RUN_ML_INTEGRATION: '1'
+          HF_HUB_DISABLE_TELEMETRY: '1'
+
   e2e-compose:
     name: E2E (Docker Compose)
     runs-on: ubuntu-latest
