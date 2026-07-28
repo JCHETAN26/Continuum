@@ -1,4 +1,5 @@
 import importlib.util
+import json
 from pathlib import Path
 
 import httpx
@@ -44,7 +45,7 @@ async def test_send_corpus_posts_expected_batches(monkeypatch):
         sent = await seed.send_corpus(
             client,
             config,
-            ["alpha", "beta"],
+            ["alpha", "beta", "gamma"],
             "github_issues",
             3,
             seed.random.Random(7),
@@ -52,6 +53,28 @@ async def test_send_corpus_posts_expected_batches(monkeypatch):
 
     assert sent == 3
     assert len(requests) == 2
+
+    # Every document is sent once. Sampling with replacement made a window a permutation
+    # of the same handful of vectors, which is not a distribution drift can measure.
+    delivered = [
+        payload["text"] for request in requests for payload in json.loads(request.content.decode())
+    ]
+    assert sorted(delivered) == ["alpha", "beta", "gamma"]
+
+
+@pytest.mark.asyncio
+async def test_send_corpus_refuses_to_pad_a_short_corpus():
+    """Silently repeating documents is what made the old seed data meaningless."""
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(202, json={"status": "accepted"})
+
+    config = seed.SeedConfig(inter_batch_delay_seconds=0, window_settle_seconds=0)
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        with pytest.raises(ValueError, match="holds 2 documents, need 5"):
+            await seed.send_corpus(
+                client, config, ["alpha", "beta"], "github_issues", 5, seed.random.Random(7)
+            )
 
 
 @pytest.mark.asyncio

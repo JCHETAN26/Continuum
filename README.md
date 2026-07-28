@@ -131,6 +131,22 @@ rolling windows against the baseline corpus for entity movement, topic movement,
 vocabulary shift, stores results in `linguistic_windows`, publishes `linguistic-drift-alerts`,
 and streams live dashboard updates from `http://localhost:8004/v1/linguistic/events`.
 
+## Seed Corpus
+
+`uv run scripts/seed.py` ingests real documents, not generated text. The baseline is 1,000
+posts from the `comp.*` newsgroups and the drift window is 500 from `sci.med`, drawn from the
+[20 Newsgroups](https://huggingface.co/datasets/SetFit/20_newsgroups) dataset and fetched as
+JSONL through `huggingface_hub`. Every document is distinct — the corpus is deduplicated and
+walked rather than sampled with replacement, so 1,500 documents means 1,500 different ones.
+
+Measured with the production embedding model, `comp.*` against `sci.med`:
+
+| measurement                              | value  |
+| ---------------------------------------- | ------ |
+| centroid cosine distance between domains | 0.9218 |
+| mixed window against baseline            | 0.3520 |
+| `DRIFT_THRESHOLD`                        | 0.08   |
+
 ## Embeddings
 
 Documents are embedded with `sentence-transformers/all-MiniLM-L6-v2`, run through ONNX Runtime

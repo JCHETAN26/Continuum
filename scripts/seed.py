@@ -1,12 +1,20 @@
 import argparse
 import asyncio
 import random
+import sys
 import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from pathlib import Path
 
 import httpx
+
+# This file is both executed as a script and loaded by tests through
+# spec_from_file_location, which does not put its directory on sys.path.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from corpus import medical_documents, software_documents  # noqa: E402
 
 DEFAULT_INGEST_URL = "http://localhost:8000/v1/ingest/batch"
 DEFAULT_BATCH_SIZE = 10
@@ -15,32 +23,6 @@ DEFAULT_DRIFT_DOCUMENTS = 500
 DEFAULT_INTER_BATCH_DELAY_SECONDS = 0.2
 DEFAULT_WINDOW_SETTLE_SECONDS = 15.0
 DEFAULT_SEED = 20260727
-
-SOFTWARE_TEXTS = [
-    "Refactoring the authentication microservice to use JWTs.",
-    "The Kubernetes cluster needs a rolling restart after the node pool update.",
-    "Implementing a Redis cache layer for the REST API endpoints.",
-    "Investigating a memory leak in the Node.js backend worker.",
-    "The CI/CD pipeline failed during the integration tests phase.",
-    "Updating the React components to use the new hooks API.",
-    "Optimizing PostgreSQL query performance by adding an index.",
-    "Deploying the new machine learning model to production via ONNX.",
-    "Handling CORS preflight requests in the API Gateway.",
-    "Writing end-to-end tests using Playwright and TypeScript.",
-]
-
-HEALTHCARE_TEXTS = [
-    "Patient presented with severe acute respiratory distress syndrome.",
-    "Administering 50mg of Losartan for hypertension management.",
-    "The MRI results show a slight abnormality in the prefrontal cortex.",
-    "Scheduling a follow-up appointment for the cardiology consultation.",
-    "Blood test indicates elevated levels of low-density lipoprotein.",
-    "Prescribing broad-spectrum antibiotics for the bacterial infection.",
-    "The patient has a family history of Type 2 Diabetes.",
-    "Performing an echocardiogram to assess cardiac function.",
-    "The biopsy results came back negative for malignancy.",
-    "Monitoring vital signs every 4 hours post-operation.",
-]
 
 
 @dataclass(frozen=True)
@@ -97,7 +79,7 @@ async def run_seed(config: SeedConfig) -> SeedResult:
         baseline_sent = await send_corpus(
             client,
             config,
-            SOFTWARE_TEXTS,
+            software_documents(config.baseline_documents, config.seed),
             "github_issues",
             config.baseline_documents,
             rng,
@@ -110,7 +92,7 @@ async def run_seed(config: SeedConfig) -> SeedResult:
         drift_sent = await send_corpus(
             client,
             config,
-            HEALTHCARE_TEXTS,
+            medical_documents(config.drift_documents, config.seed),
             "medical_records",
             config.drift_documents,
             rng,
@@ -132,8 +114,17 @@ async def send_corpus(
     rng: random.Random,
 ) -> int:
     sent = 0
+    # Walk the corpus rather than sampling with replacement. Drawing repeatedly from a
+    # small pool made every window a permutation of the same few vectors, so the drift
+    # score reflected how those documents were written rather than a real distribution.
+    pool = list(corpus)
+    if len(pool) < total_documents:
+        raise ValueError(f"corpus for {source} holds {len(pool)} documents, need {total_documents}")
+    rng.shuffle(pool)
+    cursor = 0
     for batch_size in batch_sizes(total_documents, config.batch_size):
-        batch = rng.choices(corpus, k=batch_size)
+        batch = pool[cursor : cursor + batch_size]
+        cursor += batch_size
         sent += await send_batch(client, config.ingest_url, batch, source)
         print(f"✅ Ingested {sent}/{total_documents} documents from {source}")
         await asyncio.sleep(config.inter_batch_delay_seconds)
