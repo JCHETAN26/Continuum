@@ -66,6 +66,11 @@ real deployments; plaintext `API_KEY` exists only for local development compatib
 - drift and linguistic windows older than `RETENTION_DRIFT_WINDOWS_DAYS` (default 30)
 - training jobs older than `RETENTION_TRAINING_JOBS_DAYS` (default 365)
 
+`DRIFT_TRIGGER_MIN_EMBEDDING_DRIFT` is on the same scale as `DRIFT_THRESHOLD`: centroid cosine
+distance, where a domain shift reads around 0.10. Keep it at or below the alert threshold, or the
+throttler suppresses every alert the drift service raises and only linguistic drift can trigger
+training.
+
 The serving engine tracks request outcomes per model version. If the active model exceeds
 `ROLLBACK_ERROR_RATE_THRESHOLD` over `ROLLBACK_WINDOW_SECONDS` with at least
 `ROLLBACK_MIN_REQUESTS`, it archives the failing version, restores the previous active model,

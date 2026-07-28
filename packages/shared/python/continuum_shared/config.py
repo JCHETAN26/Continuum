@@ -52,7 +52,10 @@ class Settings(BaseSettings):
     linguistic_drift_window_minutes: int = Field(default=2, gt=0)
     linguistic_drift_poll_seconds: int = Field(default=30, gt=0)
     drift_trigger_min_documents: int = Field(default=100, ge=0)
-    drift_trigger_min_embedding_drift: float = Field(default=0.75, ge=0.0, le=1.0)
+    # Same scale as drift_threshold: cosine distance between window centroids, where a
+    # domain shift reads around 0.10. A value tuned for a normalised 0-1 drift score
+    # (0.75) is unreachable here and silently disables embedding-triggered retraining.
+    drift_trigger_min_embedding_drift: float = Field(default=0.08, ge=0.0, le=1.0)
     drift_trigger_min_linguistic_drift: float = Field(default=0.60, ge=0.0, le=1.0)
     drift_trigger_cooldown_hours: float = Field(default=6.0, ge=0.0)
     drift_trigger_max_daily_trains: int = Field(default=3, ge=0)

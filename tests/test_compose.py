@@ -141,6 +141,24 @@ def test_postgres_allows_headroom_over_the_summed_pools():
     assert postgres["command"] == ["postgres", "-c", "max_connections=200"]
 
 
+def test_trigger_threshold_is_reachable_by_scores_that_raise_an_alert():
+    """The throttler gate and the alert threshold must share a scale.
+
+    Both are centroid cosine distance. If the throttler demands more drift than the
+    drift service alerts on, every alert is suppressed and only linguistic drift can
+    ever trigger training.
+    """
+    app_env = load_compose()["x-app-env"]
+
+    alert_threshold = float(app_env["DRIFT_THRESHOLD"])
+    trigger_threshold = float(app_env["DRIFT_TRIGGER_MIN_EMBEDDING_DRIFT"])
+
+    assert trigger_threshold <= alert_threshold, (
+        f"drift alerts fire at {alert_threshold} but training needs {trigger_threshold}, "
+        "so embedding drift can never trigger a training job"
+    )
+
+
 def test_python_and_node_images_run_as_non_root():
     python_dockerfile = Path("docker/Dockerfile.python").read_text()
     node_dockerfile = Path("docker/Dockerfile.node").read_text()

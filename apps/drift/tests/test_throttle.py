@@ -53,6 +53,29 @@ async def test_rejects_when_both_signals_are_low():
 
 
 @pytest.mark.asyncio
+async def test_accepts_a_realistic_embedding_spike_without_a_linguistic_signal():
+    """Regression: the defaults must be reachable by real drift scores.
+
+    Centroid cosine distance reads around 0.10 on a domain shift, and the linguistic
+    window is computed on its own schedule, so it is routinely absent when a drift alert
+    is evaluated. With min_embedding_drift left at a normalised-scale 0.75 this returned
+    below_drift_thresholds and no training job was ever created from embedding drift.
+    """
+    throttler = TriggerThrottler()
+    db = db_with_training_history()
+
+    decision = await throttler.decide(
+        db,
+        document_count=1500,
+        embedding_drift=0.0988,
+        linguistic_drift=None,
+    )
+
+    assert decision.accepted is True
+    assert decision.priority == "embedding_drift"
+
+
+@pytest.mark.asyncio
 async def test_rejects_when_cooldown_active():
     now = datetime.now(UTC)
     throttler = TriggerThrottler(min_documents=10, cooldown_hours=6)
@@ -104,13 +127,21 @@ async def test_accepts_dual_signal_with_priority():
 
 @pytest.mark.asyncio
 async def test_accepts_linguistic_signal_without_embedding_signal():
-    throttler = TriggerThrottler(min_documents=10, cooldown_hours=0, max_daily_trains=3)
+    # Thresholds are explicit so the case stays "linguistic only" regardless of what the
+    # defaults are tuned to; embedding drift has to sit genuinely below its own gate.
+    throttler = TriggerThrottler(
+        min_documents=10,
+        min_embedding_drift=0.08,
+        min_linguistic_drift=0.6,
+        cooldown_hours=0,
+        max_daily_trains=3,
+    )
     db = db_with_training_history(trains_today=0)
 
     decision = await throttler.decide(
         db,
         document_count=100,
-        embedding_drift=0.1,
+        embedding_drift=0.02,
         linguistic_drift=0.8,
     )
 
