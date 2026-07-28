@@ -112,6 +112,27 @@ def mean_pool_and_normalize(outputs: Any, attention_mask: Any, torch_module: Any
     return torch_module.nn.functional.normalize(embeddings, p=2, dim=1)
 
 
+def in_batch_contrastive_loss(
+    view_a: Any,
+    view_b: Any,
+    temperature: float,
+    torch_module: Any,
+) -> Any:
+    """Symmetric InfoNCE over two dropout views of the same batch.
+
+    Row i of the similarity matrix pairs view A of document i against view B of every
+    document, so the positive on the diagonal is a similarity the model has to actually
+    maximise. Comparing a batch against itself instead puts self-similarity on the
+    diagonal, which is 1.0 for any L2-normalised embedding: the target is satisfied
+    before training starts and the only remaining gradient pushes every document apart.
+    """
+    logits = view_a @ view_b.T / temperature
+    targets = torch_module.arange(logits.shape[0], device=logits.device)
+    forward = torch_module.nn.functional.cross_entropy(logits, targets)
+    backward = torch_module.nn.functional.cross_entropy(logits.T, targets)
+    return (forward + backward) / 2
+
+
 def build_in_batch_trainer_class(deps: PeftDependencies) -> type:
     class InBatchContrastiveTrainer(deps.transformers.Trainer):  # type: ignore[misc]
         def compute_loss(
@@ -122,11 +143,16 @@ def build_in_batch_trainer_class(deps: PeftDependencies) -> type:
             **_: Any,
         ) -> Any:
             labels = inputs.pop("labels", None)
+            # Two passes over the same inputs. Dropout is active in training mode, so the
+            # encoder produces two different representations of each document, which is
+            # what supplies the positive pair (SimCSE). Both dropout sources contribute:
+            # the base model's hidden_dropout_prob and the LoRA adapter's lora_dropout.
             outputs = model(**inputs)
-            embeddings = mean_pool_and_normalize(outputs, inputs["attention_mask"], deps.torch)
-            logits = embeddings @ embeddings.T / self.args.temperature
-            targets = deps.torch.arange(logits.shape[0], device=logits.device)
-            loss = deps.torch.nn.functional.cross_entropy(logits, targets)
+            second_view = model(**inputs)
+            attention_mask = inputs["attention_mask"]
+            view_a = mean_pool_and_normalize(outputs, attention_mask, deps.torch)
+            view_b = mean_pool_and_normalize(second_view, attention_mask, deps.torch)
+            loss = in_batch_contrastive_loss(view_a, view_b, self.args.temperature, deps.torch)
             if labels is not None:
                 inputs["labels"] = labels
             return (loss, outputs) if return_outputs else loss

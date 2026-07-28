@@ -4,6 +4,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
+import numpy as np
 import pytest
 from continuum_trainer.peft_engine import (
     PeftDependencies,
@@ -12,6 +13,7 @@ from continuum_trainer.peft_engine import (
     TrainingText,
     build_contrastive_dataset,
     build_lora_config,
+    in_batch_contrastive_loss,
     infer_domain_tag,
     load_drifted_training_texts,
     mark_model_pending_eval,
@@ -158,6 +160,74 @@ def fake_deps() -> PeftDependencies:
         torch=SimpleNamespace(),
         transformers=FakeTransformersModule,
     )
+
+
+class NumpyTorchStub:
+    """Just enough of the torch surface for the loss, so this runs without the ML extra."""
+
+    @staticmethod
+    def arange(count: int, device=None):
+        return np.arange(count)
+
+    # Names mirror the torch API the loss calls into, so they intentionally break CapWords.
+    class nn:  # noqa: N801
+        class functional:  # noqa: N801
+            @staticmethod
+            def cross_entropy(logits, targets):
+                shifted = logits - logits.max(axis=1, keepdims=True)
+                log_probs = shifted - np.log(np.exp(shifted).sum(axis=1, keepdims=True))
+                return -float(np.mean(log_probs[np.arange(len(targets)), targets]))
+
+
+def unit_rows(matrix: np.ndarray) -> np.ndarray:
+    return matrix / np.linalg.norm(matrix, axis=1, keepdims=True)
+
+
+def test_contrastive_loss_penalises_misaligned_views():
+    """The loss has to measure alignment between two views, not self-similarity.
+
+    Comparing a batch against itself puts 1.0 on the diagonal for any L2-normalised
+    embedding, so the target is already satisfied and only a repulsive gradient remains.
+    Pairing view A against view B makes the diagonal something the model must earn.
+    """
+    rng = np.random.default_rng(0)
+    view_a = unit_rows(rng.normal(size=(8, 16)))
+    aligned = unit_rows(view_a + 0.01 * rng.normal(size=(8, 16)))
+    misaligned = aligned[::-1]
+
+    aligned_loss = in_batch_contrastive_loss(view_a, aligned, 0.05, NumpyTorchStub)
+    misaligned_loss = in_batch_contrastive_loss(view_a, misaligned, 0.05, NumpyTorchStub)
+
+    assert aligned_loss < misaligned_loss
+
+
+def test_contrastive_loss_is_not_trivially_satisfied_by_normalisation():
+    """Regression: the objective must not be solved before training starts.
+
+    The original implementation passed a single view in both positions. With unit-norm
+    embeddings that puts an unbeatable 1.0 on every diagonal entry, and the loss sat at
+    ~1e-6 at random initialisation while real training stayed flat.
+    """
+    view_a = unit_rows(np.random.default_rng(1).normal(size=(8, 16)))
+    view_b = unit_rows(view_a + 0.5 * np.random.default_rng(7).normal(size=(8, 16)))
+
+    self_paired = in_batch_contrastive_loss(view_a, view_a, 0.05, NumpyTorchStub)
+    two_view = in_batch_contrastive_loss(view_a, view_b, 0.05, NumpyTorchStub)
+
+    # Pairing a batch with itself is solved at initialisation; two genuine views are not.
+    assert self_paired < 1e-3
+    assert two_view > 0.1
+
+
+def test_contrastive_loss_is_symmetric_in_its_views():
+    rng = np.random.default_rng(2)
+    view_a = unit_rows(rng.normal(size=(6, 12)))
+    view_b = unit_rows(rng.normal(size=(6, 12)))
+
+    forward = in_batch_contrastive_loss(view_a, view_b, 0.05, NumpyTorchStub)
+    reverse = in_batch_contrastive_loss(view_b, view_a, 0.05, NumpyTorchStub)
+
+    assert forward == pytest.approx(reverse, rel=1e-9)
 
 
 def test_build_contrastive_dataset_requires_at_least_two_texts():
