@@ -40,6 +40,12 @@ files = [
     "packages/shared/python/continuum_shared/embeddings.py",
 ]
 
+# Neither package ships type stubs or a py.typed marker. Both are used behind narrow,
+# locally typed wrappers in continuum_shared.embeddings.
+[[tool.mypy.overrides]]
+module = ["onnxruntime.*", "tokenizers.*"]
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 markers = [
     "integration: tests that start Docker containers with Testcontainers",

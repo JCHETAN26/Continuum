@@ -25,6 +25,10 @@ COPY . /app
 # root project, which leaves continuum_ingest, continuum_drift, and friends missing
 # from the venv even though their dependencies are present.
 RUN uv sync --all-packages
+# Bake the embedding weights into the image. Downloading at startup would put the Hub on
+# the critical path of every container start, and would let replicas drift onto different
+# revisions of the model, which the drift detector cannot distinguish from real drift.
+RUN uv run python scripts/fetch_embedding_model.py --target /app/models/all-MiniLM-L6-v2
 RUN uv run prisma py fetch
 RUN set -eux; \
     arch="$(dpkg --print-architecture)"; \
@@ -55,6 +59,8 @@ ENV PATH="/app/.venv/bin:$PATH"
 ENV PRISMA_BINARY_CACHE_DIR=/app/.cache/prisma-python/binaries
 ENV PRISMA_QUERY_ENGINE_BINARY=/app/.cache/prisma-python/binaries/prisma-query-engine
 ENV UV_CACHE_DIR=/home/continuum/.cache/uv
+# Copied in with /app above; pointing at it keeps inference fully offline.
+ENV CONTINUUM_EMBEDDING_MODEL_DIR=/app/models/all-MiniLM-L6-v2
 USER continuum
 
 # The command will be overridden by docker-compose for each service
