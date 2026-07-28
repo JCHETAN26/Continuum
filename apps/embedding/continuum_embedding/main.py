@@ -22,11 +22,12 @@ async def run_worker() -> None:
             # Poll for 50 documents without embeddings
             query = """
                 SELECT d.id, d.text 
-                FROM documents d 
-                LEFT JOIN embeddings e ON d.id = e.document_id 
-                WHERE e.document_id IS NULL 
+                FROM documents d
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM embeddings e WHERE e.document_id = d.id
+                )
                 LIMIT 50 
-                FOR UPDATE SKIP LOCKED;
+                FOR UPDATE OF d SKIP LOCKED;
             """
             rows = await db.query_raw(query)
 

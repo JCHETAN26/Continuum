@@ -85,17 +85,20 @@ async def run_worker() -> None:
             try:
                 occurred_at = datetime.fromisoformat(payload["timestamp"].replace("Z", "+00:00"))
 
+                document_data = {
+                    "externalId": payload["document_id"],
+                    "idempotencyKey": idempotency_key,
+                    "text": payload["text"],
+                    "source": payload["source"],
+                    "occurredAt": occurred_at,
+                    "contentHash": payload["content_hash"],
+                    "objectKey": object_key,
+                }
+                if payload.get("metadata") is not None:
+                    document_data["metadata"] = Json(payload["metadata"])
+
                 await db.document.create(
-                    data={
-                        "externalId": payload["document_id"],
-                        "idempotencyKey": idempotency_key,
-                        "text": payload["text"],
-                        "source": payload["source"],
-                        "occurredAt": occurred_at,
-                        "metadata": Json(payload["metadata"]) if payload.get("metadata") else None,
-                        "contentHash": payload["content_hash"],
-                        "objectKey": object_key,
-                    }
+                    data=document_data,
                 )
                 logger.info("Ingested document", document_id=payload["document_id"])
             except UniqueViolationError:

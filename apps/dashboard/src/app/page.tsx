@@ -15,6 +15,7 @@ import {
 } from 'recharts';
 
 const DRIFT_API = process.env.NEXT_PUBLIC_DRIFT_API_URL ?? 'http://localhost:8001';
+const LINGUISTIC_API = process.env.NEXT_PUBLIC_LINGUISTIC_API_URL ?? 'http://localhost:8004';
 const TRAINER_API = process.env.NEXT_PUBLIC_TRAINER_API_URL ?? 'http://localhost:8003';
 
 interface DriftWindow {
@@ -32,6 +33,25 @@ interface DriftSummary {
   latestDriftScore: number;
   breached: boolean;
   threshold: number;
+}
+
+interface LinguisticWindow {
+  id: string;
+  windowStart: string;
+  documentCount: number;
+  compositeScore: number;
+  threshold: number;
+  breached: boolean;
+  newEntities: { text: string; label: string; count: number }[];
+  emergingTopics: { label: string; share: number; top_terms?: string[] }[];
+  emergingTerms: { term: string; baseline_count: number; window_count: number; score: number }[];
+}
+
+interface LinguisticSummary {
+  latestCompositeScore: number;
+  breached: boolean;
+  threshold: number;
+  windowCount: number;
 }
 
 interface ModelVersion {
@@ -53,6 +73,11 @@ interface DriftEventPayload {
   projection: { points: ProjectionPoint[] };
 }
 
+interface LinguisticEventPayload {
+  windows: LinguisticWindow[];
+  summary: LinguisticSummary;
+}
+
 interface TrainingEventPayload {
   models: ModelVersion[];
 }
@@ -60,14 +85,25 @@ interface TrainingEventPayload {
 export default function Home() {
   const [windows, setWindows] = useState<DriftWindow[]>([]);
   const [summary, setSummary] = useState<DriftSummary | null>(null);
+  const [linguisticWindows, setLinguisticWindows] = useState<LinguisticWindow[]>([]);
+  const [linguisticSummary, setLinguisticSummary] = useState<LinguisticSummary | null>(null);
   const [models, setModels] = useState<ModelVersion[]>([]);
   const [points, setPoints] = useState<ProjectionPoint[]>([]);
 
   useEffect(() => {
     const refreshSnapshot = async () => {
-      const [windowRes, summaryRes, modelRes, projectionRes] = await Promise.allSettled([
+      const [
+        windowRes,
+        summaryRes,
+        linguisticWindowRes,
+        linguisticSummaryRes,
+        modelRes,
+        projectionRes,
+      ] = await Promise.allSettled([
         fetch(`${DRIFT_API}/v1/drift/status`),
         fetch(`${DRIFT_API}/v1/drift/summary`),
+        fetch(`${LINGUISTIC_API}/v1/linguistic/status`),
+        fetch(`${LINGUISTIC_API}/v1/linguistic/summary`),
         fetch(`${TRAINER_API}/v1/models`),
         fetch(`${DRIFT_API}/v1/embeddings/projection`),
       ]);
@@ -78,6 +114,13 @@ export default function Home() {
       }
       if (summaryRes.status === 'fulfilled' && summaryRes.value.ok) {
         setSummary((await summaryRes.value.json()) as DriftSummary);
+      }
+      if (linguisticWindowRes.status === 'fulfilled' && linguisticWindowRes.value.ok) {
+        const body = (await linguisticWindowRes.value.json()) as LinguisticWindow[];
+        setLinguisticWindows(body.reverse());
+      }
+      if (linguisticSummaryRes.status === 'fulfilled' && linguisticSummaryRes.value.ok) {
+        setLinguisticSummary((await linguisticSummaryRes.value.json()) as LinguisticSummary);
       }
       if (modelRes.status === 'fulfilled' && modelRes.value.ok) {
         setModels((await modelRes.value.json()) as ModelVersion[]);
@@ -100,6 +143,7 @@ export default function Home() {
     }
 
     const driftEvents = new EventSource(`${DRIFT_API}/v1/drift/events`);
+    const linguisticEvents = new EventSource(`${LINGUISTIC_API}/v1/linguistic/events`);
     const trainingEvents = new EventSource(`${TRAINER_API}/v1/training/events`);
 
     driftEvents.addEventListener('drift', (event) => {
@@ -114,8 +158,15 @@ export default function Home() {
       setModels(payload.models);
     });
 
+    linguisticEvents.addEventListener('linguistic', (event) => {
+      const payload = JSON.parse(event.data as string) as LinguisticEventPayload;
+      setLinguisticWindows(payload.windows.reverse());
+      setLinguisticSummary(payload.summary);
+    });
+
     return () => {
       driftEvents.close();
+      linguisticEvents.close();
       trainingEvents.close();
     };
   }, []);
@@ -124,9 +175,21 @@ export default function Home() {
   const latestScore = summary?.latestDriftScore ?? windows.at(-1)?.driftScore ?? 0;
   const threshold = summary?.threshold ?? windows.at(-1)?.threshold ?? 0.35;
   const isBreached = summary?.breached ?? latestScore > threshold;
+  const latestLinguisticScore =
+    linguisticSummary?.latestCompositeScore ?? linguisticWindows.at(-1)?.compositeScore ?? 0;
+  const linguisticThreshold =
+    linguisticSummary?.threshold ?? linguisticWindows.at(-1)?.threshold ?? 0.65;
+  const linguisticBreached =
+    linguisticSummary?.breached ?? latestLinguisticScore > linguisticThreshold;
+  const latestLinguisticWindow = linguisticWindows.at(-1);
   const chartData = windows.map((window) => ({
     time: format(new Date(window.windowStart), 'HH:mm:ss'),
     driftScore: window.driftScore,
+    threshold: window.threshold,
+  }));
+  const linguisticChartData = linguisticWindows.map((window) => ({
+    time: format(new Date(window.windowStart), 'HH:mm:ss'),
+    compositeScore: window.compositeScore,
     threshold: window.threshold,
   }));
 
@@ -187,11 +250,16 @@ export default function Home() {
         <Card className="bg-card/50 backdrop-blur-sm border-border/50 shadow-sm">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Model Versions
+              Linguistic Drift
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-4xl font-bold tracking-tighter">{models.length}</div>
+            <div className="text-4xl font-bold tracking-tighter flex items-center gap-3">
+              {latestLinguisticScore.toFixed(3)}
+              <Badge variant={linguisticBreached ? 'destructive' : 'secondary'}>
+                {linguisticBreached ? 'Breached' : 'Stable'}
+              </Badge>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -275,6 +343,131 @@ export default function Home() {
                   }}
                 />
               ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
+        <Card className="bg-card/50 backdrop-blur-sm border-border/50 shadow-sm overflow-hidden">
+          <CardHeader>
+            <CardTitle>Linguistic Drift History</CardTitle>
+            <CardDescription>Entity, topic, and vocabulary shift composite score.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px] w-full mt-4">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart
+                  data={linguisticChartData}
+                  margin={{ top: 5, right: 20, bottom: 5, left: 0 }}
+                >
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="hsl(var(--border))"
+                    vertical={false}
+                  />
+                  <XAxis
+                    dataKey="time"
+                    stroke="hsl(var(--muted-foreground))"
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <YAxis
+                    domain={[0, 1]}
+                    stroke="hsl(var(--muted-foreground))"
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--card))',
+                      borderColor: 'hsl(var(--border))',
+                      borderRadius: '8px',
+                    }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="threshold"
+                    stroke="hsl(var(--destructive))"
+                    strokeWidth={2}
+                    strokeDasharray="5 5"
+                    dot={false}
+                    name="Threshold"
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="compositeScore"
+                    stroke="hsl(var(--chart-2))"
+                    strokeWidth={3}
+                    dot={false}
+                    name="Composite Score"
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-card/50 backdrop-blur-sm border-border/50 shadow-sm">
+          <CardHeader>
+            <CardTitle>Emerging Language</CardTitle>
+            <CardDescription>Newest entities and terms from the latest window.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            <div className="space-y-2">
+              <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Terms
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {(latestLinguisticWindow?.emergingTerms ?? []).slice(0, 8).map((term) => (
+                  <Badge key={term.term} variant="outline">
+                    {term.term} x{term.window_count}
+                  </Badge>
+                ))}
+                {(latestLinguisticWindow?.emergingTerms ?? []).length === 0 ? (
+                  <span className="text-sm text-muted-foreground">No term surge yet</span>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Entities
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {(latestLinguisticWindow?.newEntities ?? []).slice(0, 8).map((entity) => (
+                  <Badge key={`${entity.label}-${entity.text}`} variant="secondary">
+                    {entity.text}
+                  </Badge>
+                ))}
+                {(latestLinguisticWindow?.newEntities ?? []).length === 0 ? (
+                  <span className="text-sm text-muted-foreground">No new entities yet</span>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Topics
+              </div>
+              <div className="space-y-2">
+                {(latestLinguisticWindow?.emergingTopics ?? []).slice(0, 5).map((topic) => (
+                  <div
+                    key={topic.label}
+                    className="flex items-center justify-between gap-3 text-sm"
+                  >
+                    <span className="truncate">{topic.label}</span>
+                    <span className="font-mono text-muted-foreground">
+                      {(topic.share * 100).toFixed(1)}%
+                    </span>
+                  </div>
+                ))}
+                {(latestLinguisticWindow?.emergingTopics ?? []).length === 0 ? (
+                  <span className="text-sm text-muted-foreground">No topic surge yet</span>
+                ) : null}
+              </div>
             </div>
           </CardContent>
         </Card>

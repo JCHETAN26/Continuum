@@ -1850,6 +1850,7 @@ class DriftWindowIncludeFromDocument(TypedDict, total=False):
     baseline: Union[bool, 'DriftWindowArgsFromDocumentRecursive1']
     derived: Union[bool, 'FindManyDriftWindowArgsFromDocumentRecursive1']
     trainingJobs: Union[bool, 'FindManyTrainingJobArgsFromDocumentRecursive1']
+    linguisticSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromDocumentRecursive1']
 
 
 class DriftWindowIncludeFromDocumentRecursive1(TypedDict, total=False):
@@ -1857,6 +1858,7 @@ class DriftWindowIncludeFromDocumentRecursive1(TypedDict, total=False):
     baseline: Union[bool, 'DriftWindowArgsFromDocumentRecursive2']
     derived: Union[bool, 'FindManyDriftWindowArgsFromDocumentRecursive2']
     trainingJobs: Union[bool, 'FindManyTrainingJobArgsFromDocumentRecursive2']
+    linguisticSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromDocumentRecursive2']
 
 
 class DriftWindowIncludeFromDocumentRecursive2(TypedDict, total=False):
@@ -1864,6 +1866,7 @@ class DriftWindowIncludeFromDocumentRecursive2(TypedDict, total=False):
     baseline: Union[bool, 'DriftWindowArgsFromDocumentRecursive3']
     derived: Union[bool, 'FindManyDriftWindowArgsFromDocumentRecursive3']
     trainingJobs: Union[bool, 'FindManyTrainingJobArgsFromDocumentRecursive3']
+    linguisticSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromDocumentRecursive3']
 
 
 class DriftWindowIncludeFromDocumentRecursive3(TypedDict, total=False):
@@ -1871,6 +1874,7 @@ class DriftWindowIncludeFromDocumentRecursive3(TypedDict, total=False):
     baseline: Union[bool, 'DriftWindowArgsFromDocumentRecursive4']
     derived: Union[bool, 'FindManyDriftWindowArgsFromDocumentRecursive4']
     trainingJobs: Union[bool, 'FindManyTrainingJobArgsFromDocumentRecursive4']
+    linguisticSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromDocumentRecursive4']
 
 
 class DriftWindowIncludeFromDocumentRecursive4(TypedDict, total=False):
@@ -1955,6 +1959,111 @@ class FindManyDriftWindowArgsFromDocumentRecursive4(TypedDict, total=False):
     where: 'DriftWindowWhereInput'
     cursor: 'DriftWindowWhereUniqueInput'
     distinct: List['DriftWindowScalarFieldKeys']
+    
+    
+
+class LinguisticWindowIncludeFromDocument(TypedDict, total=False):
+    """Relational arguments for Document"""
+    trainingSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromDocumentRecursive1']
+
+
+class LinguisticWindowIncludeFromDocumentRecursive1(TypedDict, total=False):
+    """Relational arguments for Document"""
+    trainingSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromDocumentRecursive2']
+
+
+class LinguisticWindowIncludeFromDocumentRecursive2(TypedDict, total=False):
+    """Relational arguments for Document"""
+    trainingSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromDocumentRecursive3']
+
+
+class LinguisticWindowIncludeFromDocumentRecursive3(TypedDict, total=False):
+    """Relational arguments for Document"""
+    trainingSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromDocumentRecursive4']
+
+
+class LinguisticWindowIncludeFromDocumentRecursive4(TypedDict, total=False):
+    """Relational arguments for Document"""
+
+    
+
+class LinguisticWindowArgsFromDocument(TypedDict, total=False):
+    """Arguments for Document"""
+    include: 'LinguisticWindowIncludeFromLinguisticWindowRecursive1'
+
+
+class LinguisticWindowArgsFromDocumentRecursive1(TypedDict, total=False):
+    """Arguments for Document"""
+    include: 'LinguisticWindowIncludeFromLinguisticWindowRecursive2'
+
+
+class LinguisticWindowArgsFromDocumentRecursive2(TypedDict, total=False):
+    """Arguments for Document"""
+    include: 'LinguisticWindowIncludeFromLinguisticWindowRecursive3'
+
+
+class LinguisticWindowArgsFromDocumentRecursive3(TypedDict, total=False):
+    """Arguments for Document"""
+    include: 'LinguisticWindowIncludeFromLinguisticWindowRecursive4'
+
+
+class LinguisticWindowArgsFromDocumentRecursive4(TypedDict, total=False):
+    """Arguments for Document"""
+    
+    
+
+class FindManyLinguisticWindowArgsFromDocument(TypedDict, total=False):
+    """Arguments for Document"""
+    take: int
+    skip: int
+    order_by: Union['LinguisticWindowOrderByInput', List['LinguisticWindowOrderByInput']]
+    where: 'LinguisticWindowWhereInput'
+    cursor: 'LinguisticWindowWhereUniqueInput'
+    distinct: List['LinguisticWindowScalarFieldKeys']
+    include: 'LinguisticWindowIncludeFromLinguisticWindowRecursive1'
+
+
+class FindManyLinguisticWindowArgsFromDocumentRecursive1(TypedDict, total=False):
+    """Arguments for Document"""
+    take: int
+    skip: int
+    order_by: Union['LinguisticWindowOrderByInput', List['LinguisticWindowOrderByInput']]
+    where: 'LinguisticWindowWhereInput'
+    cursor: 'LinguisticWindowWhereUniqueInput'
+    distinct: List['LinguisticWindowScalarFieldKeys']
+    include: 'LinguisticWindowIncludeFromLinguisticWindowRecursive2'
+
+
+class FindManyLinguisticWindowArgsFromDocumentRecursive2(TypedDict, total=False):
+    """Arguments for Document"""
+    take: int
+    skip: int
+    order_by: Union['LinguisticWindowOrderByInput', List['LinguisticWindowOrderByInput']]
+    where: 'LinguisticWindowWhereInput'
+    cursor: 'LinguisticWindowWhereUniqueInput'
+    distinct: List['LinguisticWindowScalarFieldKeys']
+    include: 'LinguisticWindowIncludeFromLinguisticWindowRecursive3'
+
+
+class FindManyLinguisticWindowArgsFromDocumentRecursive3(TypedDict, total=False):
+    """Arguments for Document"""
+    take: int
+    skip: int
+    order_by: Union['LinguisticWindowOrderByInput', List['LinguisticWindowOrderByInput']]
+    where: 'LinguisticWindowWhereInput'
+    cursor: 'LinguisticWindowWhereUniqueInput'
+    distinct: List['LinguisticWindowScalarFieldKeys']
+    include: 'LinguisticWindowIncludeFromLinguisticWindowRecursive4'
+
+
+class FindManyLinguisticWindowArgsFromDocumentRecursive4(TypedDict, total=False):
+    """Arguments for Document"""
+    take: int
+    skip: int
+    order_by: Union['LinguisticWindowOrderByInput', List['LinguisticWindowOrderByInput']]
+    where: 'LinguisticWindowWhereInput'
+    cursor: 'LinguisticWindowWhereUniqueInput'
+    distinct: List['LinguisticWindowScalarFieldKeys']
     
     
 
@@ -2071,24 +2180,28 @@ class TrainingJobIncludeFromDocument(TypedDict, total=False):
     """Relational arguments for Document"""
     driftWindow: Union[bool, 'DriftWindowArgsFromDocumentRecursive1']
     modelVersion: Union[bool, 'ModelVersionArgsFromDocumentRecursive1']
+    linguisticSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromDocumentRecursive1']
 
 
 class TrainingJobIncludeFromDocumentRecursive1(TypedDict, total=False):
     """Relational arguments for Document"""
     driftWindow: Union[bool, 'DriftWindowArgsFromDocumentRecursive2']
     modelVersion: Union[bool, 'ModelVersionArgsFromDocumentRecursive2']
+    linguisticSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromDocumentRecursive2']
 
 
 class TrainingJobIncludeFromDocumentRecursive2(TypedDict, total=False):
     """Relational arguments for Document"""
     driftWindow: Union[bool, 'DriftWindowArgsFromDocumentRecursive3']
     modelVersion: Union[bool, 'ModelVersionArgsFromDocumentRecursive3']
+    linguisticSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromDocumentRecursive3']
 
 
 class TrainingJobIncludeFromDocumentRecursive3(TypedDict, total=False):
     """Relational arguments for Document"""
     driftWindow: Union[bool, 'DriftWindowArgsFromDocumentRecursive4']
     modelVersion: Union[bool, 'ModelVersionArgsFromDocumentRecursive4']
+    linguisticSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromDocumentRecursive4']
 
 
 class TrainingJobIncludeFromDocumentRecursive4(TypedDict, total=False):
@@ -2173,6 +2286,119 @@ class FindManyTrainingJobArgsFromDocumentRecursive4(TypedDict, total=False):
     where: 'TrainingJobWhereInput'
     cursor: 'TrainingJobWhereUniqueInput'
     distinct: List['TrainingJobScalarFieldKeys']
+    
+    
+
+class TrainingLinguisticSignalIncludeFromDocument(TypedDict, total=False):
+    """Relational arguments for Document"""
+    trainingJob: Union[bool, 'TrainingJobArgsFromDocumentRecursive1']
+    linguisticWindow: Union[bool, 'LinguisticWindowArgsFromDocumentRecursive1']
+    driftWindow: Union[bool, 'DriftWindowArgsFromDocumentRecursive1']
+
+
+class TrainingLinguisticSignalIncludeFromDocumentRecursive1(TypedDict, total=False):
+    """Relational arguments for Document"""
+    trainingJob: Union[bool, 'TrainingJobArgsFromDocumentRecursive2']
+    linguisticWindow: Union[bool, 'LinguisticWindowArgsFromDocumentRecursive2']
+    driftWindow: Union[bool, 'DriftWindowArgsFromDocumentRecursive2']
+
+
+class TrainingLinguisticSignalIncludeFromDocumentRecursive2(TypedDict, total=False):
+    """Relational arguments for Document"""
+    trainingJob: Union[bool, 'TrainingJobArgsFromDocumentRecursive3']
+    linguisticWindow: Union[bool, 'LinguisticWindowArgsFromDocumentRecursive3']
+    driftWindow: Union[bool, 'DriftWindowArgsFromDocumentRecursive3']
+
+
+class TrainingLinguisticSignalIncludeFromDocumentRecursive3(TypedDict, total=False):
+    """Relational arguments for Document"""
+    trainingJob: Union[bool, 'TrainingJobArgsFromDocumentRecursive4']
+    linguisticWindow: Union[bool, 'LinguisticWindowArgsFromDocumentRecursive4']
+    driftWindow: Union[bool, 'DriftWindowArgsFromDocumentRecursive4']
+
+
+class TrainingLinguisticSignalIncludeFromDocumentRecursive4(TypedDict, total=False):
+    """Relational arguments for Document"""
+
+    
+
+class TrainingLinguisticSignalArgsFromDocument(TypedDict, total=False):
+    """Arguments for Document"""
+    include: 'TrainingLinguisticSignalIncludeFromTrainingLinguisticSignalRecursive1'
+
+
+class TrainingLinguisticSignalArgsFromDocumentRecursive1(TypedDict, total=False):
+    """Arguments for Document"""
+    include: 'TrainingLinguisticSignalIncludeFromTrainingLinguisticSignalRecursive2'
+
+
+class TrainingLinguisticSignalArgsFromDocumentRecursive2(TypedDict, total=False):
+    """Arguments for Document"""
+    include: 'TrainingLinguisticSignalIncludeFromTrainingLinguisticSignalRecursive3'
+
+
+class TrainingLinguisticSignalArgsFromDocumentRecursive3(TypedDict, total=False):
+    """Arguments for Document"""
+    include: 'TrainingLinguisticSignalIncludeFromTrainingLinguisticSignalRecursive4'
+
+
+class TrainingLinguisticSignalArgsFromDocumentRecursive4(TypedDict, total=False):
+    """Arguments for Document"""
+    
+    
+
+class FindManyTrainingLinguisticSignalArgsFromDocument(TypedDict, total=False):
+    """Arguments for Document"""
+    take: int
+    skip: int
+    order_by: Union['TrainingLinguisticSignalOrderByInput', List['TrainingLinguisticSignalOrderByInput']]
+    where: 'TrainingLinguisticSignalWhereInput'
+    cursor: 'TrainingLinguisticSignalWhereUniqueInput'
+    distinct: List['TrainingLinguisticSignalScalarFieldKeys']
+    include: 'TrainingLinguisticSignalIncludeFromTrainingLinguisticSignalRecursive1'
+
+
+class FindManyTrainingLinguisticSignalArgsFromDocumentRecursive1(TypedDict, total=False):
+    """Arguments for Document"""
+    take: int
+    skip: int
+    order_by: Union['TrainingLinguisticSignalOrderByInput', List['TrainingLinguisticSignalOrderByInput']]
+    where: 'TrainingLinguisticSignalWhereInput'
+    cursor: 'TrainingLinguisticSignalWhereUniqueInput'
+    distinct: List['TrainingLinguisticSignalScalarFieldKeys']
+    include: 'TrainingLinguisticSignalIncludeFromTrainingLinguisticSignalRecursive2'
+
+
+class FindManyTrainingLinguisticSignalArgsFromDocumentRecursive2(TypedDict, total=False):
+    """Arguments for Document"""
+    take: int
+    skip: int
+    order_by: Union['TrainingLinguisticSignalOrderByInput', List['TrainingLinguisticSignalOrderByInput']]
+    where: 'TrainingLinguisticSignalWhereInput'
+    cursor: 'TrainingLinguisticSignalWhereUniqueInput'
+    distinct: List['TrainingLinguisticSignalScalarFieldKeys']
+    include: 'TrainingLinguisticSignalIncludeFromTrainingLinguisticSignalRecursive3'
+
+
+class FindManyTrainingLinguisticSignalArgsFromDocumentRecursive3(TypedDict, total=False):
+    """Arguments for Document"""
+    take: int
+    skip: int
+    order_by: Union['TrainingLinguisticSignalOrderByInput', List['TrainingLinguisticSignalOrderByInput']]
+    where: 'TrainingLinguisticSignalWhereInput'
+    cursor: 'TrainingLinguisticSignalWhereUniqueInput'
+    distinct: List['TrainingLinguisticSignalScalarFieldKeys']
+    include: 'TrainingLinguisticSignalIncludeFromTrainingLinguisticSignalRecursive4'
+
+
+class FindManyTrainingLinguisticSignalArgsFromDocumentRecursive4(TypedDict, total=False):
+    """Arguments for Document"""
+    take: int
+    skip: int
+    order_by: Union['TrainingLinguisticSignalOrderByInput', List['TrainingLinguisticSignalOrderByInput']]
+    where: 'TrainingLinguisticSignalWhereInput'
+    cursor: 'TrainingLinguisticSignalWhereUniqueInput'
+    distinct: List['TrainingLinguisticSignalScalarFieldKeys']
     
 
 
@@ -2959,6 +3185,7 @@ class DriftWindowIncludeFromEmbedding(TypedDict, total=False):
     baseline: Union[bool, 'DriftWindowArgsFromEmbeddingRecursive1']
     derived: Union[bool, 'FindManyDriftWindowArgsFromEmbeddingRecursive1']
     trainingJobs: Union[bool, 'FindManyTrainingJobArgsFromEmbeddingRecursive1']
+    linguisticSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromEmbeddingRecursive1']
 
 
 class DriftWindowIncludeFromEmbeddingRecursive1(TypedDict, total=False):
@@ -2966,6 +3193,7 @@ class DriftWindowIncludeFromEmbeddingRecursive1(TypedDict, total=False):
     baseline: Union[bool, 'DriftWindowArgsFromEmbeddingRecursive2']
     derived: Union[bool, 'FindManyDriftWindowArgsFromEmbeddingRecursive2']
     trainingJobs: Union[bool, 'FindManyTrainingJobArgsFromEmbeddingRecursive2']
+    linguisticSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromEmbeddingRecursive2']
 
 
 class DriftWindowIncludeFromEmbeddingRecursive2(TypedDict, total=False):
@@ -2973,6 +3201,7 @@ class DriftWindowIncludeFromEmbeddingRecursive2(TypedDict, total=False):
     baseline: Union[bool, 'DriftWindowArgsFromEmbeddingRecursive3']
     derived: Union[bool, 'FindManyDriftWindowArgsFromEmbeddingRecursive3']
     trainingJobs: Union[bool, 'FindManyTrainingJobArgsFromEmbeddingRecursive3']
+    linguisticSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromEmbeddingRecursive3']
 
 
 class DriftWindowIncludeFromEmbeddingRecursive3(TypedDict, total=False):
@@ -2980,6 +3209,7 @@ class DriftWindowIncludeFromEmbeddingRecursive3(TypedDict, total=False):
     baseline: Union[bool, 'DriftWindowArgsFromEmbeddingRecursive4']
     derived: Union[bool, 'FindManyDriftWindowArgsFromEmbeddingRecursive4']
     trainingJobs: Union[bool, 'FindManyTrainingJobArgsFromEmbeddingRecursive4']
+    linguisticSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromEmbeddingRecursive4']
 
 
 class DriftWindowIncludeFromEmbeddingRecursive4(TypedDict, total=False):
@@ -3064,6 +3294,111 @@ class FindManyDriftWindowArgsFromEmbeddingRecursive4(TypedDict, total=False):
     where: 'DriftWindowWhereInput'
     cursor: 'DriftWindowWhereUniqueInput'
     distinct: List['DriftWindowScalarFieldKeys']
+    
+    
+
+class LinguisticWindowIncludeFromEmbedding(TypedDict, total=False):
+    """Relational arguments for Embedding"""
+    trainingSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromEmbeddingRecursive1']
+
+
+class LinguisticWindowIncludeFromEmbeddingRecursive1(TypedDict, total=False):
+    """Relational arguments for Embedding"""
+    trainingSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromEmbeddingRecursive2']
+
+
+class LinguisticWindowIncludeFromEmbeddingRecursive2(TypedDict, total=False):
+    """Relational arguments for Embedding"""
+    trainingSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromEmbeddingRecursive3']
+
+
+class LinguisticWindowIncludeFromEmbeddingRecursive3(TypedDict, total=False):
+    """Relational arguments for Embedding"""
+    trainingSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromEmbeddingRecursive4']
+
+
+class LinguisticWindowIncludeFromEmbeddingRecursive4(TypedDict, total=False):
+    """Relational arguments for Embedding"""
+
+    
+
+class LinguisticWindowArgsFromEmbedding(TypedDict, total=False):
+    """Arguments for Embedding"""
+    include: 'LinguisticWindowIncludeFromLinguisticWindowRecursive1'
+
+
+class LinguisticWindowArgsFromEmbeddingRecursive1(TypedDict, total=False):
+    """Arguments for Embedding"""
+    include: 'LinguisticWindowIncludeFromLinguisticWindowRecursive2'
+
+
+class LinguisticWindowArgsFromEmbeddingRecursive2(TypedDict, total=False):
+    """Arguments for Embedding"""
+    include: 'LinguisticWindowIncludeFromLinguisticWindowRecursive3'
+
+
+class LinguisticWindowArgsFromEmbeddingRecursive3(TypedDict, total=False):
+    """Arguments for Embedding"""
+    include: 'LinguisticWindowIncludeFromLinguisticWindowRecursive4'
+
+
+class LinguisticWindowArgsFromEmbeddingRecursive4(TypedDict, total=False):
+    """Arguments for Embedding"""
+    
+    
+
+class FindManyLinguisticWindowArgsFromEmbedding(TypedDict, total=False):
+    """Arguments for Embedding"""
+    take: int
+    skip: int
+    order_by: Union['LinguisticWindowOrderByInput', List['LinguisticWindowOrderByInput']]
+    where: 'LinguisticWindowWhereInput'
+    cursor: 'LinguisticWindowWhereUniqueInput'
+    distinct: List['LinguisticWindowScalarFieldKeys']
+    include: 'LinguisticWindowIncludeFromLinguisticWindowRecursive1'
+
+
+class FindManyLinguisticWindowArgsFromEmbeddingRecursive1(TypedDict, total=False):
+    """Arguments for Embedding"""
+    take: int
+    skip: int
+    order_by: Union['LinguisticWindowOrderByInput', List['LinguisticWindowOrderByInput']]
+    where: 'LinguisticWindowWhereInput'
+    cursor: 'LinguisticWindowWhereUniqueInput'
+    distinct: List['LinguisticWindowScalarFieldKeys']
+    include: 'LinguisticWindowIncludeFromLinguisticWindowRecursive2'
+
+
+class FindManyLinguisticWindowArgsFromEmbeddingRecursive2(TypedDict, total=False):
+    """Arguments for Embedding"""
+    take: int
+    skip: int
+    order_by: Union['LinguisticWindowOrderByInput', List['LinguisticWindowOrderByInput']]
+    where: 'LinguisticWindowWhereInput'
+    cursor: 'LinguisticWindowWhereUniqueInput'
+    distinct: List['LinguisticWindowScalarFieldKeys']
+    include: 'LinguisticWindowIncludeFromLinguisticWindowRecursive3'
+
+
+class FindManyLinguisticWindowArgsFromEmbeddingRecursive3(TypedDict, total=False):
+    """Arguments for Embedding"""
+    take: int
+    skip: int
+    order_by: Union['LinguisticWindowOrderByInput', List['LinguisticWindowOrderByInput']]
+    where: 'LinguisticWindowWhereInput'
+    cursor: 'LinguisticWindowWhereUniqueInput'
+    distinct: List['LinguisticWindowScalarFieldKeys']
+    include: 'LinguisticWindowIncludeFromLinguisticWindowRecursive4'
+
+
+class FindManyLinguisticWindowArgsFromEmbeddingRecursive4(TypedDict, total=False):
+    """Arguments for Embedding"""
+    take: int
+    skip: int
+    order_by: Union['LinguisticWindowOrderByInput', List['LinguisticWindowOrderByInput']]
+    where: 'LinguisticWindowWhereInput'
+    cursor: 'LinguisticWindowWhereUniqueInput'
+    distinct: List['LinguisticWindowScalarFieldKeys']
     
     
 
@@ -3180,24 +3515,28 @@ class TrainingJobIncludeFromEmbedding(TypedDict, total=False):
     """Relational arguments for Embedding"""
     driftWindow: Union[bool, 'DriftWindowArgsFromEmbeddingRecursive1']
     modelVersion: Union[bool, 'ModelVersionArgsFromEmbeddingRecursive1']
+    linguisticSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromEmbeddingRecursive1']
 
 
 class TrainingJobIncludeFromEmbeddingRecursive1(TypedDict, total=False):
     """Relational arguments for Embedding"""
     driftWindow: Union[bool, 'DriftWindowArgsFromEmbeddingRecursive2']
     modelVersion: Union[bool, 'ModelVersionArgsFromEmbeddingRecursive2']
+    linguisticSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromEmbeddingRecursive2']
 
 
 class TrainingJobIncludeFromEmbeddingRecursive2(TypedDict, total=False):
     """Relational arguments for Embedding"""
     driftWindow: Union[bool, 'DriftWindowArgsFromEmbeddingRecursive3']
     modelVersion: Union[bool, 'ModelVersionArgsFromEmbeddingRecursive3']
+    linguisticSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromEmbeddingRecursive3']
 
 
 class TrainingJobIncludeFromEmbeddingRecursive3(TypedDict, total=False):
     """Relational arguments for Embedding"""
     driftWindow: Union[bool, 'DriftWindowArgsFromEmbeddingRecursive4']
     modelVersion: Union[bool, 'ModelVersionArgsFromEmbeddingRecursive4']
+    linguisticSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromEmbeddingRecursive4']
 
 
 class TrainingJobIncludeFromEmbeddingRecursive4(TypedDict, total=False):
@@ -3282,6 +3621,119 @@ class FindManyTrainingJobArgsFromEmbeddingRecursive4(TypedDict, total=False):
     where: 'TrainingJobWhereInput'
     cursor: 'TrainingJobWhereUniqueInput'
     distinct: List['TrainingJobScalarFieldKeys']
+    
+    
+
+class TrainingLinguisticSignalIncludeFromEmbedding(TypedDict, total=False):
+    """Relational arguments for Embedding"""
+    trainingJob: Union[bool, 'TrainingJobArgsFromEmbeddingRecursive1']
+    linguisticWindow: Union[bool, 'LinguisticWindowArgsFromEmbeddingRecursive1']
+    driftWindow: Union[bool, 'DriftWindowArgsFromEmbeddingRecursive1']
+
+
+class TrainingLinguisticSignalIncludeFromEmbeddingRecursive1(TypedDict, total=False):
+    """Relational arguments for Embedding"""
+    trainingJob: Union[bool, 'TrainingJobArgsFromEmbeddingRecursive2']
+    linguisticWindow: Union[bool, 'LinguisticWindowArgsFromEmbeddingRecursive2']
+    driftWindow: Union[bool, 'DriftWindowArgsFromEmbeddingRecursive2']
+
+
+class TrainingLinguisticSignalIncludeFromEmbeddingRecursive2(TypedDict, total=False):
+    """Relational arguments for Embedding"""
+    trainingJob: Union[bool, 'TrainingJobArgsFromEmbeddingRecursive3']
+    linguisticWindow: Union[bool, 'LinguisticWindowArgsFromEmbeddingRecursive3']
+    driftWindow: Union[bool, 'DriftWindowArgsFromEmbeddingRecursive3']
+
+
+class TrainingLinguisticSignalIncludeFromEmbeddingRecursive3(TypedDict, total=False):
+    """Relational arguments for Embedding"""
+    trainingJob: Union[bool, 'TrainingJobArgsFromEmbeddingRecursive4']
+    linguisticWindow: Union[bool, 'LinguisticWindowArgsFromEmbeddingRecursive4']
+    driftWindow: Union[bool, 'DriftWindowArgsFromEmbeddingRecursive4']
+
+
+class TrainingLinguisticSignalIncludeFromEmbeddingRecursive4(TypedDict, total=False):
+    """Relational arguments for Embedding"""
+
+    
+
+class TrainingLinguisticSignalArgsFromEmbedding(TypedDict, total=False):
+    """Arguments for Embedding"""
+    include: 'TrainingLinguisticSignalIncludeFromTrainingLinguisticSignalRecursive1'
+
+
+class TrainingLinguisticSignalArgsFromEmbeddingRecursive1(TypedDict, total=False):
+    """Arguments for Embedding"""
+    include: 'TrainingLinguisticSignalIncludeFromTrainingLinguisticSignalRecursive2'
+
+
+class TrainingLinguisticSignalArgsFromEmbeddingRecursive2(TypedDict, total=False):
+    """Arguments for Embedding"""
+    include: 'TrainingLinguisticSignalIncludeFromTrainingLinguisticSignalRecursive3'
+
+
+class TrainingLinguisticSignalArgsFromEmbeddingRecursive3(TypedDict, total=False):
+    """Arguments for Embedding"""
+    include: 'TrainingLinguisticSignalIncludeFromTrainingLinguisticSignalRecursive4'
+
+
+class TrainingLinguisticSignalArgsFromEmbeddingRecursive4(TypedDict, total=False):
+    """Arguments for Embedding"""
+    
+    
+
+class FindManyTrainingLinguisticSignalArgsFromEmbedding(TypedDict, total=False):
+    """Arguments for Embedding"""
+    take: int
+    skip: int
+    order_by: Union['TrainingLinguisticSignalOrderByInput', List['TrainingLinguisticSignalOrderByInput']]
+    where: 'TrainingLinguisticSignalWhereInput'
+    cursor: 'TrainingLinguisticSignalWhereUniqueInput'
+    distinct: List['TrainingLinguisticSignalScalarFieldKeys']
+    include: 'TrainingLinguisticSignalIncludeFromTrainingLinguisticSignalRecursive1'
+
+
+class FindManyTrainingLinguisticSignalArgsFromEmbeddingRecursive1(TypedDict, total=False):
+    """Arguments for Embedding"""
+    take: int
+    skip: int
+    order_by: Union['TrainingLinguisticSignalOrderByInput', List['TrainingLinguisticSignalOrderByInput']]
+    where: 'TrainingLinguisticSignalWhereInput'
+    cursor: 'TrainingLinguisticSignalWhereUniqueInput'
+    distinct: List['TrainingLinguisticSignalScalarFieldKeys']
+    include: 'TrainingLinguisticSignalIncludeFromTrainingLinguisticSignalRecursive2'
+
+
+class FindManyTrainingLinguisticSignalArgsFromEmbeddingRecursive2(TypedDict, total=False):
+    """Arguments for Embedding"""
+    take: int
+    skip: int
+    order_by: Union['TrainingLinguisticSignalOrderByInput', List['TrainingLinguisticSignalOrderByInput']]
+    where: 'TrainingLinguisticSignalWhereInput'
+    cursor: 'TrainingLinguisticSignalWhereUniqueInput'
+    distinct: List['TrainingLinguisticSignalScalarFieldKeys']
+    include: 'TrainingLinguisticSignalIncludeFromTrainingLinguisticSignalRecursive3'
+
+
+class FindManyTrainingLinguisticSignalArgsFromEmbeddingRecursive3(TypedDict, total=False):
+    """Arguments for Embedding"""
+    take: int
+    skip: int
+    order_by: Union['TrainingLinguisticSignalOrderByInput', List['TrainingLinguisticSignalOrderByInput']]
+    where: 'TrainingLinguisticSignalWhereInput'
+    cursor: 'TrainingLinguisticSignalWhereUniqueInput'
+    distinct: List['TrainingLinguisticSignalScalarFieldKeys']
+    include: 'TrainingLinguisticSignalIncludeFromTrainingLinguisticSignalRecursive4'
+
+
+class FindManyTrainingLinguisticSignalArgsFromEmbeddingRecursive4(TypedDict, total=False):
+    """Arguments for Embedding"""
+    take: int
+    skip: int
+    order_by: Union['TrainingLinguisticSignalOrderByInput', List['TrainingLinguisticSignalOrderByInput']]
+    where: 'TrainingLinguisticSignalWhereInput'
+    cursor: 'TrainingLinguisticSignalWhereUniqueInput'
+    distinct: List['TrainingLinguisticSignalScalarFieldKeys']
     
 
 
@@ -3564,6 +4016,7 @@ class DriftWindowOptionalCreateInput(TypedDict, total=False):
     baseline: 'DriftWindowCreateNestedWithoutRelationsInput'
     derived: 'DriftWindowCreateManyNestedWithoutRelationsInput'
     trainingJobs: 'TrainingJobCreateManyNestedWithoutRelationsInput'
+    linguisticSignals: 'TrainingLinguisticSignalCreateManyNestedWithoutRelationsInput'
     createdAt: datetime.datetime
 
 
@@ -3659,6 +4112,7 @@ class DriftWindowUpdateInput(TypedDict, total=False):
     baseline: 'DriftWindowUpdateOneWithoutRelationsInput'
     derived: 'DriftWindowUpdateManyWithoutRelationsInput'
     trainingJobs: 'TrainingJobUpdateManyWithoutRelationsInput'
+    linguisticSignals: 'TrainingLinguisticSignalUpdateManyWithoutRelationsInput'
     createdAt: datetime.datetime
 
 
@@ -3870,6 +4324,7 @@ class DriftWindowInclude(TypedDict, total=False):
     baseline: Union[bool, 'DriftWindowArgsFromDriftWindow']
     derived: Union[bool, 'FindManyDriftWindowArgsFromDriftWindow']
     trainingJobs: Union[bool, 'FindManyTrainingJobArgsFromDriftWindow']
+    linguisticSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromDriftWindow']
 
 
     
@@ -4093,6 +4548,7 @@ class DriftWindowIncludeFromDriftWindow(TypedDict, total=False):
     baseline: Union[bool, 'DriftWindowArgsFromDriftWindowRecursive1']
     derived: Union[bool, 'FindManyDriftWindowArgsFromDriftWindowRecursive1']
     trainingJobs: Union[bool, 'FindManyTrainingJobArgsFromDriftWindowRecursive1']
+    linguisticSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromDriftWindowRecursive1']
 
 
 class DriftWindowIncludeFromDriftWindowRecursive1(TypedDict, total=False):
@@ -4100,6 +4556,7 @@ class DriftWindowIncludeFromDriftWindowRecursive1(TypedDict, total=False):
     baseline: Union[bool, 'DriftWindowArgsFromDriftWindowRecursive2']
     derived: Union[bool, 'FindManyDriftWindowArgsFromDriftWindowRecursive2']
     trainingJobs: Union[bool, 'FindManyTrainingJobArgsFromDriftWindowRecursive2']
+    linguisticSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromDriftWindowRecursive2']
 
 
 class DriftWindowIncludeFromDriftWindowRecursive2(TypedDict, total=False):
@@ -4107,6 +4564,7 @@ class DriftWindowIncludeFromDriftWindowRecursive2(TypedDict, total=False):
     baseline: Union[bool, 'DriftWindowArgsFromDriftWindowRecursive3']
     derived: Union[bool, 'FindManyDriftWindowArgsFromDriftWindowRecursive3']
     trainingJobs: Union[bool, 'FindManyTrainingJobArgsFromDriftWindowRecursive3']
+    linguisticSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromDriftWindowRecursive3']
 
 
 class DriftWindowIncludeFromDriftWindowRecursive3(TypedDict, total=False):
@@ -4114,6 +4572,7 @@ class DriftWindowIncludeFromDriftWindowRecursive3(TypedDict, total=False):
     baseline: Union[bool, 'DriftWindowArgsFromDriftWindowRecursive4']
     derived: Union[bool, 'FindManyDriftWindowArgsFromDriftWindowRecursive4']
     trainingJobs: Union[bool, 'FindManyTrainingJobArgsFromDriftWindowRecursive4']
+    linguisticSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromDriftWindowRecursive4']
 
 
 class DriftWindowIncludeFromDriftWindowRecursive4(TypedDict, total=False):
@@ -4198,6 +4657,111 @@ class FindManyDriftWindowArgsFromDriftWindowRecursive4(TypedDict, total=False):
     where: 'DriftWindowWhereInput'
     cursor: 'DriftWindowWhereUniqueInput'
     distinct: List['DriftWindowScalarFieldKeys']
+    
+    
+
+class LinguisticWindowIncludeFromDriftWindow(TypedDict, total=False):
+    """Relational arguments for DriftWindow"""
+    trainingSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromDriftWindowRecursive1']
+
+
+class LinguisticWindowIncludeFromDriftWindowRecursive1(TypedDict, total=False):
+    """Relational arguments for DriftWindow"""
+    trainingSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromDriftWindowRecursive2']
+
+
+class LinguisticWindowIncludeFromDriftWindowRecursive2(TypedDict, total=False):
+    """Relational arguments for DriftWindow"""
+    trainingSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromDriftWindowRecursive3']
+
+
+class LinguisticWindowIncludeFromDriftWindowRecursive3(TypedDict, total=False):
+    """Relational arguments for DriftWindow"""
+    trainingSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromDriftWindowRecursive4']
+
+
+class LinguisticWindowIncludeFromDriftWindowRecursive4(TypedDict, total=False):
+    """Relational arguments for DriftWindow"""
+
+    
+
+class LinguisticWindowArgsFromDriftWindow(TypedDict, total=False):
+    """Arguments for DriftWindow"""
+    include: 'LinguisticWindowIncludeFromLinguisticWindowRecursive1'
+
+
+class LinguisticWindowArgsFromDriftWindowRecursive1(TypedDict, total=False):
+    """Arguments for DriftWindow"""
+    include: 'LinguisticWindowIncludeFromLinguisticWindowRecursive2'
+
+
+class LinguisticWindowArgsFromDriftWindowRecursive2(TypedDict, total=False):
+    """Arguments for DriftWindow"""
+    include: 'LinguisticWindowIncludeFromLinguisticWindowRecursive3'
+
+
+class LinguisticWindowArgsFromDriftWindowRecursive3(TypedDict, total=False):
+    """Arguments for DriftWindow"""
+    include: 'LinguisticWindowIncludeFromLinguisticWindowRecursive4'
+
+
+class LinguisticWindowArgsFromDriftWindowRecursive4(TypedDict, total=False):
+    """Arguments for DriftWindow"""
+    
+    
+
+class FindManyLinguisticWindowArgsFromDriftWindow(TypedDict, total=False):
+    """Arguments for DriftWindow"""
+    take: int
+    skip: int
+    order_by: Union['LinguisticWindowOrderByInput', List['LinguisticWindowOrderByInput']]
+    where: 'LinguisticWindowWhereInput'
+    cursor: 'LinguisticWindowWhereUniqueInput'
+    distinct: List['LinguisticWindowScalarFieldKeys']
+    include: 'LinguisticWindowIncludeFromLinguisticWindowRecursive1'
+
+
+class FindManyLinguisticWindowArgsFromDriftWindowRecursive1(TypedDict, total=False):
+    """Arguments for DriftWindow"""
+    take: int
+    skip: int
+    order_by: Union['LinguisticWindowOrderByInput', List['LinguisticWindowOrderByInput']]
+    where: 'LinguisticWindowWhereInput'
+    cursor: 'LinguisticWindowWhereUniqueInput'
+    distinct: List['LinguisticWindowScalarFieldKeys']
+    include: 'LinguisticWindowIncludeFromLinguisticWindowRecursive2'
+
+
+class FindManyLinguisticWindowArgsFromDriftWindowRecursive2(TypedDict, total=False):
+    """Arguments for DriftWindow"""
+    take: int
+    skip: int
+    order_by: Union['LinguisticWindowOrderByInput', List['LinguisticWindowOrderByInput']]
+    where: 'LinguisticWindowWhereInput'
+    cursor: 'LinguisticWindowWhereUniqueInput'
+    distinct: List['LinguisticWindowScalarFieldKeys']
+    include: 'LinguisticWindowIncludeFromLinguisticWindowRecursive3'
+
+
+class FindManyLinguisticWindowArgsFromDriftWindowRecursive3(TypedDict, total=False):
+    """Arguments for DriftWindow"""
+    take: int
+    skip: int
+    order_by: Union['LinguisticWindowOrderByInput', List['LinguisticWindowOrderByInput']]
+    where: 'LinguisticWindowWhereInput'
+    cursor: 'LinguisticWindowWhereUniqueInput'
+    distinct: List['LinguisticWindowScalarFieldKeys']
+    include: 'LinguisticWindowIncludeFromLinguisticWindowRecursive4'
+
+
+class FindManyLinguisticWindowArgsFromDriftWindowRecursive4(TypedDict, total=False):
+    """Arguments for DriftWindow"""
+    take: int
+    skip: int
+    order_by: Union['LinguisticWindowOrderByInput', List['LinguisticWindowOrderByInput']]
+    where: 'LinguisticWindowWhereInput'
+    cursor: 'LinguisticWindowWhereUniqueInput'
+    distinct: List['LinguisticWindowScalarFieldKeys']
     
     
 
@@ -4314,24 +4878,28 @@ class TrainingJobIncludeFromDriftWindow(TypedDict, total=False):
     """Relational arguments for DriftWindow"""
     driftWindow: Union[bool, 'DriftWindowArgsFromDriftWindowRecursive1']
     modelVersion: Union[bool, 'ModelVersionArgsFromDriftWindowRecursive1']
+    linguisticSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromDriftWindowRecursive1']
 
 
 class TrainingJobIncludeFromDriftWindowRecursive1(TypedDict, total=False):
     """Relational arguments for DriftWindow"""
     driftWindow: Union[bool, 'DriftWindowArgsFromDriftWindowRecursive2']
     modelVersion: Union[bool, 'ModelVersionArgsFromDriftWindowRecursive2']
+    linguisticSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromDriftWindowRecursive2']
 
 
 class TrainingJobIncludeFromDriftWindowRecursive2(TypedDict, total=False):
     """Relational arguments for DriftWindow"""
     driftWindow: Union[bool, 'DriftWindowArgsFromDriftWindowRecursive3']
     modelVersion: Union[bool, 'ModelVersionArgsFromDriftWindowRecursive3']
+    linguisticSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromDriftWindowRecursive3']
 
 
 class TrainingJobIncludeFromDriftWindowRecursive3(TypedDict, total=False):
     """Relational arguments for DriftWindow"""
     driftWindow: Union[bool, 'DriftWindowArgsFromDriftWindowRecursive4']
     modelVersion: Union[bool, 'ModelVersionArgsFromDriftWindowRecursive4']
+    linguisticSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromDriftWindowRecursive4']
 
 
 class TrainingJobIncludeFromDriftWindowRecursive4(TypedDict, total=False):
@@ -4417,6 +4985,119 @@ class FindManyTrainingJobArgsFromDriftWindowRecursive4(TypedDict, total=False):
     cursor: 'TrainingJobWhereUniqueInput'
     distinct: List['TrainingJobScalarFieldKeys']
     
+    
+
+class TrainingLinguisticSignalIncludeFromDriftWindow(TypedDict, total=False):
+    """Relational arguments for DriftWindow"""
+    trainingJob: Union[bool, 'TrainingJobArgsFromDriftWindowRecursive1']
+    linguisticWindow: Union[bool, 'LinguisticWindowArgsFromDriftWindowRecursive1']
+    driftWindow: Union[bool, 'DriftWindowArgsFromDriftWindowRecursive1']
+
+
+class TrainingLinguisticSignalIncludeFromDriftWindowRecursive1(TypedDict, total=False):
+    """Relational arguments for DriftWindow"""
+    trainingJob: Union[bool, 'TrainingJobArgsFromDriftWindowRecursive2']
+    linguisticWindow: Union[bool, 'LinguisticWindowArgsFromDriftWindowRecursive2']
+    driftWindow: Union[bool, 'DriftWindowArgsFromDriftWindowRecursive2']
+
+
+class TrainingLinguisticSignalIncludeFromDriftWindowRecursive2(TypedDict, total=False):
+    """Relational arguments for DriftWindow"""
+    trainingJob: Union[bool, 'TrainingJobArgsFromDriftWindowRecursive3']
+    linguisticWindow: Union[bool, 'LinguisticWindowArgsFromDriftWindowRecursive3']
+    driftWindow: Union[bool, 'DriftWindowArgsFromDriftWindowRecursive3']
+
+
+class TrainingLinguisticSignalIncludeFromDriftWindowRecursive3(TypedDict, total=False):
+    """Relational arguments for DriftWindow"""
+    trainingJob: Union[bool, 'TrainingJobArgsFromDriftWindowRecursive4']
+    linguisticWindow: Union[bool, 'LinguisticWindowArgsFromDriftWindowRecursive4']
+    driftWindow: Union[bool, 'DriftWindowArgsFromDriftWindowRecursive4']
+
+
+class TrainingLinguisticSignalIncludeFromDriftWindowRecursive4(TypedDict, total=False):
+    """Relational arguments for DriftWindow"""
+
+    
+
+class TrainingLinguisticSignalArgsFromDriftWindow(TypedDict, total=False):
+    """Arguments for DriftWindow"""
+    include: 'TrainingLinguisticSignalIncludeFromTrainingLinguisticSignalRecursive1'
+
+
+class TrainingLinguisticSignalArgsFromDriftWindowRecursive1(TypedDict, total=False):
+    """Arguments for DriftWindow"""
+    include: 'TrainingLinguisticSignalIncludeFromTrainingLinguisticSignalRecursive2'
+
+
+class TrainingLinguisticSignalArgsFromDriftWindowRecursive2(TypedDict, total=False):
+    """Arguments for DriftWindow"""
+    include: 'TrainingLinguisticSignalIncludeFromTrainingLinguisticSignalRecursive3'
+
+
+class TrainingLinguisticSignalArgsFromDriftWindowRecursive3(TypedDict, total=False):
+    """Arguments for DriftWindow"""
+    include: 'TrainingLinguisticSignalIncludeFromTrainingLinguisticSignalRecursive4'
+
+
+class TrainingLinguisticSignalArgsFromDriftWindowRecursive4(TypedDict, total=False):
+    """Arguments for DriftWindow"""
+    
+    
+
+class FindManyTrainingLinguisticSignalArgsFromDriftWindow(TypedDict, total=False):
+    """Arguments for DriftWindow"""
+    take: int
+    skip: int
+    order_by: Union['TrainingLinguisticSignalOrderByInput', List['TrainingLinguisticSignalOrderByInput']]
+    where: 'TrainingLinguisticSignalWhereInput'
+    cursor: 'TrainingLinguisticSignalWhereUniqueInput'
+    distinct: List['TrainingLinguisticSignalScalarFieldKeys']
+    include: 'TrainingLinguisticSignalIncludeFromTrainingLinguisticSignalRecursive1'
+
+
+class FindManyTrainingLinguisticSignalArgsFromDriftWindowRecursive1(TypedDict, total=False):
+    """Arguments for DriftWindow"""
+    take: int
+    skip: int
+    order_by: Union['TrainingLinguisticSignalOrderByInput', List['TrainingLinguisticSignalOrderByInput']]
+    where: 'TrainingLinguisticSignalWhereInput'
+    cursor: 'TrainingLinguisticSignalWhereUniqueInput'
+    distinct: List['TrainingLinguisticSignalScalarFieldKeys']
+    include: 'TrainingLinguisticSignalIncludeFromTrainingLinguisticSignalRecursive2'
+
+
+class FindManyTrainingLinguisticSignalArgsFromDriftWindowRecursive2(TypedDict, total=False):
+    """Arguments for DriftWindow"""
+    take: int
+    skip: int
+    order_by: Union['TrainingLinguisticSignalOrderByInput', List['TrainingLinguisticSignalOrderByInput']]
+    where: 'TrainingLinguisticSignalWhereInput'
+    cursor: 'TrainingLinguisticSignalWhereUniqueInput'
+    distinct: List['TrainingLinguisticSignalScalarFieldKeys']
+    include: 'TrainingLinguisticSignalIncludeFromTrainingLinguisticSignalRecursive3'
+
+
+class FindManyTrainingLinguisticSignalArgsFromDriftWindowRecursive3(TypedDict, total=False):
+    """Arguments for DriftWindow"""
+    take: int
+    skip: int
+    order_by: Union['TrainingLinguisticSignalOrderByInput', List['TrainingLinguisticSignalOrderByInput']]
+    where: 'TrainingLinguisticSignalWhereInput'
+    cursor: 'TrainingLinguisticSignalWhereUniqueInput'
+    distinct: List['TrainingLinguisticSignalScalarFieldKeys']
+    include: 'TrainingLinguisticSignalIncludeFromTrainingLinguisticSignalRecursive4'
+
+
+class FindManyTrainingLinguisticSignalArgsFromDriftWindowRecursive4(TypedDict, total=False):
+    """Arguments for DriftWindow"""
+    take: int
+    skip: int
+    order_by: Union['TrainingLinguisticSignalOrderByInput', List['TrainingLinguisticSignalOrderByInput']]
+    where: 'TrainingLinguisticSignalWhereInput'
+    cursor: 'TrainingLinguisticSignalWhereUniqueInput'
+    distinct: List['TrainingLinguisticSignalScalarFieldKeys']
+    
 
 
 FindManyDriftWindowArgs = FindManyDriftWindowArgsFromDriftWindow
@@ -4441,6 +5122,7 @@ class DriftWindowWhereInput(TypedDict, total=False):
     baseline: 'DriftWindowRelationFilter'
     derived: 'DriftWindowListRelationFilter'
     trainingJobs: 'TrainingJobListRelationFilter'
+    linguisticSignals: 'TrainingLinguisticSignalListRelationFilter'
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
 
     # should be noted that AND and NOT should be Union['DriftWindowWhereInputRecursive1', List['DriftWindowWhereInputRecursive1']]
@@ -4466,6 +5148,7 @@ class DriftWindowWhereInputRecursive1(TypedDict, total=False):
     baseline: 'DriftWindowRelationFilter'
     derived: 'DriftWindowListRelationFilter'
     trainingJobs: 'TrainingJobListRelationFilter'
+    linguisticSignals: 'TrainingLinguisticSignalListRelationFilter'
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
 
     # should be noted that AND and NOT should be Union['DriftWindowWhereInputRecursive2', List['DriftWindowWhereInputRecursive2']]
@@ -4491,6 +5174,7 @@ class DriftWindowWhereInputRecursive2(TypedDict, total=False):
     baseline: 'DriftWindowRelationFilter'
     derived: 'DriftWindowListRelationFilter'
     trainingJobs: 'TrainingJobListRelationFilter'
+    linguisticSignals: 'TrainingLinguisticSignalListRelationFilter'
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
 
     # should be noted that AND and NOT should be Union['DriftWindowWhereInputRecursive3', List['DriftWindowWhereInputRecursive3']]
@@ -4516,6 +5200,7 @@ class DriftWindowWhereInputRecursive3(TypedDict, total=False):
     baseline: 'DriftWindowRelationFilter'
     derived: 'DriftWindowListRelationFilter'
     trainingJobs: 'TrainingJobListRelationFilter'
+    linguisticSignals: 'TrainingLinguisticSignalListRelationFilter'
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
 
     # should be noted that AND and NOT should be Union['DriftWindowWhereInputRecursive4', List['DriftWindowWhereInputRecursive4']]
@@ -4541,6 +5226,7 @@ class DriftWindowWhereInputRecursive4(TypedDict, total=False):
     baseline: 'DriftWindowRelationFilter'
     derived: 'DriftWindowListRelationFilter'
     trainingJobs: 'TrainingJobListRelationFilter'
+    linguisticSignals: 'TrainingLinguisticSignalListRelationFilter'
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
 
 
@@ -4806,6 +5492,7 @@ DriftWindowKeys = Literal[
     'baseline',
     'derived',
     'trainingJobs',
+    'linguisticSignals',
     'createdAt',
 ]
 DriftWindowScalarFieldKeys = Literal[
@@ -4828,6 +5515,1559 @@ DriftWindowRelationalFieldKeys = Literal[
         'baseline',
         'derived',
         'trainingJobs',
+        'linguisticSignals',
+    ]
+
+# LinguisticWindow types
+
+class LinguisticWindowOptionalCreateInput(TypedDict, total=False):
+    """Optional arguments to the LinguisticWindow create method"""
+    id: _str
+    threshold: _float
+    breached: _bool
+    trainingSignals: 'TrainingLinguisticSignalCreateManyNestedWithoutRelationsInput'
+    createdAt: datetime.datetime
+
+
+class LinguisticWindowCreateInput(LinguisticWindowOptionalCreateInput):
+    """Required arguments to the LinguisticWindow create method"""
+    windowStart: datetime.datetime
+    windowEnd: datetime.datetime
+    documentCount: _int
+    entityKlDivergence: _float
+    topicWasserstein: _float
+    vocabChi2Pvalue: _float
+    compositeScore: _float
+    newEntities: 'fields.Json'
+    emergingTopics: 'fields.Json'
+    emergingTerms: 'fields.Json'
+
+
+# TODO: remove this in favour of without explicit relations
+# e.g. PostCreateWithoutAuthorInput
+
+class LinguisticWindowOptionalCreateWithoutRelationsInput(TypedDict, total=False):
+    """Optional arguments to the LinguisticWindow create method, without relations"""
+    id: _str
+    threshold: _float
+    breached: _bool
+    createdAt: datetime.datetime
+
+
+class LinguisticWindowCreateWithoutRelationsInput(LinguisticWindowOptionalCreateWithoutRelationsInput):
+    """Required arguments to the LinguisticWindow create method, without relations"""
+    windowStart: datetime.datetime
+    windowEnd: datetime.datetime
+    documentCount: _int
+    entityKlDivergence: _float
+    topicWasserstein: _float
+    vocabChi2Pvalue: _float
+    compositeScore: _float
+    newEntities: 'fields.Json'
+    emergingTopics: 'fields.Json'
+    emergingTerms: 'fields.Json'
+
+class LinguisticWindowConnectOrCreateWithoutRelationsInput(TypedDict):
+    create: 'LinguisticWindowCreateWithoutRelationsInput'
+    where: 'LinguisticWindowWhereUniqueInput'
+
+class LinguisticWindowCreateNestedWithoutRelationsInput(TypedDict, total=False):
+    create: 'LinguisticWindowCreateWithoutRelationsInput'
+    connect: 'LinguisticWindowWhereUniqueInput'
+    connect_or_create: 'LinguisticWindowConnectOrCreateWithoutRelationsInput'
+
+
+class LinguisticWindowCreateManyNestedWithoutRelationsInput(TypedDict, total=False):
+    create: Union['LinguisticWindowCreateWithoutRelationsInput', List['LinguisticWindowCreateWithoutRelationsInput']]
+    connect: Union['LinguisticWindowWhereUniqueInput', List['LinguisticWindowWhereUniqueInput']]
+    connect_or_create: Union['LinguisticWindowConnectOrCreateWithoutRelationsInput', List['LinguisticWindowConnectOrCreateWithoutRelationsInput']]
+
+_LinguisticWindowWhereUnique_id_Input = TypedDict(
+    '_LinguisticWindowWhereUnique_id_Input',
+    {
+        'id': '_str',
+    },
+    total=True
+)
+
+_LinguisticWindowCompoundwindowStart_windowEndKeyInner = TypedDict(
+    '_LinguisticWindowCompoundwindowStart_windowEndKeyInner',
+    {
+        'windowStart': 'datetime.datetime',
+        'windowEnd': 'datetime.datetime',
+    },
+    total=True
+)
+
+_LinguisticWindowCompoundwindowStart_windowEndKey = TypedDict(
+    '_LinguisticWindowCompoundwindowStart_windowEndKey',
+    {
+        'windowStart_windowEnd': '_LinguisticWindowCompoundwindowStart_windowEndKeyInner',
+    },
+    total=True
+)
+
+LinguisticWindowWhereUniqueInput = Union[
+    '_LinguisticWindowWhereUnique_id_Input',
+    '_LinguisticWindowCompoundwindowStart_windowEndKey',
+]
+
+
+class LinguisticWindowUpdateInput(TypedDict, total=False):
+    """Optional arguments for updating a record"""
+    id: _str
+    windowStart: datetime.datetime
+    windowEnd: datetime.datetime
+    documentCount: Union[AtomicIntInput, _int]
+    entityKlDivergence: Union[AtomicFloatInput, _float]
+    topicWasserstein: Union[AtomicFloatInput, _float]
+    vocabChi2Pvalue: Union[AtomicFloatInput, _float]
+    compositeScore: Union[AtomicFloatInput, _float]
+    threshold: Union[AtomicFloatInput, _float]
+    breached: _bool
+    newEntities: 'fields.Json'
+    emergingTopics: 'fields.Json'
+    emergingTerms: 'fields.Json'
+    trainingSignals: 'TrainingLinguisticSignalUpdateManyWithoutRelationsInput'
+    createdAt: datetime.datetime
+
+
+class LinguisticWindowUpdateManyMutationInput(TypedDict, total=False):
+    """Arguments for updating many records"""
+    id: _str
+    windowStart: datetime.datetime
+    windowEnd: datetime.datetime
+    documentCount: Union[AtomicIntInput, _int]
+    entityKlDivergence: Union[AtomicFloatInput, _float]
+    topicWasserstein: Union[AtomicFloatInput, _float]
+    vocabChi2Pvalue: Union[AtomicFloatInput, _float]
+    compositeScore: Union[AtomicFloatInput, _float]
+    threshold: Union[AtomicFloatInput, _float]
+    breached: _bool
+    newEntities: 'fields.Json'
+    emergingTopics: 'fields.Json'
+    emergingTerms: 'fields.Json'
+    createdAt: datetime.datetime
+
+
+class LinguisticWindowUpdateManyWithoutRelationsInput(TypedDict, total=False):
+    create: List['LinguisticWindowCreateWithoutRelationsInput']
+    connect: List['LinguisticWindowWhereUniqueInput']
+    connect_or_create: List['LinguisticWindowConnectOrCreateWithoutRelationsInput']
+    set: List['LinguisticWindowWhereUniqueInput']
+    disconnect: List['LinguisticWindowWhereUniqueInput']
+    delete: List['LinguisticWindowWhereUniqueInput']
+
+    # TODO
+    # update: List['LinguisticWindowUpdateWithWhereUniqueWithoutRelationsInput']
+    # updateMany: List['LinguisticWindowUpdateManyWithWhereUniqueWithoutRelationsInput']
+    # deleteMany: List['LinguisticWindowScalarWhereInput']
+    # upsert: List['LinguisticWindowUpserteWithWhereUniqueWithoutRelationsInput']
+
+
+class LinguisticWindowUpdateOneWithoutRelationsInput(TypedDict, total=False):
+    create: 'LinguisticWindowCreateWithoutRelationsInput'
+    connect: 'LinguisticWindowWhereUniqueInput'
+    connect_or_create: 'LinguisticWindowConnectOrCreateWithoutRelationsInput'
+    disconnect: bool
+    delete: bool
+
+    # TODO
+    # update: 'LinguisticWindowUpdateInput'
+    # upsert: 'LinguisticWindowUpsertWithoutRelationsInput'
+
+
+class LinguisticWindowUpsertInput(TypedDict):
+    create: 'LinguisticWindowCreateInput'
+    update: 'LinguisticWindowUpdateInput'  # pyright: ignore[reportIncompatibleMethodOverride]
+
+
+_LinguisticWindow_id_OrderByInput = TypedDict(
+    '_LinguisticWindow_id_OrderByInput',
+    {
+        'id': 'SortOrder',
+    },
+    total=True
+)
+
+_LinguisticWindow_windowStart_OrderByInput = TypedDict(
+    '_LinguisticWindow_windowStart_OrderByInput',
+    {
+        'windowStart': 'SortOrder',
+    },
+    total=True
+)
+
+_LinguisticWindow_windowEnd_OrderByInput = TypedDict(
+    '_LinguisticWindow_windowEnd_OrderByInput',
+    {
+        'windowEnd': 'SortOrder',
+    },
+    total=True
+)
+
+_LinguisticWindow_documentCount_OrderByInput = TypedDict(
+    '_LinguisticWindow_documentCount_OrderByInput',
+    {
+        'documentCount': 'SortOrder',
+    },
+    total=True
+)
+
+_LinguisticWindow_entityKlDivergence_OrderByInput = TypedDict(
+    '_LinguisticWindow_entityKlDivergence_OrderByInput',
+    {
+        'entityKlDivergence': 'SortOrder',
+    },
+    total=True
+)
+
+_LinguisticWindow_topicWasserstein_OrderByInput = TypedDict(
+    '_LinguisticWindow_topicWasserstein_OrderByInput',
+    {
+        'topicWasserstein': 'SortOrder',
+    },
+    total=True
+)
+
+_LinguisticWindow_vocabChi2Pvalue_OrderByInput = TypedDict(
+    '_LinguisticWindow_vocabChi2Pvalue_OrderByInput',
+    {
+        'vocabChi2Pvalue': 'SortOrder',
+    },
+    total=True
+)
+
+_LinguisticWindow_compositeScore_OrderByInput = TypedDict(
+    '_LinguisticWindow_compositeScore_OrderByInput',
+    {
+        'compositeScore': 'SortOrder',
+    },
+    total=True
+)
+
+_LinguisticWindow_threshold_OrderByInput = TypedDict(
+    '_LinguisticWindow_threshold_OrderByInput',
+    {
+        'threshold': 'SortOrder',
+    },
+    total=True
+)
+
+_LinguisticWindow_breached_OrderByInput = TypedDict(
+    '_LinguisticWindow_breached_OrderByInput',
+    {
+        'breached': 'SortOrder',
+    },
+    total=True
+)
+
+_LinguisticWindow_newEntities_OrderByInput = TypedDict(
+    '_LinguisticWindow_newEntities_OrderByInput',
+    {
+        'newEntities': 'SortOrder',
+    },
+    total=True
+)
+
+_LinguisticWindow_emergingTopics_OrderByInput = TypedDict(
+    '_LinguisticWindow_emergingTopics_OrderByInput',
+    {
+        'emergingTopics': 'SortOrder',
+    },
+    total=True
+)
+
+_LinguisticWindow_emergingTerms_OrderByInput = TypedDict(
+    '_LinguisticWindow_emergingTerms_OrderByInput',
+    {
+        'emergingTerms': 'SortOrder',
+    },
+    total=True
+)
+
+_LinguisticWindow_createdAt_OrderByInput = TypedDict(
+    '_LinguisticWindow_createdAt_OrderByInput',
+    {
+        'createdAt': 'SortOrder',
+    },
+    total=True
+)
+
+_LinguisticWindow_RelevanceInner = TypedDict(
+    '_LinguisticWindow_RelevanceInner',
+    {
+        'fields': 'List[LinguisticWindowScalarFieldKeys]',
+        'search': 'str',
+        'sort': 'SortOrder',
+    },
+    total=True
+)
+
+_LinguisticWindow_RelevanceOrderByInput = TypedDict(
+    '_LinguisticWindow_RelevanceOrderByInput',
+    {
+        '_relevance': '_LinguisticWindow_RelevanceInner',
+    },
+    total=True
+)
+
+LinguisticWindowOrderByInput = Union[
+    '_LinguisticWindow_id_OrderByInput',
+    '_LinguisticWindow_windowStart_OrderByInput',
+    '_LinguisticWindow_windowEnd_OrderByInput',
+    '_LinguisticWindow_documentCount_OrderByInput',
+    '_LinguisticWindow_entityKlDivergence_OrderByInput',
+    '_LinguisticWindow_topicWasserstein_OrderByInput',
+    '_LinguisticWindow_vocabChi2Pvalue_OrderByInput',
+    '_LinguisticWindow_compositeScore_OrderByInput',
+    '_LinguisticWindow_threshold_OrderByInput',
+    '_LinguisticWindow_breached_OrderByInput',
+    '_LinguisticWindow_newEntities_OrderByInput',
+    '_LinguisticWindow_emergingTopics_OrderByInput',
+    '_LinguisticWindow_emergingTerms_OrderByInput',
+    '_LinguisticWindow_createdAt_OrderByInput',
+    '_LinguisticWindow_RelevanceOrderByInput',
+]
+
+
+
+# recursive LinguisticWindow types
+# TODO: cleanup these types
+
+
+# Dict[str, Any] is a mypy limitation
+# see https://github.com/RobertCraigie/prisma-client-py/issues/45
+# switch to pyright for improved types, see https://prisma-client-py.readthedocs.io/en/stable/reference/limitations/
+
+LinguisticWindowRelationFilter = TypedDict(
+    'LinguisticWindowRelationFilter',
+    {
+        'is': 'Dict[str, Any]',
+        'is_not': 'Dict[str, Any]',
+    },
+    total=False,
+)
+
+
+class LinguisticWindowListRelationFilter(TypedDict, total=False):
+    some: 'Dict[str, Any]'
+    none: 'Dict[str, Any]'
+    every: 'Dict[str, Any]'
+
+
+class LinguisticWindowInclude(TypedDict, total=False):
+    """LinguisticWindow relational arguments"""
+    trainingSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromLinguisticWindow']
+
+
+    
+
+class DocumentIncludeFromLinguisticWindow(TypedDict, total=False):
+    """Relational arguments for LinguisticWindow"""
+    embedding: Union[bool, 'EmbeddingArgsFromLinguisticWindowRecursive1']
+
+
+class DocumentIncludeFromLinguisticWindowRecursive1(TypedDict, total=False):
+    """Relational arguments for LinguisticWindow"""
+    embedding: Union[bool, 'EmbeddingArgsFromLinguisticWindowRecursive2']
+
+
+class DocumentIncludeFromLinguisticWindowRecursive2(TypedDict, total=False):
+    """Relational arguments for LinguisticWindow"""
+    embedding: Union[bool, 'EmbeddingArgsFromLinguisticWindowRecursive3']
+
+
+class DocumentIncludeFromLinguisticWindowRecursive3(TypedDict, total=False):
+    """Relational arguments for LinguisticWindow"""
+    embedding: Union[bool, 'EmbeddingArgsFromLinguisticWindowRecursive4']
+
+
+class DocumentIncludeFromLinguisticWindowRecursive4(TypedDict, total=False):
+    """Relational arguments for LinguisticWindow"""
+
+    
+
+class DocumentArgsFromLinguisticWindow(TypedDict, total=False):
+    """Arguments for LinguisticWindow"""
+    include: 'DocumentIncludeFromDocumentRecursive1'
+
+
+class DocumentArgsFromLinguisticWindowRecursive1(TypedDict, total=False):
+    """Arguments for LinguisticWindow"""
+    include: 'DocumentIncludeFromDocumentRecursive2'
+
+
+class DocumentArgsFromLinguisticWindowRecursive2(TypedDict, total=False):
+    """Arguments for LinguisticWindow"""
+    include: 'DocumentIncludeFromDocumentRecursive3'
+
+
+class DocumentArgsFromLinguisticWindowRecursive3(TypedDict, total=False):
+    """Arguments for LinguisticWindow"""
+    include: 'DocumentIncludeFromDocumentRecursive4'
+
+
+class DocumentArgsFromLinguisticWindowRecursive4(TypedDict, total=False):
+    """Arguments for LinguisticWindow"""
+    
+    
+
+class FindManyDocumentArgsFromLinguisticWindow(TypedDict, total=False):
+    """Arguments for LinguisticWindow"""
+    take: int
+    skip: int
+    order_by: Union['DocumentOrderByInput', List['DocumentOrderByInput']]
+    where: 'DocumentWhereInput'
+    cursor: 'DocumentWhereUniqueInput'
+    distinct: List['DocumentScalarFieldKeys']
+    include: 'DocumentIncludeFromDocumentRecursive1'
+
+
+class FindManyDocumentArgsFromLinguisticWindowRecursive1(TypedDict, total=False):
+    """Arguments for LinguisticWindow"""
+    take: int
+    skip: int
+    order_by: Union['DocumentOrderByInput', List['DocumentOrderByInput']]
+    where: 'DocumentWhereInput'
+    cursor: 'DocumentWhereUniqueInput'
+    distinct: List['DocumentScalarFieldKeys']
+    include: 'DocumentIncludeFromDocumentRecursive2'
+
+
+class FindManyDocumentArgsFromLinguisticWindowRecursive2(TypedDict, total=False):
+    """Arguments for LinguisticWindow"""
+    take: int
+    skip: int
+    order_by: Union['DocumentOrderByInput', List['DocumentOrderByInput']]
+    where: 'DocumentWhereInput'
+    cursor: 'DocumentWhereUniqueInput'
+    distinct: List['DocumentScalarFieldKeys']
+    include: 'DocumentIncludeFromDocumentRecursive3'
+
+
+class FindManyDocumentArgsFromLinguisticWindowRecursive3(TypedDict, total=False):
+    """Arguments for LinguisticWindow"""
+    take: int
+    skip: int
+    order_by: Union['DocumentOrderByInput', List['DocumentOrderByInput']]
+    where: 'DocumentWhereInput'
+    cursor: 'DocumentWhereUniqueInput'
+    distinct: List['DocumentScalarFieldKeys']
+    include: 'DocumentIncludeFromDocumentRecursive4'
+
+
+class FindManyDocumentArgsFromLinguisticWindowRecursive4(TypedDict, total=False):
+    """Arguments for LinguisticWindow"""
+    take: int
+    skip: int
+    order_by: Union['DocumentOrderByInput', List['DocumentOrderByInput']]
+    where: 'DocumentWhereInput'
+    cursor: 'DocumentWhereUniqueInput'
+    distinct: List['DocumentScalarFieldKeys']
+    
+    
+
+class EmbeddingIncludeFromLinguisticWindow(TypedDict, total=False):
+    """Relational arguments for LinguisticWindow"""
+    document: Union[bool, 'DocumentArgsFromLinguisticWindowRecursive1']
+    modelVersion: Union[bool, 'ModelVersionArgsFromLinguisticWindowRecursive1']
+
+
+class EmbeddingIncludeFromLinguisticWindowRecursive1(TypedDict, total=False):
+    """Relational arguments for LinguisticWindow"""
+    document: Union[bool, 'DocumentArgsFromLinguisticWindowRecursive2']
+    modelVersion: Union[bool, 'ModelVersionArgsFromLinguisticWindowRecursive2']
+
+
+class EmbeddingIncludeFromLinguisticWindowRecursive2(TypedDict, total=False):
+    """Relational arguments for LinguisticWindow"""
+    document: Union[bool, 'DocumentArgsFromLinguisticWindowRecursive3']
+    modelVersion: Union[bool, 'ModelVersionArgsFromLinguisticWindowRecursive3']
+
+
+class EmbeddingIncludeFromLinguisticWindowRecursive3(TypedDict, total=False):
+    """Relational arguments for LinguisticWindow"""
+    document: Union[bool, 'DocumentArgsFromLinguisticWindowRecursive4']
+    modelVersion: Union[bool, 'ModelVersionArgsFromLinguisticWindowRecursive4']
+
+
+class EmbeddingIncludeFromLinguisticWindowRecursive4(TypedDict, total=False):
+    """Relational arguments for LinguisticWindow"""
+
+    
+
+class EmbeddingArgsFromLinguisticWindow(TypedDict, total=False):
+    """Arguments for LinguisticWindow"""
+    include: 'EmbeddingIncludeFromEmbeddingRecursive1'
+
+
+class EmbeddingArgsFromLinguisticWindowRecursive1(TypedDict, total=False):
+    """Arguments for LinguisticWindow"""
+    include: 'EmbeddingIncludeFromEmbeddingRecursive2'
+
+
+class EmbeddingArgsFromLinguisticWindowRecursive2(TypedDict, total=False):
+    """Arguments for LinguisticWindow"""
+    include: 'EmbeddingIncludeFromEmbeddingRecursive3'
+
+
+class EmbeddingArgsFromLinguisticWindowRecursive3(TypedDict, total=False):
+    """Arguments for LinguisticWindow"""
+    include: 'EmbeddingIncludeFromEmbeddingRecursive4'
+
+
+class EmbeddingArgsFromLinguisticWindowRecursive4(TypedDict, total=False):
+    """Arguments for LinguisticWindow"""
+    
+    
+
+class FindManyEmbeddingArgsFromLinguisticWindow(TypedDict, total=False):
+    """Arguments for LinguisticWindow"""
+    take: int
+    skip: int
+    order_by: Union['EmbeddingOrderByInput', List['EmbeddingOrderByInput']]
+    where: 'EmbeddingWhereInput'
+    cursor: 'EmbeddingWhereUniqueInput'
+    distinct: List['EmbeddingScalarFieldKeys']
+    include: 'EmbeddingIncludeFromEmbeddingRecursive1'
+
+
+class FindManyEmbeddingArgsFromLinguisticWindowRecursive1(TypedDict, total=False):
+    """Arguments for LinguisticWindow"""
+    take: int
+    skip: int
+    order_by: Union['EmbeddingOrderByInput', List['EmbeddingOrderByInput']]
+    where: 'EmbeddingWhereInput'
+    cursor: 'EmbeddingWhereUniqueInput'
+    distinct: List['EmbeddingScalarFieldKeys']
+    include: 'EmbeddingIncludeFromEmbeddingRecursive2'
+
+
+class FindManyEmbeddingArgsFromLinguisticWindowRecursive2(TypedDict, total=False):
+    """Arguments for LinguisticWindow"""
+    take: int
+    skip: int
+    order_by: Union['EmbeddingOrderByInput', List['EmbeddingOrderByInput']]
+    where: 'EmbeddingWhereInput'
+    cursor: 'EmbeddingWhereUniqueInput'
+    distinct: List['EmbeddingScalarFieldKeys']
+    include: 'EmbeddingIncludeFromEmbeddingRecursive3'
+
+
+class FindManyEmbeddingArgsFromLinguisticWindowRecursive3(TypedDict, total=False):
+    """Arguments for LinguisticWindow"""
+    take: int
+    skip: int
+    order_by: Union['EmbeddingOrderByInput', List['EmbeddingOrderByInput']]
+    where: 'EmbeddingWhereInput'
+    cursor: 'EmbeddingWhereUniqueInput'
+    distinct: List['EmbeddingScalarFieldKeys']
+    include: 'EmbeddingIncludeFromEmbeddingRecursive4'
+
+
+class FindManyEmbeddingArgsFromLinguisticWindowRecursive4(TypedDict, total=False):
+    """Arguments for LinguisticWindow"""
+    take: int
+    skip: int
+    order_by: Union['EmbeddingOrderByInput', List['EmbeddingOrderByInput']]
+    where: 'EmbeddingWhereInput'
+    cursor: 'EmbeddingWhereUniqueInput'
+    distinct: List['EmbeddingScalarFieldKeys']
+    
+    
+
+class DriftWindowIncludeFromLinguisticWindow(TypedDict, total=False):
+    """Relational arguments for LinguisticWindow"""
+    baseline: Union[bool, 'DriftWindowArgsFromLinguisticWindowRecursive1']
+    derived: Union[bool, 'FindManyDriftWindowArgsFromLinguisticWindowRecursive1']
+    trainingJobs: Union[bool, 'FindManyTrainingJobArgsFromLinguisticWindowRecursive1']
+    linguisticSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromLinguisticWindowRecursive1']
+
+
+class DriftWindowIncludeFromLinguisticWindowRecursive1(TypedDict, total=False):
+    """Relational arguments for LinguisticWindow"""
+    baseline: Union[bool, 'DriftWindowArgsFromLinguisticWindowRecursive2']
+    derived: Union[bool, 'FindManyDriftWindowArgsFromLinguisticWindowRecursive2']
+    trainingJobs: Union[bool, 'FindManyTrainingJobArgsFromLinguisticWindowRecursive2']
+    linguisticSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromLinguisticWindowRecursive2']
+
+
+class DriftWindowIncludeFromLinguisticWindowRecursive2(TypedDict, total=False):
+    """Relational arguments for LinguisticWindow"""
+    baseline: Union[bool, 'DriftWindowArgsFromLinguisticWindowRecursive3']
+    derived: Union[bool, 'FindManyDriftWindowArgsFromLinguisticWindowRecursive3']
+    trainingJobs: Union[bool, 'FindManyTrainingJobArgsFromLinguisticWindowRecursive3']
+    linguisticSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromLinguisticWindowRecursive3']
+
+
+class DriftWindowIncludeFromLinguisticWindowRecursive3(TypedDict, total=False):
+    """Relational arguments for LinguisticWindow"""
+    baseline: Union[bool, 'DriftWindowArgsFromLinguisticWindowRecursive4']
+    derived: Union[bool, 'FindManyDriftWindowArgsFromLinguisticWindowRecursive4']
+    trainingJobs: Union[bool, 'FindManyTrainingJobArgsFromLinguisticWindowRecursive4']
+    linguisticSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromLinguisticWindowRecursive4']
+
+
+class DriftWindowIncludeFromLinguisticWindowRecursive4(TypedDict, total=False):
+    """Relational arguments for LinguisticWindow"""
+
+    
+
+class DriftWindowArgsFromLinguisticWindow(TypedDict, total=False):
+    """Arguments for LinguisticWindow"""
+    include: 'DriftWindowIncludeFromDriftWindowRecursive1'
+
+
+class DriftWindowArgsFromLinguisticWindowRecursive1(TypedDict, total=False):
+    """Arguments for LinguisticWindow"""
+    include: 'DriftWindowIncludeFromDriftWindowRecursive2'
+
+
+class DriftWindowArgsFromLinguisticWindowRecursive2(TypedDict, total=False):
+    """Arguments for LinguisticWindow"""
+    include: 'DriftWindowIncludeFromDriftWindowRecursive3'
+
+
+class DriftWindowArgsFromLinguisticWindowRecursive3(TypedDict, total=False):
+    """Arguments for LinguisticWindow"""
+    include: 'DriftWindowIncludeFromDriftWindowRecursive4'
+
+
+class DriftWindowArgsFromLinguisticWindowRecursive4(TypedDict, total=False):
+    """Arguments for LinguisticWindow"""
+    
+    
+
+class FindManyDriftWindowArgsFromLinguisticWindow(TypedDict, total=False):
+    """Arguments for LinguisticWindow"""
+    take: int
+    skip: int
+    order_by: Union['DriftWindowOrderByInput', List['DriftWindowOrderByInput']]
+    where: 'DriftWindowWhereInput'
+    cursor: 'DriftWindowWhereUniqueInput'
+    distinct: List['DriftWindowScalarFieldKeys']
+    include: 'DriftWindowIncludeFromDriftWindowRecursive1'
+
+
+class FindManyDriftWindowArgsFromLinguisticWindowRecursive1(TypedDict, total=False):
+    """Arguments for LinguisticWindow"""
+    take: int
+    skip: int
+    order_by: Union['DriftWindowOrderByInput', List['DriftWindowOrderByInput']]
+    where: 'DriftWindowWhereInput'
+    cursor: 'DriftWindowWhereUniqueInput'
+    distinct: List['DriftWindowScalarFieldKeys']
+    include: 'DriftWindowIncludeFromDriftWindowRecursive2'
+
+
+class FindManyDriftWindowArgsFromLinguisticWindowRecursive2(TypedDict, total=False):
+    """Arguments for LinguisticWindow"""
+    take: int
+    skip: int
+    order_by: Union['DriftWindowOrderByInput', List['DriftWindowOrderByInput']]
+    where: 'DriftWindowWhereInput'
+    cursor: 'DriftWindowWhereUniqueInput'
+    distinct: List['DriftWindowScalarFieldKeys']
+    include: 'DriftWindowIncludeFromDriftWindowRecursive3'
+
+
+class FindManyDriftWindowArgsFromLinguisticWindowRecursive3(TypedDict, total=False):
+    """Arguments for LinguisticWindow"""
+    take: int
+    skip: int
+    order_by: Union['DriftWindowOrderByInput', List['DriftWindowOrderByInput']]
+    where: 'DriftWindowWhereInput'
+    cursor: 'DriftWindowWhereUniqueInput'
+    distinct: List['DriftWindowScalarFieldKeys']
+    include: 'DriftWindowIncludeFromDriftWindowRecursive4'
+
+
+class FindManyDriftWindowArgsFromLinguisticWindowRecursive4(TypedDict, total=False):
+    """Arguments for LinguisticWindow"""
+    take: int
+    skip: int
+    order_by: Union['DriftWindowOrderByInput', List['DriftWindowOrderByInput']]
+    where: 'DriftWindowWhereInput'
+    cursor: 'DriftWindowWhereUniqueInput'
+    distinct: List['DriftWindowScalarFieldKeys']
+    
+    
+
+class LinguisticWindowIncludeFromLinguisticWindow(TypedDict, total=False):
+    """Relational arguments for LinguisticWindow"""
+    trainingSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromLinguisticWindowRecursive1']
+
+
+class LinguisticWindowIncludeFromLinguisticWindowRecursive1(TypedDict, total=False):
+    """Relational arguments for LinguisticWindow"""
+    trainingSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromLinguisticWindowRecursive2']
+
+
+class LinguisticWindowIncludeFromLinguisticWindowRecursive2(TypedDict, total=False):
+    """Relational arguments for LinguisticWindow"""
+    trainingSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromLinguisticWindowRecursive3']
+
+
+class LinguisticWindowIncludeFromLinguisticWindowRecursive3(TypedDict, total=False):
+    """Relational arguments for LinguisticWindow"""
+    trainingSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromLinguisticWindowRecursive4']
+
+
+class LinguisticWindowIncludeFromLinguisticWindowRecursive4(TypedDict, total=False):
+    """Relational arguments for LinguisticWindow"""
+
+    
+
+class LinguisticWindowArgsFromLinguisticWindow(TypedDict, total=False):
+    """Arguments for LinguisticWindow"""
+    include: 'LinguisticWindowIncludeFromLinguisticWindowRecursive1'
+
+
+class LinguisticWindowArgsFromLinguisticWindowRecursive1(TypedDict, total=False):
+    """Arguments for LinguisticWindow"""
+    include: 'LinguisticWindowIncludeFromLinguisticWindowRecursive2'
+
+
+class LinguisticWindowArgsFromLinguisticWindowRecursive2(TypedDict, total=False):
+    """Arguments for LinguisticWindow"""
+    include: 'LinguisticWindowIncludeFromLinguisticWindowRecursive3'
+
+
+class LinguisticWindowArgsFromLinguisticWindowRecursive3(TypedDict, total=False):
+    """Arguments for LinguisticWindow"""
+    include: 'LinguisticWindowIncludeFromLinguisticWindowRecursive4'
+
+
+class LinguisticWindowArgsFromLinguisticWindowRecursive4(TypedDict, total=False):
+    """Arguments for LinguisticWindow"""
+    
+    
+
+class FindManyLinguisticWindowArgsFromLinguisticWindow(TypedDict, total=False):
+    """Arguments for LinguisticWindow"""
+    take: int
+    skip: int
+    order_by: Union['LinguisticWindowOrderByInput', List['LinguisticWindowOrderByInput']]
+    where: 'LinguisticWindowWhereInput'
+    cursor: 'LinguisticWindowWhereUniqueInput'
+    distinct: List['LinguisticWindowScalarFieldKeys']
+    include: 'LinguisticWindowIncludeFromLinguisticWindowRecursive1'
+
+
+class FindManyLinguisticWindowArgsFromLinguisticWindowRecursive1(TypedDict, total=False):
+    """Arguments for LinguisticWindow"""
+    take: int
+    skip: int
+    order_by: Union['LinguisticWindowOrderByInput', List['LinguisticWindowOrderByInput']]
+    where: 'LinguisticWindowWhereInput'
+    cursor: 'LinguisticWindowWhereUniqueInput'
+    distinct: List['LinguisticWindowScalarFieldKeys']
+    include: 'LinguisticWindowIncludeFromLinguisticWindowRecursive2'
+
+
+class FindManyLinguisticWindowArgsFromLinguisticWindowRecursive2(TypedDict, total=False):
+    """Arguments for LinguisticWindow"""
+    take: int
+    skip: int
+    order_by: Union['LinguisticWindowOrderByInput', List['LinguisticWindowOrderByInput']]
+    where: 'LinguisticWindowWhereInput'
+    cursor: 'LinguisticWindowWhereUniqueInput'
+    distinct: List['LinguisticWindowScalarFieldKeys']
+    include: 'LinguisticWindowIncludeFromLinguisticWindowRecursive3'
+
+
+class FindManyLinguisticWindowArgsFromLinguisticWindowRecursive3(TypedDict, total=False):
+    """Arguments for LinguisticWindow"""
+    take: int
+    skip: int
+    order_by: Union['LinguisticWindowOrderByInput', List['LinguisticWindowOrderByInput']]
+    where: 'LinguisticWindowWhereInput'
+    cursor: 'LinguisticWindowWhereUniqueInput'
+    distinct: List['LinguisticWindowScalarFieldKeys']
+    include: 'LinguisticWindowIncludeFromLinguisticWindowRecursive4'
+
+
+class FindManyLinguisticWindowArgsFromLinguisticWindowRecursive4(TypedDict, total=False):
+    """Arguments for LinguisticWindow"""
+    take: int
+    skip: int
+    order_by: Union['LinguisticWindowOrderByInput', List['LinguisticWindowOrderByInput']]
+    where: 'LinguisticWindowWhereInput'
+    cursor: 'LinguisticWindowWhereUniqueInput'
+    distinct: List['LinguisticWindowScalarFieldKeys']
+    
+    
+
+class ModelVersionIncludeFromLinguisticWindow(TypedDict, total=False):
+    """Relational arguments for LinguisticWindow"""
+    trainingJob: Union[bool, 'TrainingJobArgsFromLinguisticWindowRecursive1']
+    embeddings: Union[bool, 'FindManyEmbeddingArgsFromLinguisticWindowRecursive1']
+
+
+class ModelVersionIncludeFromLinguisticWindowRecursive1(TypedDict, total=False):
+    """Relational arguments for LinguisticWindow"""
+    trainingJob: Union[bool, 'TrainingJobArgsFromLinguisticWindowRecursive2']
+    embeddings: Union[bool, 'FindManyEmbeddingArgsFromLinguisticWindowRecursive2']
+
+
+class ModelVersionIncludeFromLinguisticWindowRecursive2(TypedDict, total=False):
+    """Relational arguments for LinguisticWindow"""
+    trainingJob: Union[bool, 'TrainingJobArgsFromLinguisticWindowRecursive3']
+    embeddings: Union[bool, 'FindManyEmbeddingArgsFromLinguisticWindowRecursive3']
+
+
+class ModelVersionIncludeFromLinguisticWindowRecursive3(TypedDict, total=False):
+    """Relational arguments for LinguisticWindow"""
+    trainingJob: Union[bool, 'TrainingJobArgsFromLinguisticWindowRecursive4']
+    embeddings: Union[bool, 'FindManyEmbeddingArgsFromLinguisticWindowRecursive4']
+
+
+class ModelVersionIncludeFromLinguisticWindowRecursive4(TypedDict, total=False):
+    """Relational arguments for LinguisticWindow"""
+
+    
+
+class ModelVersionArgsFromLinguisticWindow(TypedDict, total=False):
+    """Arguments for LinguisticWindow"""
+    include: 'ModelVersionIncludeFromModelVersionRecursive1'
+
+
+class ModelVersionArgsFromLinguisticWindowRecursive1(TypedDict, total=False):
+    """Arguments for LinguisticWindow"""
+    include: 'ModelVersionIncludeFromModelVersionRecursive2'
+
+
+class ModelVersionArgsFromLinguisticWindowRecursive2(TypedDict, total=False):
+    """Arguments for LinguisticWindow"""
+    include: 'ModelVersionIncludeFromModelVersionRecursive3'
+
+
+class ModelVersionArgsFromLinguisticWindowRecursive3(TypedDict, total=False):
+    """Arguments for LinguisticWindow"""
+    include: 'ModelVersionIncludeFromModelVersionRecursive4'
+
+
+class ModelVersionArgsFromLinguisticWindowRecursive4(TypedDict, total=False):
+    """Arguments for LinguisticWindow"""
+    
+    
+
+class FindManyModelVersionArgsFromLinguisticWindow(TypedDict, total=False):
+    """Arguments for LinguisticWindow"""
+    take: int
+    skip: int
+    order_by: Union['ModelVersionOrderByInput', List['ModelVersionOrderByInput']]
+    where: 'ModelVersionWhereInput'
+    cursor: 'ModelVersionWhereUniqueInput'
+    distinct: List['ModelVersionScalarFieldKeys']
+    include: 'ModelVersionIncludeFromModelVersionRecursive1'
+
+
+class FindManyModelVersionArgsFromLinguisticWindowRecursive1(TypedDict, total=False):
+    """Arguments for LinguisticWindow"""
+    take: int
+    skip: int
+    order_by: Union['ModelVersionOrderByInput', List['ModelVersionOrderByInput']]
+    where: 'ModelVersionWhereInput'
+    cursor: 'ModelVersionWhereUniqueInput'
+    distinct: List['ModelVersionScalarFieldKeys']
+    include: 'ModelVersionIncludeFromModelVersionRecursive2'
+
+
+class FindManyModelVersionArgsFromLinguisticWindowRecursive2(TypedDict, total=False):
+    """Arguments for LinguisticWindow"""
+    take: int
+    skip: int
+    order_by: Union['ModelVersionOrderByInput', List['ModelVersionOrderByInput']]
+    where: 'ModelVersionWhereInput'
+    cursor: 'ModelVersionWhereUniqueInput'
+    distinct: List['ModelVersionScalarFieldKeys']
+    include: 'ModelVersionIncludeFromModelVersionRecursive3'
+
+
+class FindManyModelVersionArgsFromLinguisticWindowRecursive3(TypedDict, total=False):
+    """Arguments for LinguisticWindow"""
+    take: int
+    skip: int
+    order_by: Union['ModelVersionOrderByInput', List['ModelVersionOrderByInput']]
+    where: 'ModelVersionWhereInput'
+    cursor: 'ModelVersionWhereUniqueInput'
+    distinct: List['ModelVersionScalarFieldKeys']
+    include: 'ModelVersionIncludeFromModelVersionRecursive4'
+
+
+class FindManyModelVersionArgsFromLinguisticWindowRecursive4(TypedDict, total=False):
+    """Arguments for LinguisticWindow"""
+    take: int
+    skip: int
+    order_by: Union['ModelVersionOrderByInput', List['ModelVersionOrderByInput']]
+    where: 'ModelVersionWhereInput'
+    cursor: 'ModelVersionWhereUniqueInput'
+    distinct: List['ModelVersionScalarFieldKeys']
+    
+    
+
+class TrainingJobIncludeFromLinguisticWindow(TypedDict, total=False):
+    """Relational arguments for LinguisticWindow"""
+    driftWindow: Union[bool, 'DriftWindowArgsFromLinguisticWindowRecursive1']
+    modelVersion: Union[bool, 'ModelVersionArgsFromLinguisticWindowRecursive1']
+    linguisticSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromLinguisticWindowRecursive1']
+
+
+class TrainingJobIncludeFromLinguisticWindowRecursive1(TypedDict, total=False):
+    """Relational arguments for LinguisticWindow"""
+    driftWindow: Union[bool, 'DriftWindowArgsFromLinguisticWindowRecursive2']
+    modelVersion: Union[bool, 'ModelVersionArgsFromLinguisticWindowRecursive2']
+    linguisticSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromLinguisticWindowRecursive2']
+
+
+class TrainingJobIncludeFromLinguisticWindowRecursive2(TypedDict, total=False):
+    """Relational arguments for LinguisticWindow"""
+    driftWindow: Union[bool, 'DriftWindowArgsFromLinguisticWindowRecursive3']
+    modelVersion: Union[bool, 'ModelVersionArgsFromLinguisticWindowRecursive3']
+    linguisticSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromLinguisticWindowRecursive3']
+
+
+class TrainingJobIncludeFromLinguisticWindowRecursive3(TypedDict, total=False):
+    """Relational arguments for LinguisticWindow"""
+    driftWindow: Union[bool, 'DriftWindowArgsFromLinguisticWindowRecursive4']
+    modelVersion: Union[bool, 'ModelVersionArgsFromLinguisticWindowRecursive4']
+    linguisticSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromLinguisticWindowRecursive4']
+
+
+class TrainingJobIncludeFromLinguisticWindowRecursive4(TypedDict, total=False):
+    """Relational arguments for LinguisticWindow"""
+
+    
+
+class TrainingJobArgsFromLinguisticWindow(TypedDict, total=False):
+    """Arguments for LinguisticWindow"""
+    include: 'TrainingJobIncludeFromTrainingJobRecursive1'
+
+
+class TrainingJobArgsFromLinguisticWindowRecursive1(TypedDict, total=False):
+    """Arguments for LinguisticWindow"""
+    include: 'TrainingJobIncludeFromTrainingJobRecursive2'
+
+
+class TrainingJobArgsFromLinguisticWindowRecursive2(TypedDict, total=False):
+    """Arguments for LinguisticWindow"""
+    include: 'TrainingJobIncludeFromTrainingJobRecursive3'
+
+
+class TrainingJobArgsFromLinguisticWindowRecursive3(TypedDict, total=False):
+    """Arguments for LinguisticWindow"""
+    include: 'TrainingJobIncludeFromTrainingJobRecursive4'
+
+
+class TrainingJobArgsFromLinguisticWindowRecursive4(TypedDict, total=False):
+    """Arguments for LinguisticWindow"""
+    
+    
+
+class FindManyTrainingJobArgsFromLinguisticWindow(TypedDict, total=False):
+    """Arguments for LinguisticWindow"""
+    take: int
+    skip: int
+    order_by: Union['TrainingJobOrderByInput', List['TrainingJobOrderByInput']]
+    where: 'TrainingJobWhereInput'
+    cursor: 'TrainingJobWhereUniqueInput'
+    distinct: List['TrainingJobScalarFieldKeys']
+    include: 'TrainingJobIncludeFromTrainingJobRecursive1'
+
+
+class FindManyTrainingJobArgsFromLinguisticWindowRecursive1(TypedDict, total=False):
+    """Arguments for LinguisticWindow"""
+    take: int
+    skip: int
+    order_by: Union['TrainingJobOrderByInput', List['TrainingJobOrderByInput']]
+    where: 'TrainingJobWhereInput'
+    cursor: 'TrainingJobWhereUniqueInput'
+    distinct: List['TrainingJobScalarFieldKeys']
+    include: 'TrainingJobIncludeFromTrainingJobRecursive2'
+
+
+class FindManyTrainingJobArgsFromLinguisticWindowRecursive2(TypedDict, total=False):
+    """Arguments for LinguisticWindow"""
+    take: int
+    skip: int
+    order_by: Union['TrainingJobOrderByInput', List['TrainingJobOrderByInput']]
+    where: 'TrainingJobWhereInput'
+    cursor: 'TrainingJobWhereUniqueInput'
+    distinct: List['TrainingJobScalarFieldKeys']
+    include: 'TrainingJobIncludeFromTrainingJobRecursive3'
+
+
+class FindManyTrainingJobArgsFromLinguisticWindowRecursive3(TypedDict, total=False):
+    """Arguments for LinguisticWindow"""
+    take: int
+    skip: int
+    order_by: Union['TrainingJobOrderByInput', List['TrainingJobOrderByInput']]
+    where: 'TrainingJobWhereInput'
+    cursor: 'TrainingJobWhereUniqueInput'
+    distinct: List['TrainingJobScalarFieldKeys']
+    include: 'TrainingJobIncludeFromTrainingJobRecursive4'
+
+
+class FindManyTrainingJobArgsFromLinguisticWindowRecursive4(TypedDict, total=False):
+    """Arguments for LinguisticWindow"""
+    take: int
+    skip: int
+    order_by: Union['TrainingJobOrderByInput', List['TrainingJobOrderByInput']]
+    where: 'TrainingJobWhereInput'
+    cursor: 'TrainingJobWhereUniqueInput'
+    distinct: List['TrainingJobScalarFieldKeys']
+    
+    
+
+class TrainingLinguisticSignalIncludeFromLinguisticWindow(TypedDict, total=False):
+    """Relational arguments for LinguisticWindow"""
+    trainingJob: Union[bool, 'TrainingJobArgsFromLinguisticWindowRecursive1']
+    linguisticWindow: Union[bool, 'LinguisticWindowArgsFromLinguisticWindowRecursive1']
+    driftWindow: Union[bool, 'DriftWindowArgsFromLinguisticWindowRecursive1']
+
+
+class TrainingLinguisticSignalIncludeFromLinguisticWindowRecursive1(TypedDict, total=False):
+    """Relational arguments for LinguisticWindow"""
+    trainingJob: Union[bool, 'TrainingJobArgsFromLinguisticWindowRecursive2']
+    linguisticWindow: Union[bool, 'LinguisticWindowArgsFromLinguisticWindowRecursive2']
+    driftWindow: Union[bool, 'DriftWindowArgsFromLinguisticWindowRecursive2']
+
+
+class TrainingLinguisticSignalIncludeFromLinguisticWindowRecursive2(TypedDict, total=False):
+    """Relational arguments for LinguisticWindow"""
+    trainingJob: Union[bool, 'TrainingJobArgsFromLinguisticWindowRecursive3']
+    linguisticWindow: Union[bool, 'LinguisticWindowArgsFromLinguisticWindowRecursive3']
+    driftWindow: Union[bool, 'DriftWindowArgsFromLinguisticWindowRecursive3']
+
+
+class TrainingLinguisticSignalIncludeFromLinguisticWindowRecursive3(TypedDict, total=False):
+    """Relational arguments for LinguisticWindow"""
+    trainingJob: Union[bool, 'TrainingJobArgsFromLinguisticWindowRecursive4']
+    linguisticWindow: Union[bool, 'LinguisticWindowArgsFromLinguisticWindowRecursive4']
+    driftWindow: Union[bool, 'DriftWindowArgsFromLinguisticWindowRecursive4']
+
+
+class TrainingLinguisticSignalIncludeFromLinguisticWindowRecursive4(TypedDict, total=False):
+    """Relational arguments for LinguisticWindow"""
+
+    
+
+class TrainingLinguisticSignalArgsFromLinguisticWindow(TypedDict, total=False):
+    """Arguments for LinguisticWindow"""
+    include: 'TrainingLinguisticSignalIncludeFromTrainingLinguisticSignalRecursive1'
+
+
+class TrainingLinguisticSignalArgsFromLinguisticWindowRecursive1(TypedDict, total=False):
+    """Arguments for LinguisticWindow"""
+    include: 'TrainingLinguisticSignalIncludeFromTrainingLinguisticSignalRecursive2'
+
+
+class TrainingLinguisticSignalArgsFromLinguisticWindowRecursive2(TypedDict, total=False):
+    """Arguments for LinguisticWindow"""
+    include: 'TrainingLinguisticSignalIncludeFromTrainingLinguisticSignalRecursive3'
+
+
+class TrainingLinguisticSignalArgsFromLinguisticWindowRecursive3(TypedDict, total=False):
+    """Arguments for LinguisticWindow"""
+    include: 'TrainingLinguisticSignalIncludeFromTrainingLinguisticSignalRecursive4'
+
+
+class TrainingLinguisticSignalArgsFromLinguisticWindowRecursive4(TypedDict, total=False):
+    """Arguments for LinguisticWindow"""
+    
+    
+
+class FindManyTrainingLinguisticSignalArgsFromLinguisticWindow(TypedDict, total=False):
+    """Arguments for LinguisticWindow"""
+    take: int
+    skip: int
+    order_by: Union['TrainingLinguisticSignalOrderByInput', List['TrainingLinguisticSignalOrderByInput']]
+    where: 'TrainingLinguisticSignalWhereInput'
+    cursor: 'TrainingLinguisticSignalWhereUniqueInput'
+    distinct: List['TrainingLinguisticSignalScalarFieldKeys']
+    include: 'TrainingLinguisticSignalIncludeFromTrainingLinguisticSignalRecursive1'
+
+
+class FindManyTrainingLinguisticSignalArgsFromLinguisticWindowRecursive1(TypedDict, total=False):
+    """Arguments for LinguisticWindow"""
+    take: int
+    skip: int
+    order_by: Union['TrainingLinguisticSignalOrderByInput', List['TrainingLinguisticSignalOrderByInput']]
+    where: 'TrainingLinguisticSignalWhereInput'
+    cursor: 'TrainingLinguisticSignalWhereUniqueInput'
+    distinct: List['TrainingLinguisticSignalScalarFieldKeys']
+    include: 'TrainingLinguisticSignalIncludeFromTrainingLinguisticSignalRecursive2'
+
+
+class FindManyTrainingLinguisticSignalArgsFromLinguisticWindowRecursive2(TypedDict, total=False):
+    """Arguments for LinguisticWindow"""
+    take: int
+    skip: int
+    order_by: Union['TrainingLinguisticSignalOrderByInput', List['TrainingLinguisticSignalOrderByInput']]
+    where: 'TrainingLinguisticSignalWhereInput'
+    cursor: 'TrainingLinguisticSignalWhereUniqueInput'
+    distinct: List['TrainingLinguisticSignalScalarFieldKeys']
+    include: 'TrainingLinguisticSignalIncludeFromTrainingLinguisticSignalRecursive3'
+
+
+class FindManyTrainingLinguisticSignalArgsFromLinguisticWindowRecursive3(TypedDict, total=False):
+    """Arguments for LinguisticWindow"""
+    take: int
+    skip: int
+    order_by: Union['TrainingLinguisticSignalOrderByInput', List['TrainingLinguisticSignalOrderByInput']]
+    where: 'TrainingLinguisticSignalWhereInput'
+    cursor: 'TrainingLinguisticSignalWhereUniqueInput'
+    distinct: List['TrainingLinguisticSignalScalarFieldKeys']
+    include: 'TrainingLinguisticSignalIncludeFromTrainingLinguisticSignalRecursive4'
+
+
+class FindManyTrainingLinguisticSignalArgsFromLinguisticWindowRecursive4(TypedDict, total=False):
+    """Arguments for LinguisticWindow"""
+    take: int
+    skip: int
+    order_by: Union['TrainingLinguisticSignalOrderByInput', List['TrainingLinguisticSignalOrderByInput']]
+    where: 'TrainingLinguisticSignalWhereInput'
+    cursor: 'TrainingLinguisticSignalWhereUniqueInput'
+    distinct: List['TrainingLinguisticSignalScalarFieldKeys']
+    
+
+
+FindManyLinguisticWindowArgs = FindManyLinguisticWindowArgsFromLinguisticWindow
+FindFirstLinguisticWindowArgs = FindManyLinguisticWindowArgsFromLinguisticWindow
+
+
+    
+
+class LinguisticWindowWhereInput(TypedDict, total=False):
+    """LinguisticWindow arguments for searching"""
+    id: Union[_str, 'types.StringFilter']
+    windowStart: Union[datetime.datetime, 'types.DateTimeFilter']
+    windowEnd: Union[datetime.datetime, 'types.DateTimeFilter']
+    documentCount: Union[_int, 'types.IntFilter']
+    entityKlDivergence: Union[_float, 'types.FloatFilter']
+    topicWasserstein: Union[_float, 'types.FloatFilter']
+    vocabChi2Pvalue: Union[_float, 'types.FloatFilter']
+    compositeScore: Union[_float, 'types.FloatFilter']
+    threshold: Union[_float, 'types.FloatFilter']
+    breached: Union[_bool, 'types.BooleanFilter']
+    newEntities: Union['fields.Json', 'types.JsonFilter']
+    emergingTopics: Union['fields.Json', 'types.JsonFilter']
+    emergingTerms: Union['fields.Json', 'types.JsonFilter']
+    trainingSignals: 'TrainingLinguisticSignalListRelationFilter'
+    createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
+
+    # should be noted that AND and NOT should be Union['LinguisticWindowWhereInputRecursive1', List['LinguisticWindowWhereInputRecursive1']]
+    # but this causes mypy to hang :/
+    AND: List['LinguisticWindowWhereInputRecursive1']
+    OR: List['LinguisticWindowWhereInputRecursive1']
+    NOT: List['LinguisticWindowWhereInputRecursive1']
+
+
+class LinguisticWindowWhereInputRecursive1(TypedDict, total=False):
+    """LinguisticWindow arguments for searching"""
+    id: Union[_str, 'types.StringFilter']
+    windowStart: Union[datetime.datetime, 'types.DateTimeFilter']
+    windowEnd: Union[datetime.datetime, 'types.DateTimeFilter']
+    documentCount: Union[_int, 'types.IntFilter']
+    entityKlDivergence: Union[_float, 'types.FloatFilter']
+    topicWasserstein: Union[_float, 'types.FloatFilter']
+    vocabChi2Pvalue: Union[_float, 'types.FloatFilter']
+    compositeScore: Union[_float, 'types.FloatFilter']
+    threshold: Union[_float, 'types.FloatFilter']
+    breached: Union[_bool, 'types.BooleanFilter']
+    newEntities: Union['fields.Json', 'types.JsonFilter']
+    emergingTopics: Union['fields.Json', 'types.JsonFilter']
+    emergingTerms: Union['fields.Json', 'types.JsonFilter']
+    trainingSignals: 'TrainingLinguisticSignalListRelationFilter'
+    createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
+
+    # should be noted that AND and NOT should be Union['LinguisticWindowWhereInputRecursive2', List['LinguisticWindowWhereInputRecursive2']]
+    # but this causes mypy to hang :/
+    AND: List['LinguisticWindowWhereInputRecursive2']
+    OR: List['LinguisticWindowWhereInputRecursive2']
+    NOT: List['LinguisticWindowWhereInputRecursive2']
+
+
+class LinguisticWindowWhereInputRecursive2(TypedDict, total=False):
+    """LinguisticWindow arguments for searching"""
+    id: Union[_str, 'types.StringFilter']
+    windowStart: Union[datetime.datetime, 'types.DateTimeFilter']
+    windowEnd: Union[datetime.datetime, 'types.DateTimeFilter']
+    documentCount: Union[_int, 'types.IntFilter']
+    entityKlDivergence: Union[_float, 'types.FloatFilter']
+    topicWasserstein: Union[_float, 'types.FloatFilter']
+    vocabChi2Pvalue: Union[_float, 'types.FloatFilter']
+    compositeScore: Union[_float, 'types.FloatFilter']
+    threshold: Union[_float, 'types.FloatFilter']
+    breached: Union[_bool, 'types.BooleanFilter']
+    newEntities: Union['fields.Json', 'types.JsonFilter']
+    emergingTopics: Union['fields.Json', 'types.JsonFilter']
+    emergingTerms: Union['fields.Json', 'types.JsonFilter']
+    trainingSignals: 'TrainingLinguisticSignalListRelationFilter'
+    createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
+
+    # should be noted that AND and NOT should be Union['LinguisticWindowWhereInputRecursive3', List['LinguisticWindowWhereInputRecursive3']]
+    # but this causes mypy to hang :/
+    AND: List['LinguisticWindowWhereInputRecursive3']
+    OR: List['LinguisticWindowWhereInputRecursive3']
+    NOT: List['LinguisticWindowWhereInputRecursive3']
+
+
+class LinguisticWindowWhereInputRecursive3(TypedDict, total=False):
+    """LinguisticWindow arguments for searching"""
+    id: Union[_str, 'types.StringFilter']
+    windowStart: Union[datetime.datetime, 'types.DateTimeFilter']
+    windowEnd: Union[datetime.datetime, 'types.DateTimeFilter']
+    documentCount: Union[_int, 'types.IntFilter']
+    entityKlDivergence: Union[_float, 'types.FloatFilter']
+    topicWasserstein: Union[_float, 'types.FloatFilter']
+    vocabChi2Pvalue: Union[_float, 'types.FloatFilter']
+    compositeScore: Union[_float, 'types.FloatFilter']
+    threshold: Union[_float, 'types.FloatFilter']
+    breached: Union[_bool, 'types.BooleanFilter']
+    newEntities: Union['fields.Json', 'types.JsonFilter']
+    emergingTopics: Union['fields.Json', 'types.JsonFilter']
+    emergingTerms: Union['fields.Json', 'types.JsonFilter']
+    trainingSignals: 'TrainingLinguisticSignalListRelationFilter'
+    createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
+
+    # should be noted that AND and NOT should be Union['LinguisticWindowWhereInputRecursive4', List['LinguisticWindowWhereInputRecursive4']]
+    # but this causes mypy to hang :/
+    AND: List['LinguisticWindowWhereInputRecursive4']
+    OR: List['LinguisticWindowWhereInputRecursive4']
+    NOT: List['LinguisticWindowWhereInputRecursive4']
+
+
+class LinguisticWindowWhereInputRecursive4(TypedDict, total=False):
+    """LinguisticWindow arguments for searching"""
+    id: Union[_str, 'types.StringFilter']
+    windowStart: Union[datetime.datetime, 'types.DateTimeFilter']
+    windowEnd: Union[datetime.datetime, 'types.DateTimeFilter']
+    documentCount: Union[_int, 'types.IntFilter']
+    entityKlDivergence: Union[_float, 'types.FloatFilter']
+    topicWasserstein: Union[_float, 'types.FloatFilter']
+    vocabChi2Pvalue: Union[_float, 'types.FloatFilter']
+    compositeScore: Union[_float, 'types.FloatFilter']
+    threshold: Union[_float, 'types.FloatFilter']
+    breached: Union[_bool, 'types.BooleanFilter']
+    newEntities: Union['fields.Json', 'types.JsonFilter']
+    emergingTopics: Union['fields.Json', 'types.JsonFilter']
+    emergingTerms: Union['fields.Json', 'types.JsonFilter']
+    trainingSignals: 'TrainingLinguisticSignalListRelationFilter'
+    createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
+
+
+
+# aggregate LinguisticWindow types
+
+
+    
+
+class LinguisticWindowScalarWhereWithAggregatesInput(TypedDict, total=False):
+    """LinguisticWindow arguments for searching"""
+    id: Union[_str, 'types.StringWithAggregatesFilter']
+    windowStart: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
+    windowEnd: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
+    documentCount: Union[_int, 'types.IntWithAggregatesFilter']
+    entityKlDivergence: Union[_float, 'types.FloatWithAggregatesFilter']
+    topicWasserstein: Union[_float, 'types.FloatWithAggregatesFilter']
+    vocabChi2Pvalue: Union[_float, 'types.FloatWithAggregatesFilter']
+    compositeScore: Union[_float, 'types.FloatWithAggregatesFilter']
+    threshold: Union[_float, 'types.FloatWithAggregatesFilter']
+    breached: Union[_bool, 'types.BooleanWithAggregatesFilter']
+    newEntities: Union['fields.Json', 'types.JsonWithAggregatesFilter']
+    emergingTopics: Union['fields.Json', 'types.JsonWithAggregatesFilter']
+    emergingTerms: Union['fields.Json', 'types.JsonWithAggregatesFilter']
+    createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
+
+    AND: List['LinguisticWindowScalarWhereWithAggregatesInputRecursive1']
+    OR: List['LinguisticWindowScalarWhereWithAggregatesInputRecursive1']
+    NOT: List['LinguisticWindowScalarWhereWithAggregatesInputRecursive1']
+
+
+class LinguisticWindowScalarWhereWithAggregatesInputRecursive1(TypedDict, total=False):
+    """LinguisticWindow arguments for searching"""
+    id: Union[_str, 'types.StringWithAggregatesFilter']
+    windowStart: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
+    windowEnd: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
+    documentCount: Union[_int, 'types.IntWithAggregatesFilter']
+    entityKlDivergence: Union[_float, 'types.FloatWithAggregatesFilter']
+    topicWasserstein: Union[_float, 'types.FloatWithAggregatesFilter']
+    vocabChi2Pvalue: Union[_float, 'types.FloatWithAggregatesFilter']
+    compositeScore: Union[_float, 'types.FloatWithAggregatesFilter']
+    threshold: Union[_float, 'types.FloatWithAggregatesFilter']
+    breached: Union[_bool, 'types.BooleanWithAggregatesFilter']
+    newEntities: Union['fields.Json', 'types.JsonWithAggregatesFilter']
+    emergingTopics: Union['fields.Json', 'types.JsonWithAggregatesFilter']
+    emergingTerms: Union['fields.Json', 'types.JsonWithAggregatesFilter']
+    createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
+
+    AND: List['LinguisticWindowScalarWhereWithAggregatesInputRecursive2']
+    OR: List['LinguisticWindowScalarWhereWithAggregatesInputRecursive2']
+    NOT: List['LinguisticWindowScalarWhereWithAggregatesInputRecursive2']
+
+
+class LinguisticWindowScalarWhereWithAggregatesInputRecursive2(TypedDict, total=False):
+    """LinguisticWindow arguments for searching"""
+    id: Union[_str, 'types.StringWithAggregatesFilter']
+    windowStart: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
+    windowEnd: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
+    documentCount: Union[_int, 'types.IntWithAggregatesFilter']
+    entityKlDivergence: Union[_float, 'types.FloatWithAggregatesFilter']
+    topicWasserstein: Union[_float, 'types.FloatWithAggregatesFilter']
+    vocabChi2Pvalue: Union[_float, 'types.FloatWithAggregatesFilter']
+    compositeScore: Union[_float, 'types.FloatWithAggregatesFilter']
+    threshold: Union[_float, 'types.FloatWithAggregatesFilter']
+    breached: Union[_bool, 'types.BooleanWithAggregatesFilter']
+    newEntities: Union['fields.Json', 'types.JsonWithAggregatesFilter']
+    emergingTopics: Union['fields.Json', 'types.JsonWithAggregatesFilter']
+    emergingTerms: Union['fields.Json', 'types.JsonWithAggregatesFilter']
+    createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
+
+    AND: List['LinguisticWindowScalarWhereWithAggregatesInputRecursive3']
+    OR: List['LinguisticWindowScalarWhereWithAggregatesInputRecursive3']
+    NOT: List['LinguisticWindowScalarWhereWithAggregatesInputRecursive3']
+
+
+class LinguisticWindowScalarWhereWithAggregatesInputRecursive3(TypedDict, total=False):
+    """LinguisticWindow arguments for searching"""
+    id: Union[_str, 'types.StringWithAggregatesFilter']
+    windowStart: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
+    windowEnd: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
+    documentCount: Union[_int, 'types.IntWithAggregatesFilter']
+    entityKlDivergence: Union[_float, 'types.FloatWithAggregatesFilter']
+    topicWasserstein: Union[_float, 'types.FloatWithAggregatesFilter']
+    vocabChi2Pvalue: Union[_float, 'types.FloatWithAggregatesFilter']
+    compositeScore: Union[_float, 'types.FloatWithAggregatesFilter']
+    threshold: Union[_float, 'types.FloatWithAggregatesFilter']
+    breached: Union[_bool, 'types.BooleanWithAggregatesFilter']
+    newEntities: Union['fields.Json', 'types.JsonWithAggregatesFilter']
+    emergingTopics: Union['fields.Json', 'types.JsonWithAggregatesFilter']
+    emergingTerms: Union['fields.Json', 'types.JsonWithAggregatesFilter']
+    createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
+
+    AND: List['LinguisticWindowScalarWhereWithAggregatesInputRecursive4']
+    OR: List['LinguisticWindowScalarWhereWithAggregatesInputRecursive4']
+    NOT: List['LinguisticWindowScalarWhereWithAggregatesInputRecursive4']
+
+
+class LinguisticWindowScalarWhereWithAggregatesInputRecursive4(TypedDict, total=False):
+    """LinguisticWindow arguments for searching"""
+    id: Union[_str, 'types.StringWithAggregatesFilter']
+    windowStart: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
+    windowEnd: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
+    documentCount: Union[_int, 'types.IntWithAggregatesFilter']
+    entityKlDivergence: Union[_float, 'types.FloatWithAggregatesFilter']
+    topicWasserstein: Union[_float, 'types.FloatWithAggregatesFilter']
+    vocabChi2Pvalue: Union[_float, 'types.FloatWithAggregatesFilter']
+    compositeScore: Union[_float, 'types.FloatWithAggregatesFilter']
+    threshold: Union[_float, 'types.FloatWithAggregatesFilter']
+    breached: Union[_bool, 'types.BooleanWithAggregatesFilter']
+    newEntities: Union['fields.Json', 'types.JsonWithAggregatesFilter']
+    emergingTopics: Union['fields.Json', 'types.JsonWithAggregatesFilter']
+    emergingTerms: Union['fields.Json', 'types.JsonWithAggregatesFilter']
+    createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
+
+
+
+class LinguisticWindowGroupByOutput(TypedDict, total=False):
+    id: _str
+    windowStart: datetime.datetime
+    windowEnd: datetime.datetime
+    documentCount: _int
+    entityKlDivergence: _float
+    topicWasserstein: _float
+    vocabChi2Pvalue: _float
+    compositeScore: _float
+    threshold: _float
+    breached: _bool
+    newEntities: 'fields.Json'
+    emergingTopics: 'fields.Json'
+    emergingTerms: 'fields.Json'
+    createdAt: datetime.datetime
+    _sum: 'LinguisticWindowSumAggregateOutput'
+    _avg: 'LinguisticWindowAvgAggregateOutput'
+    _min: 'LinguisticWindowMinAggregateOutput'
+    _max: 'LinguisticWindowMaxAggregateOutput'
+    _count: 'LinguisticWindowCountAggregateOutput'
+
+
+class LinguisticWindowAvgAggregateOutput(TypedDict, total=False):
+    """LinguisticWindow output for aggregating averages"""
+    documentCount: float
+    entityKlDivergence: float
+    topicWasserstein: float
+    vocabChi2Pvalue: float
+    compositeScore: float
+    threshold: float
+
+
+class LinguisticWindowSumAggregateOutput(TypedDict, total=False):
+    """LinguisticWindow output for aggregating sums"""
+    documentCount: _int
+    entityKlDivergence: _float
+    topicWasserstein: _float
+    vocabChi2Pvalue: _float
+    compositeScore: _float
+    threshold: _float
+
+
+class LinguisticWindowScalarAggregateOutput(TypedDict, total=False):
+    """LinguisticWindow output including scalar fields"""
+    id: _str
+    windowStart: datetime.datetime
+    windowEnd: datetime.datetime
+    documentCount: _int
+    entityKlDivergence: _float
+    topicWasserstein: _float
+    vocabChi2Pvalue: _float
+    compositeScore: _float
+    threshold: _float
+    breached: _bool
+    newEntities: 'fields.Json'
+    emergingTopics: 'fields.Json'
+    emergingTerms: 'fields.Json'
+    createdAt: datetime.datetime
+
+
+LinguisticWindowMinAggregateOutput = LinguisticWindowScalarAggregateOutput
+LinguisticWindowMaxAggregateOutput = LinguisticWindowScalarAggregateOutput
+
+
+class LinguisticWindowMaxAggregateInput(TypedDict, total=False):
+    """LinguisticWindow input for aggregating by max"""
+    id: bool
+    windowStart: bool
+    windowEnd: bool
+    documentCount: bool
+    entityKlDivergence: bool
+    topicWasserstein: bool
+    vocabChi2Pvalue: bool
+    compositeScore: bool
+    threshold: bool
+    breached: bool
+    newEntities: bool
+    emergingTopics: bool
+    emergingTerms: bool
+    createdAt: bool
+
+
+class LinguisticWindowMinAggregateInput(TypedDict, total=False):
+    """LinguisticWindow input for aggregating by min"""
+    id: bool
+    windowStart: bool
+    windowEnd: bool
+    documentCount: bool
+    entityKlDivergence: bool
+    topicWasserstein: bool
+    vocabChi2Pvalue: bool
+    compositeScore: bool
+    threshold: bool
+    breached: bool
+    newEntities: bool
+    emergingTopics: bool
+    emergingTerms: bool
+    createdAt: bool
+
+
+class LinguisticWindowNumberAggregateInput(TypedDict, total=False):
+    """LinguisticWindow input for aggregating numbers"""
+    documentCount: bool
+    entityKlDivergence: bool
+    topicWasserstein: bool
+    vocabChi2Pvalue: bool
+    compositeScore: bool
+    threshold: bool
+
+
+LinguisticWindowAvgAggregateInput = LinguisticWindowNumberAggregateInput
+LinguisticWindowSumAggregateInput = LinguisticWindowNumberAggregateInput
+
+
+LinguisticWindowCountAggregateInput = TypedDict(
+    'LinguisticWindowCountAggregateInput',
+    {
+        'id': bool,
+        'windowStart': bool,
+        'windowEnd': bool,
+        'documentCount': bool,
+        'entityKlDivergence': bool,
+        'topicWasserstein': bool,
+        'vocabChi2Pvalue': bool,
+        'compositeScore': bool,
+        'threshold': bool,
+        'breached': bool,
+        'newEntities': bool,
+        'emergingTopics': bool,
+        'emergingTerms': bool,
+        'createdAt': bool,
+        '_all': bool,
+    },
+    total=False,
+)
+
+LinguisticWindowCountAggregateOutput = TypedDict(
+    'LinguisticWindowCountAggregateOutput',
+    {
+        'id': int,
+        'windowStart': int,
+        'windowEnd': int,
+        'documentCount': int,
+        'entityKlDivergence': int,
+        'topicWasserstein': int,
+        'vocabChi2Pvalue': int,
+        'compositeScore': int,
+        'threshold': int,
+        'breached': int,
+        'newEntities': int,
+        'emergingTopics': int,
+        'emergingTerms': int,
+        'createdAt': int,
+        '_all': int,
+    },
+    total=False,
+)
+
+
+LinguisticWindowKeys = Literal[
+    'id',
+    'windowStart',
+    'windowEnd',
+    'documentCount',
+    'entityKlDivergence',
+    'topicWasserstein',
+    'vocabChi2Pvalue',
+    'compositeScore',
+    'threshold',
+    'breached',
+    'newEntities',
+    'emergingTopics',
+    'emergingTerms',
+    'trainingSignals',
+    'createdAt',
+]
+LinguisticWindowScalarFieldKeys = Literal[
+    'id',
+    'windowStart',
+    'windowEnd',
+    'documentCount',
+    'entityKlDivergence',
+    'topicWasserstein',
+    'vocabChi2Pvalue',
+    'compositeScore',
+    'threshold',
+    'breached',
+    'newEntities',
+    'emergingTopics',
+    'emergingTerms',
+    'createdAt',
+]
+LinguisticWindowScalarFieldKeysT = TypeVar('LinguisticWindowScalarFieldKeysT', bound=LinguisticWindowScalarFieldKeys)
+
+LinguisticWindowRelationalFieldKeys = Literal[
+        'trainingSignals',
     ]
 
 # ModelVersion types
@@ -4839,11 +7079,14 @@ class ModelVersionOptionalCreateInput(TypedDict, total=False):
     artifactUri: Optional[_str]
     artifactSha256: Optional[_str]
     artifactBytes: Optional[_int]
+    domainTag: Optional[_str]
+    onnxPath: Optional[_str]
     embeddingDim: _int
     loraRank: Optional[_int]
     metrics: Optional['fields.Json']
     baselineMetrics: Optional['fields.Json']
     improvementPct: Optional[_float]
+    evalMrr: Optional[_float]
     activatedAt: Optional[datetime.datetime]
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
@@ -4867,11 +7110,14 @@ class ModelVersionOptionalCreateWithoutRelationsInput(TypedDict, total=False):
     artifactUri: Optional[_str]
     artifactSha256: Optional[_str]
     artifactBytes: Optional[_int]
+    domainTag: Optional[_str]
+    onnxPath: Optional[_str]
     embeddingDim: _int
     loraRank: Optional[_int]
     metrics: Optional['fields.Json']
     baselineMetrics: Optional['fields.Json']
     improvementPct: Optional[_float]
+    evalMrr: Optional[_float]
     activatedAt: Optional[datetime.datetime]
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
@@ -4928,11 +7174,14 @@ class ModelVersionUpdateInput(TypedDict, total=False):
     artifactUri: Optional[_str]
     artifactSha256: Optional[_str]
     artifactBytes: Optional[Union[AtomicBigIntInput, _int]]
+    domainTag: Optional[_str]
+    onnxPath: Optional[_str]
     embeddingDim: Union[AtomicIntInput, _int]
     loraRank: Optional[Union[AtomicIntInput, _int]]
     metrics: Optional['fields.Json']
     baselineMetrics: Optional['fields.Json']
     improvementPct: Optional[Union[AtomicFloatInput, _float]]
+    evalMrr: Optional[Union[AtomicFloatInput, _float]]
     activatedAt: Optional[datetime.datetime]
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
@@ -4949,11 +7198,14 @@ class ModelVersionUpdateManyMutationInput(TypedDict, total=False):
     artifactUri: Optional[_str]
     artifactSha256: Optional[_str]
     artifactBytes: Optional[Union[AtomicBigIntInput, _int]]
+    domainTag: Optional[_str]
+    onnxPath: Optional[_str]
     embeddingDim: Union[AtomicIntInput, _int]
     loraRank: Optional[Union[AtomicIntInput, _int]]
     metrics: Optional['fields.Json']
     baselineMetrics: Optional['fields.Json']
     improvementPct: Optional[Union[AtomicFloatInput, _float]]
+    evalMrr: Optional[Union[AtomicFloatInput, _float]]
     activatedAt: Optional[datetime.datetime]
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
@@ -5047,6 +7299,22 @@ _ModelVersion_artifactBytes_OrderByInput = TypedDict(
     total=True
 )
 
+_ModelVersion_domainTag_OrderByInput = TypedDict(
+    '_ModelVersion_domainTag_OrderByInput',
+    {
+        'domainTag': 'SortOrder',
+    },
+    total=True
+)
+
+_ModelVersion_onnxPath_OrderByInput = TypedDict(
+    '_ModelVersion_onnxPath_OrderByInput',
+    {
+        'onnxPath': 'SortOrder',
+    },
+    total=True
+)
+
 _ModelVersion_embeddingDim_OrderByInput = TypedDict(
     '_ModelVersion_embeddingDim_OrderByInput',
     {
@@ -5083,6 +7351,14 @@ _ModelVersion_improvementPct_OrderByInput = TypedDict(
     '_ModelVersion_improvementPct_OrderByInput',
     {
         'improvementPct': 'SortOrder',
+    },
+    total=True
+)
+
+_ModelVersion_evalMrr_OrderByInput = TypedDict(
+    '_ModelVersion_evalMrr_OrderByInput',
+    {
+        'evalMrr': 'SortOrder',
     },
     total=True
 )
@@ -5137,11 +7413,14 @@ ModelVersionOrderByInput = Union[
     '_ModelVersion_artifactUri_OrderByInput',
     '_ModelVersion_artifactSha256_OrderByInput',
     '_ModelVersion_artifactBytes_OrderByInput',
+    '_ModelVersion_domainTag_OrderByInput',
+    '_ModelVersion_onnxPath_OrderByInput',
     '_ModelVersion_embeddingDim_OrderByInput',
     '_ModelVersion_loraRank_OrderByInput',
     '_ModelVersion_metrics_OrderByInput',
     '_ModelVersion_baselineMetrics_OrderByInput',
     '_ModelVersion_improvementPct_OrderByInput',
+    '_ModelVersion_evalMrr_OrderByInput',
     '_ModelVersion_activatedAt_OrderByInput',
     '_ModelVersion_createdAt_OrderByInput',
     '_ModelVersion_updatedAt_OrderByInput',
@@ -5401,6 +7680,7 @@ class DriftWindowIncludeFromModelVersion(TypedDict, total=False):
     baseline: Union[bool, 'DriftWindowArgsFromModelVersionRecursive1']
     derived: Union[bool, 'FindManyDriftWindowArgsFromModelVersionRecursive1']
     trainingJobs: Union[bool, 'FindManyTrainingJobArgsFromModelVersionRecursive1']
+    linguisticSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromModelVersionRecursive1']
 
 
 class DriftWindowIncludeFromModelVersionRecursive1(TypedDict, total=False):
@@ -5408,6 +7688,7 @@ class DriftWindowIncludeFromModelVersionRecursive1(TypedDict, total=False):
     baseline: Union[bool, 'DriftWindowArgsFromModelVersionRecursive2']
     derived: Union[bool, 'FindManyDriftWindowArgsFromModelVersionRecursive2']
     trainingJobs: Union[bool, 'FindManyTrainingJobArgsFromModelVersionRecursive2']
+    linguisticSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromModelVersionRecursive2']
 
 
 class DriftWindowIncludeFromModelVersionRecursive2(TypedDict, total=False):
@@ -5415,6 +7696,7 @@ class DriftWindowIncludeFromModelVersionRecursive2(TypedDict, total=False):
     baseline: Union[bool, 'DriftWindowArgsFromModelVersionRecursive3']
     derived: Union[bool, 'FindManyDriftWindowArgsFromModelVersionRecursive3']
     trainingJobs: Union[bool, 'FindManyTrainingJobArgsFromModelVersionRecursive3']
+    linguisticSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromModelVersionRecursive3']
 
 
 class DriftWindowIncludeFromModelVersionRecursive3(TypedDict, total=False):
@@ -5422,6 +7704,7 @@ class DriftWindowIncludeFromModelVersionRecursive3(TypedDict, total=False):
     baseline: Union[bool, 'DriftWindowArgsFromModelVersionRecursive4']
     derived: Union[bool, 'FindManyDriftWindowArgsFromModelVersionRecursive4']
     trainingJobs: Union[bool, 'FindManyTrainingJobArgsFromModelVersionRecursive4']
+    linguisticSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromModelVersionRecursive4']
 
 
 class DriftWindowIncludeFromModelVersionRecursive4(TypedDict, total=False):
@@ -5506,6 +7789,111 @@ class FindManyDriftWindowArgsFromModelVersionRecursive4(TypedDict, total=False):
     where: 'DriftWindowWhereInput'
     cursor: 'DriftWindowWhereUniqueInput'
     distinct: List['DriftWindowScalarFieldKeys']
+    
+    
+
+class LinguisticWindowIncludeFromModelVersion(TypedDict, total=False):
+    """Relational arguments for ModelVersion"""
+    trainingSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromModelVersionRecursive1']
+
+
+class LinguisticWindowIncludeFromModelVersionRecursive1(TypedDict, total=False):
+    """Relational arguments for ModelVersion"""
+    trainingSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromModelVersionRecursive2']
+
+
+class LinguisticWindowIncludeFromModelVersionRecursive2(TypedDict, total=False):
+    """Relational arguments for ModelVersion"""
+    trainingSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromModelVersionRecursive3']
+
+
+class LinguisticWindowIncludeFromModelVersionRecursive3(TypedDict, total=False):
+    """Relational arguments for ModelVersion"""
+    trainingSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromModelVersionRecursive4']
+
+
+class LinguisticWindowIncludeFromModelVersionRecursive4(TypedDict, total=False):
+    """Relational arguments for ModelVersion"""
+
+    
+
+class LinguisticWindowArgsFromModelVersion(TypedDict, total=False):
+    """Arguments for ModelVersion"""
+    include: 'LinguisticWindowIncludeFromLinguisticWindowRecursive1'
+
+
+class LinguisticWindowArgsFromModelVersionRecursive1(TypedDict, total=False):
+    """Arguments for ModelVersion"""
+    include: 'LinguisticWindowIncludeFromLinguisticWindowRecursive2'
+
+
+class LinguisticWindowArgsFromModelVersionRecursive2(TypedDict, total=False):
+    """Arguments for ModelVersion"""
+    include: 'LinguisticWindowIncludeFromLinguisticWindowRecursive3'
+
+
+class LinguisticWindowArgsFromModelVersionRecursive3(TypedDict, total=False):
+    """Arguments for ModelVersion"""
+    include: 'LinguisticWindowIncludeFromLinguisticWindowRecursive4'
+
+
+class LinguisticWindowArgsFromModelVersionRecursive4(TypedDict, total=False):
+    """Arguments for ModelVersion"""
+    
+    
+
+class FindManyLinguisticWindowArgsFromModelVersion(TypedDict, total=False):
+    """Arguments for ModelVersion"""
+    take: int
+    skip: int
+    order_by: Union['LinguisticWindowOrderByInput', List['LinguisticWindowOrderByInput']]
+    where: 'LinguisticWindowWhereInput'
+    cursor: 'LinguisticWindowWhereUniqueInput'
+    distinct: List['LinguisticWindowScalarFieldKeys']
+    include: 'LinguisticWindowIncludeFromLinguisticWindowRecursive1'
+
+
+class FindManyLinguisticWindowArgsFromModelVersionRecursive1(TypedDict, total=False):
+    """Arguments for ModelVersion"""
+    take: int
+    skip: int
+    order_by: Union['LinguisticWindowOrderByInput', List['LinguisticWindowOrderByInput']]
+    where: 'LinguisticWindowWhereInput'
+    cursor: 'LinguisticWindowWhereUniqueInput'
+    distinct: List['LinguisticWindowScalarFieldKeys']
+    include: 'LinguisticWindowIncludeFromLinguisticWindowRecursive2'
+
+
+class FindManyLinguisticWindowArgsFromModelVersionRecursive2(TypedDict, total=False):
+    """Arguments for ModelVersion"""
+    take: int
+    skip: int
+    order_by: Union['LinguisticWindowOrderByInput', List['LinguisticWindowOrderByInput']]
+    where: 'LinguisticWindowWhereInput'
+    cursor: 'LinguisticWindowWhereUniqueInput'
+    distinct: List['LinguisticWindowScalarFieldKeys']
+    include: 'LinguisticWindowIncludeFromLinguisticWindowRecursive3'
+
+
+class FindManyLinguisticWindowArgsFromModelVersionRecursive3(TypedDict, total=False):
+    """Arguments for ModelVersion"""
+    take: int
+    skip: int
+    order_by: Union['LinguisticWindowOrderByInput', List['LinguisticWindowOrderByInput']]
+    where: 'LinguisticWindowWhereInput'
+    cursor: 'LinguisticWindowWhereUniqueInput'
+    distinct: List['LinguisticWindowScalarFieldKeys']
+    include: 'LinguisticWindowIncludeFromLinguisticWindowRecursive4'
+
+
+class FindManyLinguisticWindowArgsFromModelVersionRecursive4(TypedDict, total=False):
+    """Arguments for ModelVersion"""
+    take: int
+    skip: int
+    order_by: Union['LinguisticWindowOrderByInput', List['LinguisticWindowOrderByInput']]
+    where: 'LinguisticWindowWhereInput'
+    cursor: 'LinguisticWindowWhereUniqueInput'
+    distinct: List['LinguisticWindowScalarFieldKeys']
     
     
 
@@ -5622,24 +8010,28 @@ class TrainingJobIncludeFromModelVersion(TypedDict, total=False):
     """Relational arguments for ModelVersion"""
     driftWindow: Union[bool, 'DriftWindowArgsFromModelVersionRecursive1']
     modelVersion: Union[bool, 'ModelVersionArgsFromModelVersionRecursive1']
+    linguisticSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromModelVersionRecursive1']
 
 
 class TrainingJobIncludeFromModelVersionRecursive1(TypedDict, total=False):
     """Relational arguments for ModelVersion"""
     driftWindow: Union[bool, 'DriftWindowArgsFromModelVersionRecursive2']
     modelVersion: Union[bool, 'ModelVersionArgsFromModelVersionRecursive2']
+    linguisticSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromModelVersionRecursive2']
 
 
 class TrainingJobIncludeFromModelVersionRecursive2(TypedDict, total=False):
     """Relational arguments for ModelVersion"""
     driftWindow: Union[bool, 'DriftWindowArgsFromModelVersionRecursive3']
     modelVersion: Union[bool, 'ModelVersionArgsFromModelVersionRecursive3']
+    linguisticSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromModelVersionRecursive3']
 
 
 class TrainingJobIncludeFromModelVersionRecursive3(TypedDict, total=False):
     """Relational arguments for ModelVersion"""
     driftWindow: Union[bool, 'DriftWindowArgsFromModelVersionRecursive4']
     modelVersion: Union[bool, 'ModelVersionArgsFromModelVersionRecursive4']
+    linguisticSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromModelVersionRecursive4']
 
 
 class TrainingJobIncludeFromModelVersionRecursive4(TypedDict, total=False):
@@ -5725,6 +8117,119 @@ class FindManyTrainingJobArgsFromModelVersionRecursive4(TypedDict, total=False):
     cursor: 'TrainingJobWhereUniqueInput'
     distinct: List['TrainingJobScalarFieldKeys']
     
+    
+
+class TrainingLinguisticSignalIncludeFromModelVersion(TypedDict, total=False):
+    """Relational arguments for ModelVersion"""
+    trainingJob: Union[bool, 'TrainingJobArgsFromModelVersionRecursive1']
+    linguisticWindow: Union[bool, 'LinguisticWindowArgsFromModelVersionRecursive1']
+    driftWindow: Union[bool, 'DriftWindowArgsFromModelVersionRecursive1']
+
+
+class TrainingLinguisticSignalIncludeFromModelVersionRecursive1(TypedDict, total=False):
+    """Relational arguments for ModelVersion"""
+    trainingJob: Union[bool, 'TrainingJobArgsFromModelVersionRecursive2']
+    linguisticWindow: Union[bool, 'LinguisticWindowArgsFromModelVersionRecursive2']
+    driftWindow: Union[bool, 'DriftWindowArgsFromModelVersionRecursive2']
+
+
+class TrainingLinguisticSignalIncludeFromModelVersionRecursive2(TypedDict, total=False):
+    """Relational arguments for ModelVersion"""
+    trainingJob: Union[bool, 'TrainingJobArgsFromModelVersionRecursive3']
+    linguisticWindow: Union[bool, 'LinguisticWindowArgsFromModelVersionRecursive3']
+    driftWindow: Union[bool, 'DriftWindowArgsFromModelVersionRecursive3']
+
+
+class TrainingLinguisticSignalIncludeFromModelVersionRecursive3(TypedDict, total=False):
+    """Relational arguments for ModelVersion"""
+    trainingJob: Union[bool, 'TrainingJobArgsFromModelVersionRecursive4']
+    linguisticWindow: Union[bool, 'LinguisticWindowArgsFromModelVersionRecursive4']
+    driftWindow: Union[bool, 'DriftWindowArgsFromModelVersionRecursive4']
+
+
+class TrainingLinguisticSignalIncludeFromModelVersionRecursive4(TypedDict, total=False):
+    """Relational arguments for ModelVersion"""
+
+    
+
+class TrainingLinguisticSignalArgsFromModelVersion(TypedDict, total=False):
+    """Arguments for ModelVersion"""
+    include: 'TrainingLinguisticSignalIncludeFromTrainingLinguisticSignalRecursive1'
+
+
+class TrainingLinguisticSignalArgsFromModelVersionRecursive1(TypedDict, total=False):
+    """Arguments for ModelVersion"""
+    include: 'TrainingLinguisticSignalIncludeFromTrainingLinguisticSignalRecursive2'
+
+
+class TrainingLinguisticSignalArgsFromModelVersionRecursive2(TypedDict, total=False):
+    """Arguments for ModelVersion"""
+    include: 'TrainingLinguisticSignalIncludeFromTrainingLinguisticSignalRecursive3'
+
+
+class TrainingLinguisticSignalArgsFromModelVersionRecursive3(TypedDict, total=False):
+    """Arguments for ModelVersion"""
+    include: 'TrainingLinguisticSignalIncludeFromTrainingLinguisticSignalRecursive4'
+
+
+class TrainingLinguisticSignalArgsFromModelVersionRecursive4(TypedDict, total=False):
+    """Arguments for ModelVersion"""
+    
+    
+
+class FindManyTrainingLinguisticSignalArgsFromModelVersion(TypedDict, total=False):
+    """Arguments for ModelVersion"""
+    take: int
+    skip: int
+    order_by: Union['TrainingLinguisticSignalOrderByInput', List['TrainingLinguisticSignalOrderByInput']]
+    where: 'TrainingLinguisticSignalWhereInput'
+    cursor: 'TrainingLinguisticSignalWhereUniqueInput'
+    distinct: List['TrainingLinguisticSignalScalarFieldKeys']
+    include: 'TrainingLinguisticSignalIncludeFromTrainingLinguisticSignalRecursive1'
+
+
+class FindManyTrainingLinguisticSignalArgsFromModelVersionRecursive1(TypedDict, total=False):
+    """Arguments for ModelVersion"""
+    take: int
+    skip: int
+    order_by: Union['TrainingLinguisticSignalOrderByInput', List['TrainingLinguisticSignalOrderByInput']]
+    where: 'TrainingLinguisticSignalWhereInput'
+    cursor: 'TrainingLinguisticSignalWhereUniqueInput'
+    distinct: List['TrainingLinguisticSignalScalarFieldKeys']
+    include: 'TrainingLinguisticSignalIncludeFromTrainingLinguisticSignalRecursive2'
+
+
+class FindManyTrainingLinguisticSignalArgsFromModelVersionRecursive2(TypedDict, total=False):
+    """Arguments for ModelVersion"""
+    take: int
+    skip: int
+    order_by: Union['TrainingLinguisticSignalOrderByInput', List['TrainingLinguisticSignalOrderByInput']]
+    where: 'TrainingLinguisticSignalWhereInput'
+    cursor: 'TrainingLinguisticSignalWhereUniqueInput'
+    distinct: List['TrainingLinguisticSignalScalarFieldKeys']
+    include: 'TrainingLinguisticSignalIncludeFromTrainingLinguisticSignalRecursive3'
+
+
+class FindManyTrainingLinguisticSignalArgsFromModelVersionRecursive3(TypedDict, total=False):
+    """Arguments for ModelVersion"""
+    take: int
+    skip: int
+    order_by: Union['TrainingLinguisticSignalOrderByInput', List['TrainingLinguisticSignalOrderByInput']]
+    where: 'TrainingLinguisticSignalWhereInput'
+    cursor: 'TrainingLinguisticSignalWhereUniqueInput'
+    distinct: List['TrainingLinguisticSignalScalarFieldKeys']
+    include: 'TrainingLinguisticSignalIncludeFromTrainingLinguisticSignalRecursive4'
+
+
+class FindManyTrainingLinguisticSignalArgsFromModelVersionRecursive4(TypedDict, total=False):
+    """Arguments for ModelVersion"""
+    take: int
+    skip: int
+    order_by: Union['TrainingLinguisticSignalOrderByInput', List['TrainingLinguisticSignalOrderByInput']]
+    where: 'TrainingLinguisticSignalWhereInput'
+    cursor: 'TrainingLinguisticSignalWhereUniqueInput'
+    distinct: List['TrainingLinguisticSignalScalarFieldKeys']
+    
 
 
 FindManyModelVersionArgs = FindManyModelVersionArgsFromModelVersion
@@ -5742,11 +8247,14 @@ class ModelVersionWhereInput(TypedDict, total=False):
     artifactUri: Union[None, _str, 'types.StringFilter']
     artifactSha256: Union[None, _str, 'types.StringFilter']
     artifactBytes: Union[None, _int, 'types.BigIntFilter']
+    domainTag: Union[None, _str, 'types.StringFilter']
+    onnxPath: Union[None, _str, 'types.StringFilter']
     embeddingDim: Union[_int, 'types.IntFilter']
     loraRank: Union[None, _int, 'types.IntFilter']
     metrics: Union[None, 'fields.Json', 'types.JsonFilter']
     baselineMetrics: Union[None, 'fields.Json', 'types.JsonFilter']
     improvementPct: Union[None, _float, 'types.FloatFilter']
+    evalMrr: Union[None, _float, 'types.FloatFilter']
     activatedAt: Union[None, datetime.datetime, 'types.DateTimeFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
@@ -5769,11 +8277,14 @@ class ModelVersionWhereInputRecursive1(TypedDict, total=False):
     artifactUri: Union[None, _str, 'types.StringFilter']
     artifactSha256: Union[None, _str, 'types.StringFilter']
     artifactBytes: Union[None, _int, 'types.BigIntFilter']
+    domainTag: Union[None, _str, 'types.StringFilter']
+    onnxPath: Union[None, _str, 'types.StringFilter']
     embeddingDim: Union[_int, 'types.IntFilter']
     loraRank: Union[None, _int, 'types.IntFilter']
     metrics: Union[None, 'fields.Json', 'types.JsonFilter']
     baselineMetrics: Union[None, 'fields.Json', 'types.JsonFilter']
     improvementPct: Union[None, _float, 'types.FloatFilter']
+    evalMrr: Union[None, _float, 'types.FloatFilter']
     activatedAt: Union[None, datetime.datetime, 'types.DateTimeFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
@@ -5796,11 +8307,14 @@ class ModelVersionWhereInputRecursive2(TypedDict, total=False):
     artifactUri: Union[None, _str, 'types.StringFilter']
     artifactSha256: Union[None, _str, 'types.StringFilter']
     artifactBytes: Union[None, _int, 'types.BigIntFilter']
+    domainTag: Union[None, _str, 'types.StringFilter']
+    onnxPath: Union[None, _str, 'types.StringFilter']
     embeddingDim: Union[_int, 'types.IntFilter']
     loraRank: Union[None, _int, 'types.IntFilter']
     metrics: Union[None, 'fields.Json', 'types.JsonFilter']
     baselineMetrics: Union[None, 'fields.Json', 'types.JsonFilter']
     improvementPct: Union[None, _float, 'types.FloatFilter']
+    evalMrr: Union[None, _float, 'types.FloatFilter']
     activatedAt: Union[None, datetime.datetime, 'types.DateTimeFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
@@ -5823,11 +8337,14 @@ class ModelVersionWhereInputRecursive3(TypedDict, total=False):
     artifactUri: Union[None, _str, 'types.StringFilter']
     artifactSha256: Union[None, _str, 'types.StringFilter']
     artifactBytes: Union[None, _int, 'types.BigIntFilter']
+    domainTag: Union[None, _str, 'types.StringFilter']
+    onnxPath: Union[None, _str, 'types.StringFilter']
     embeddingDim: Union[_int, 'types.IntFilter']
     loraRank: Union[None, _int, 'types.IntFilter']
     metrics: Union[None, 'fields.Json', 'types.JsonFilter']
     baselineMetrics: Union[None, 'fields.Json', 'types.JsonFilter']
     improvementPct: Union[None, _float, 'types.FloatFilter']
+    evalMrr: Union[None, _float, 'types.FloatFilter']
     activatedAt: Union[None, datetime.datetime, 'types.DateTimeFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
@@ -5850,11 +8367,14 @@ class ModelVersionWhereInputRecursive4(TypedDict, total=False):
     artifactUri: Union[None, _str, 'types.StringFilter']
     artifactSha256: Union[None, _str, 'types.StringFilter']
     artifactBytes: Union[None, _int, 'types.BigIntFilter']
+    domainTag: Union[None, _str, 'types.StringFilter']
+    onnxPath: Union[None, _str, 'types.StringFilter']
     embeddingDim: Union[_int, 'types.IntFilter']
     loraRank: Union[None, _int, 'types.IntFilter']
     metrics: Union[None, 'fields.Json', 'types.JsonFilter']
     baselineMetrics: Union[None, 'fields.Json', 'types.JsonFilter']
     improvementPct: Union[None, _float, 'types.FloatFilter']
+    evalMrr: Union[None, _float, 'types.FloatFilter']
     activatedAt: Union[None, datetime.datetime, 'types.DateTimeFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeFilter']
@@ -5877,11 +8397,14 @@ class ModelVersionScalarWhereWithAggregatesInput(TypedDict, total=False):
     artifactUri: Union[_str, 'types.StringWithAggregatesFilter']
     artifactSha256: Union[_str, 'types.StringWithAggregatesFilter']
     artifactBytes: Union[_int, 'types.BigIntWithAggregatesFilter']
+    domainTag: Union[_str, 'types.StringWithAggregatesFilter']
+    onnxPath: Union[_str, 'types.StringWithAggregatesFilter']
     embeddingDim: Union[_int, 'types.IntWithAggregatesFilter']
     loraRank: Union[_int, 'types.IntWithAggregatesFilter']
     metrics: Union['fields.Json', 'types.JsonWithAggregatesFilter']
     baselineMetrics: Union['fields.Json', 'types.JsonWithAggregatesFilter']
     improvementPct: Union[_float, 'types.FloatWithAggregatesFilter']
+    evalMrr: Union[_float, 'types.FloatWithAggregatesFilter']
     activatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
@@ -5900,11 +8423,14 @@ class ModelVersionScalarWhereWithAggregatesInputRecursive1(TypedDict, total=Fals
     artifactUri: Union[_str, 'types.StringWithAggregatesFilter']
     artifactSha256: Union[_str, 'types.StringWithAggregatesFilter']
     artifactBytes: Union[_int, 'types.BigIntWithAggregatesFilter']
+    domainTag: Union[_str, 'types.StringWithAggregatesFilter']
+    onnxPath: Union[_str, 'types.StringWithAggregatesFilter']
     embeddingDim: Union[_int, 'types.IntWithAggregatesFilter']
     loraRank: Union[_int, 'types.IntWithAggregatesFilter']
     metrics: Union['fields.Json', 'types.JsonWithAggregatesFilter']
     baselineMetrics: Union['fields.Json', 'types.JsonWithAggregatesFilter']
     improvementPct: Union[_float, 'types.FloatWithAggregatesFilter']
+    evalMrr: Union[_float, 'types.FloatWithAggregatesFilter']
     activatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
@@ -5923,11 +8449,14 @@ class ModelVersionScalarWhereWithAggregatesInputRecursive2(TypedDict, total=Fals
     artifactUri: Union[_str, 'types.StringWithAggregatesFilter']
     artifactSha256: Union[_str, 'types.StringWithAggregatesFilter']
     artifactBytes: Union[_int, 'types.BigIntWithAggregatesFilter']
+    domainTag: Union[_str, 'types.StringWithAggregatesFilter']
+    onnxPath: Union[_str, 'types.StringWithAggregatesFilter']
     embeddingDim: Union[_int, 'types.IntWithAggregatesFilter']
     loraRank: Union[_int, 'types.IntWithAggregatesFilter']
     metrics: Union['fields.Json', 'types.JsonWithAggregatesFilter']
     baselineMetrics: Union['fields.Json', 'types.JsonWithAggregatesFilter']
     improvementPct: Union[_float, 'types.FloatWithAggregatesFilter']
+    evalMrr: Union[_float, 'types.FloatWithAggregatesFilter']
     activatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
@@ -5946,11 +8475,14 @@ class ModelVersionScalarWhereWithAggregatesInputRecursive3(TypedDict, total=Fals
     artifactUri: Union[_str, 'types.StringWithAggregatesFilter']
     artifactSha256: Union[_str, 'types.StringWithAggregatesFilter']
     artifactBytes: Union[_int, 'types.BigIntWithAggregatesFilter']
+    domainTag: Union[_str, 'types.StringWithAggregatesFilter']
+    onnxPath: Union[_str, 'types.StringWithAggregatesFilter']
     embeddingDim: Union[_int, 'types.IntWithAggregatesFilter']
     loraRank: Union[_int, 'types.IntWithAggregatesFilter']
     metrics: Union['fields.Json', 'types.JsonWithAggregatesFilter']
     baselineMetrics: Union['fields.Json', 'types.JsonWithAggregatesFilter']
     improvementPct: Union[_float, 'types.FloatWithAggregatesFilter']
+    evalMrr: Union[_float, 'types.FloatWithAggregatesFilter']
     activatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
@@ -5969,11 +8501,14 @@ class ModelVersionScalarWhereWithAggregatesInputRecursive4(TypedDict, total=Fals
     artifactUri: Union[_str, 'types.StringWithAggregatesFilter']
     artifactSha256: Union[_str, 'types.StringWithAggregatesFilter']
     artifactBytes: Union[_int, 'types.BigIntWithAggregatesFilter']
+    domainTag: Union[_str, 'types.StringWithAggregatesFilter']
+    onnxPath: Union[_str, 'types.StringWithAggregatesFilter']
     embeddingDim: Union[_int, 'types.IntWithAggregatesFilter']
     loraRank: Union[_int, 'types.IntWithAggregatesFilter']
     metrics: Union['fields.Json', 'types.JsonWithAggregatesFilter']
     baselineMetrics: Union['fields.Json', 'types.JsonWithAggregatesFilter']
     improvementPct: Union[_float, 'types.FloatWithAggregatesFilter']
+    evalMrr: Union[_float, 'types.FloatWithAggregatesFilter']
     activatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
     createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
     updatedAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
@@ -5988,11 +8523,14 @@ class ModelVersionGroupByOutput(TypedDict, total=False):
     artifactUri: _str
     artifactSha256: _str
     artifactBytes: _int
+    domainTag: _str
+    onnxPath: _str
     embeddingDim: _int
     loraRank: _int
     metrics: 'fields.Json'
     baselineMetrics: 'fields.Json'
     improvementPct: _float
+    evalMrr: _float
     activatedAt: datetime.datetime
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
@@ -6009,6 +8547,7 @@ class ModelVersionAvgAggregateOutput(TypedDict, total=False):
     embeddingDim: float
     loraRank: float
     improvementPct: float
+    evalMrr: float
 
 
 class ModelVersionSumAggregateOutput(TypedDict, total=False):
@@ -6017,6 +8556,7 @@ class ModelVersionSumAggregateOutput(TypedDict, total=False):
     embeddingDim: _int
     loraRank: _int
     improvementPct: _float
+    evalMrr: _float
 
 
 class ModelVersionScalarAggregateOutput(TypedDict, total=False):
@@ -6028,11 +8568,14 @@ class ModelVersionScalarAggregateOutput(TypedDict, total=False):
     artifactUri: _str
     artifactSha256: _str
     artifactBytes: _int
+    domainTag: _str
+    onnxPath: _str
     embeddingDim: _int
     loraRank: _int
     metrics: 'fields.Json'
     baselineMetrics: 'fields.Json'
     improvementPct: _float
+    evalMrr: _float
     activatedAt: datetime.datetime
     createdAt: datetime.datetime
     updatedAt: datetime.datetime
@@ -6051,11 +8594,14 @@ class ModelVersionMaxAggregateInput(TypedDict, total=False):
     artifactUri: bool
     artifactSha256: bool
     artifactBytes: bool
+    domainTag: bool
+    onnxPath: bool
     embeddingDim: bool
     loraRank: bool
     metrics: bool
     baselineMetrics: bool
     improvementPct: bool
+    evalMrr: bool
     activatedAt: bool
     createdAt: bool
     updatedAt: bool
@@ -6070,11 +8616,14 @@ class ModelVersionMinAggregateInput(TypedDict, total=False):
     artifactUri: bool
     artifactSha256: bool
     artifactBytes: bool
+    domainTag: bool
+    onnxPath: bool
     embeddingDim: bool
     loraRank: bool
     metrics: bool
     baselineMetrics: bool
     improvementPct: bool
+    evalMrr: bool
     activatedAt: bool
     createdAt: bool
     updatedAt: bool
@@ -6086,6 +8635,7 @@ class ModelVersionNumberAggregateInput(TypedDict, total=False):
     embeddingDim: bool
     loraRank: bool
     improvementPct: bool
+    evalMrr: bool
 
 
 ModelVersionAvgAggregateInput = ModelVersionNumberAggregateInput
@@ -6102,11 +8652,14 @@ ModelVersionCountAggregateInput = TypedDict(
         'artifactUri': bool,
         'artifactSha256': bool,
         'artifactBytes': bool,
+        'domainTag': bool,
+        'onnxPath': bool,
         'embeddingDim': bool,
         'loraRank': bool,
         'metrics': bool,
         'baselineMetrics': bool,
         'improvementPct': bool,
+        'evalMrr': bool,
         'activatedAt': bool,
         'createdAt': bool,
         'updatedAt': bool,
@@ -6125,11 +8678,14 @@ ModelVersionCountAggregateOutput = TypedDict(
         'artifactUri': int,
         'artifactSha256': int,
         'artifactBytes': int,
+        'domainTag': int,
+        'onnxPath': int,
         'embeddingDim': int,
         'loraRank': int,
         'metrics': int,
         'baselineMetrics': int,
         'improvementPct': int,
+        'evalMrr': int,
         'activatedAt': int,
         'createdAt': int,
         'updatedAt': int,
@@ -6147,11 +8703,14 @@ ModelVersionKeys = Literal[
     'artifactUri',
     'artifactSha256',
     'artifactBytes',
+    'domainTag',
+    'onnxPath',
     'embeddingDim',
     'loraRank',
     'metrics',
     'baselineMetrics',
     'improvementPct',
+    'evalMrr',
     'activatedAt',
     'createdAt',
     'updatedAt',
@@ -6166,11 +8725,14 @@ ModelVersionScalarFieldKeys = Literal[
     'artifactUri',
     'artifactSha256',
     'artifactBytes',
+    'domainTag',
+    'onnxPath',
     'embeddingDim',
     'loraRank',
     'metrics',
     'baselineMetrics',
     'improvementPct',
+    'evalMrr',
     'activatedAt',
     'createdAt',
     'updatedAt',
@@ -6197,6 +8759,7 @@ class TrainingJobOptionalCreateInput(TypedDict, total=False):
     maxAttempts: _int
     error: Optional[_str]
     lossHistory: Optional['fields.Json']
+    linguisticSignals: 'TrainingLinguisticSignalCreateManyNestedWithoutRelationsInput'
     queuedAt: datetime.datetime
     startedAt: Optional[datetime.datetime]
     finishedAt: Optional[datetime.datetime]
@@ -6265,9 +8828,27 @@ _TrainingJobWhereUnique_modelVersionId_Input = TypedDict(
     total=True
 )
 
+_TrainingJobCompoundtrigger_driftWindowIdKeyInner = TypedDict(
+    '_TrainingJobCompoundtrigger_driftWindowIdKeyInner',
+    {
+        'trigger': 'enums.TrainingTrigger',
+        'driftWindowId': '_str',
+    },
+    total=True
+)
+
+_TrainingJobCompoundtrigger_driftWindowIdKey = TypedDict(
+    '_TrainingJobCompoundtrigger_driftWindowIdKey',
+    {
+        'trigger_driftWindowId': '_TrainingJobCompoundtrigger_driftWindowIdKeyInner',
+    },
+    total=True
+)
+
 TrainingJobWhereUniqueInput = Union[
     '_TrainingJobWhereUnique_id_Input',
     '_TrainingJobWhereUnique_modelVersionId_Input',
+    '_TrainingJobCompoundtrigger_driftWindowIdKey',
 ]
 
 
@@ -6285,6 +8866,7 @@ class TrainingJobUpdateInput(TypedDict, total=False):
     maxAttempts: Union[AtomicIntInput, _int]
     error: Optional[_str]
     lossHistory: Optional['fields.Json']
+    linguisticSignals: 'TrainingLinguisticSignalUpdateManyWithoutRelationsInput'
     queuedAt: datetime.datetime
     startedAt: Optional[datetime.datetime]
     finishedAt: Optional[datetime.datetime]
@@ -6526,6 +9108,7 @@ class TrainingJobInclude(TypedDict, total=False):
     """TrainingJob relational arguments"""
     driftWindow: Union[bool, 'DriftWindowArgsFromTrainingJob']
     modelVersion: Union[bool, 'ModelVersionArgsFromTrainingJob']
+    linguisticSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromTrainingJob']
 
 
     
@@ -6749,6 +9332,7 @@ class DriftWindowIncludeFromTrainingJob(TypedDict, total=False):
     baseline: Union[bool, 'DriftWindowArgsFromTrainingJobRecursive1']
     derived: Union[bool, 'FindManyDriftWindowArgsFromTrainingJobRecursive1']
     trainingJobs: Union[bool, 'FindManyTrainingJobArgsFromTrainingJobRecursive1']
+    linguisticSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromTrainingJobRecursive1']
 
 
 class DriftWindowIncludeFromTrainingJobRecursive1(TypedDict, total=False):
@@ -6756,6 +9340,7 @@ class DriftWindowIncludeFromTrainingJobRecursive1(TypedDict, total=False):
     baseline: Union[bool, 'DriftWindowArgsFromTrainingJobRecursive2']
     derived: Union[bool, 'FindManyDriftWindowArgsFromTrainingJobRecursive2']
     trainingJobs: Union[bool, 'FindManyTrainingJobArgsFromTrainingJobRecursive2']
+    linguisticSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromTrainingJobRecursive2']
 
 
 class DriftWindowIncludeFromTrainingJobRecursive2(TypedDict, total=False):
@@ -6763,6 +9348,7 @@ class DriftWindowIncludeFromTrainingJobRecursive2(TypedDict, total=False):
     baseline: Union[bool, 'DriftWindowArgsFromTrainingJobRecursive3']
     derived: Union[bool, 'FindManyDriftWindowArgsFromTrainingJobRecursive3']
     trainingJobs: Union[bool, 'FindManyTrainingJobArgsFromTrainingJobRecursive3']
+    linguisticSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromTrainingJobRecursive3']
 
 
 class DriftWindowIncludeFromTrainingJobRecursive3(TypedDict, total=False):
@@ -6770,6 +9356,7 @@ class DriftWindowIncludeFromTrainingJobRecursive3(TypedDict, total=False):
     baseline: Union[bool, 'DriftWindowArgsFromTrainingJobRecursive4']
     derived: Union[bool, 'FindManyDriftWindowArgsFromTrainingJobRecursive4']
     trainingJobs: Union[bool, 'FindManyTrainingJobArgsFromTrainingJobRecursive4']
+    linguisticSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromTrainingJobRecursive4']
 
 
 class DriftWindowIncludeFromTrainingJobRecursive4(TypedDict, total=False):
@@ -6854,6 +9441,111 @@ class FindManyDriftWindowArgsFromTrainingJobRecursive4(TypedDict, total=False):
     where: 'DriftWindowWhereInput'
     cursor: 'DriftWindowWhereUniqueInput'
     distinct: List['DriftWindowScalarFieldKeys']
+    
+    
+
+class LinguisticWindowIncludeFromTrainingJob(TypedDict, total=False):
+    """Relational arguments for TrainingJob"""
+    trainingSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromTrainingJobRecursive1']
+
+
+class LinguisticWindowIncludeFromTrainingJobRecursive1(TypedDict, total=False):
+    """Relational arguments for TrainingJob"""
+    trainingSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromTrainingJobRecursive2']
+
+
+class LinguisticWindowIncludeFromTrainingJobRecursive2(TypedDict, total=False):
+    """Relational arguments for TrainingJob"""
+    trainingSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromTrainingJobRecursive3']
+
+
+class LinguisticWindowIncludeFromTrainingJobRecursive3(TypedDict, total=False):
+    """Relational arguments for TrainingJob"""
+    trainingSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromTrainingJobRecursive4']
+
+
+class LinguisticWindowIncludeFromTrainingJobRecursive4(TypedDict, total=False):
+    """Relational arguments for TrainingJob"""
+
+    
+
+class LinguisticWindowArgsFromTrainingJob(TypedDict, total=False):
+    """Arguments for TrainingJob"""
+    include: 'LinguisticWindowIncludeFromLinguisticWindowRecursive1'
+
+
+class LinguisticWindowArgsFromTrainingJobRecursive1(TypedDict, total=False):
+    """Arguments for TrainingJob"""
+    include: 'LinguisticWindowIncludeFromLinguisticWindowRecursive2'
+
+
+class LinguisticWindowArgsFromTrainingJobRecursive2(TypedDict, total=False):
+    """Arguments for TrainingJob"""
+    include: 'LinguisticWindowIncludeFromLinguisticWindowRecursive3'
+
+
+class LinguisticWindowArgsFromTrainingJobRecursive3(TypedDict, total=False):
+    """Arguments for TrainingJob"""
+    include: 'LinguisticWindowIncludeFromLinguisticWindowRecursive4'
+
+
+class LinguisticWindowArgsFromTrainingJobRecursive4(TypedDict, total=False):
+    """Arguments for TrainingJob"""
+    
+    
+
+class FindManyLinguisticWindowArgsFromTrainingJob(TypedDict, total=False):
+    """Arguments for TrainingJob"""
+    take: int
+    skip: int
+    order_by: Union['LinguisticWindowOrderByInput', List['LinguisticWindowOrderByInput']]
+    where: 'LinguisticWindowWhereInput'
+    cursor: 'LinguisticWindowWhereUniqueInput'
+    distinct: List['LinguisticWindowScalarFieldKeys']
+    include: 'LinguisticWindowIncludeFromLinguisticWindowRecursive1'
+
+
+class FindManyLinguisticWindowArgsFromTrainingJobRecursive1(TypedDict, total=False):
+    """Arguments for TrainingJob"""
+    take: int
+    skip: int
+    order_by: Union['LinguisticWindowOrderByInput', List['LinguisticWindowOrderByInput']]
+    where: 'LinguisticWindowWhereInput'
+    cursor: 'LinguisticWindowWhereUniqueInput'
+    distinct: List['LinguisticWindowScalarFieldKeys']
+    include: 'LinguisticWindowIncludeFromLinguisticWindowRecursive2'
+
+
+class FindManyLinguisticWindowArgsFromTrainingJobRecursive2(TypedDict, total=False):
+    """Arguments for TrainingJob"""
+    take: int
+    skip: int
+    order_by: Union['LinguisticWindowOrderByInput', List['LinguisticWindowOrderByInput']]
+    where: 'LinguisticWindowWhereInput'
+    cursor: 'LinguisticWindowWhereUniqueInput'
+    distinct: List['LinguisticWindowScalarFieldKeys']
+    include: 'LinguisticWindowIncludeFromLinguisticWindowRecursive3'
+
+
+class FindManyLinguisticWindowArgsFromTrainingJobRecursive3(TypedDict, total=False):
+    """Arguments for TrainingJob"""
+    take: int
+    skip: int
+    order_by: Union['LinguisticWindowOrderByInput', List['LinguisticWindowOrderByInput']]
+    where: 'LinguisticWindowWhereInput'
+    cursor: 'LinguisticWindowWhereUniqueInput'
+    distinct: List['LinguisticWindowScalarFieldKeys']
+    include: 'LinguisticWindowIncludeFromLinguisticWindowRecursive4'
+
+
+class FindManyLinguisticWindowArgsFromTrainingJobRecursive4(TypedDict, total=False):
+    """Arguments for TrainingJob"""
+    take: int
+    skip: int
+    order_by: Union['LinguisticWindowOrderByInput', List['LinguisticWindowOrderByInput']]
+    where: 'LinguisticWindowWhereInput'
+    cursor: 'LinguisticWindowWhereUniqueInput'
+    distinct: List['LinguisticWindowScalarFieldKeys']
     
     
 
@@ -6970,24 +9662,28 @@ class TrainingJobIncludeFromTrainingJob(TypedDict, total=False):
     """Relational arguments for TrainingJob"""
     driftWindow: Union[bool, 'DriftWindowArgsFromTrainingJobRecursive1']
     modelVersion: Union[bool, 'ModelVersionArgsFromTrainingJobRecursive1']
+    linguisticSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromTrainingJobRecursive1']
 
 
 class TrainingJobIncludeFromTrainingJobRecursive1(TypedDict, total=False):
     """Relational arguments for TrainingJob"""
     driftWindow: Union[bool, 'DriftWindowArgsFromTrainingJobRecursive2']
     modelVersion: Union[bool, 'ModelVersionArgsFromTrainingJobRecursive2']
+    linguisticSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromTrainingJobRecursive2']
 
 
 class TrainingJobIncludeFromTrainingJobRecursive2(TypedDict, total=False):
     """Relational arguments for TrainingJob"""
     driftWindow: Union[bool, 'DriftWindowArgsFromTrainingJobRecursive3']
     modelVersion: Union[bool, 'ModelVersionArgsFromTrainingJobRecursive3']
+    linguisticSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromTrainingJobRecursive3']
 
 
 class TrainingJobIncludeFromTrainingJobRecursive3(TypedDict, total=False):
     """Relational arguments for TrainingJob"""
     driftWindow: Union[bool, 'DriftWindowArgsFromTrainingJobRecursive4']
     modelVersion: Union[bool, 'ModelVersionArgsFromTrainingJobRecursive4']
+    linguisticSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromTrainingJobRecursive4']
 
 
 class TrainingJobIncludeFromTrainingJobRecursive4(TypedDict, total=False):
@@ -7073,6 +9769,119 @@ class FindManyTrainingJobArgsFromTrainingJobRecursive4(TypedDict, total=False):
     cursor: 'TrainingJobWhereUniqueInput'
     distinct: List['TrainingJobScalarFieldKeys']
     
+    
+
+class TrainingLinguisticSignalIncludeFromTrainingJob(TypedDict, total=False):
+    """Relational arguments for TrainingJob"""
+    trainingJob: Union[bool, 'TrainingJobArgsFromTrainingJobRecursive1']
+    linguisticWindow: Union[bool, 'LinguisticWindowArgsFromTrainingJobRecursive1']
+    driftWindow: Union[bool, 'DriftWindowArgsFromTrainingJobRecursive1']
+
+
+class TrainingLinguisticSignalIncludeFromTrainingJobRecursive1(TypedDict, total=False):
+    """Relational arguments for TrainingJob"""
+    trainingJob: Union[bool, 'TrainingJobArgsFromTrainingJobRecursive2']
+    linguisticWindow: Union[bool, 'LinguisticWindowArgsFromTrainingJobRecursive2']
+    driftWindow: Union[bool, 'DriftWindowArgsFromTrainingJobRecursive2']
+
+
+class TrainingLinguisticSignalIncludeFromTrainingJobRecursive2(TypedDict, total=False):
+    """Relational arguments for TrainingJob"""
+    trainingJob: Union[bool, 'TrainingJobArgsFromTrainingJobRecursive3']
+    linguisticWindow: Union[bool, 'LinguisticWindowArgsFromTrainingJobRecursive3']
+    driftWindow: Union[bool, 'DriftWindowArgsFromTrainingJobRecursive3']
+
+
+class TrainingLinguisticSignalIncludeFromTrainingJobRecursive3(TypedDict, total=False):
+    """Relational arguments for TrainingJob"""
+    trainingJob: Union[bool, 'TrainingJobArgsFromTrainingJobRecursive4']
+    linguisticWindow: Union[bool, 'LinguisticWindowArgsFromTrainingJobRecursive4']
+    driftWindow: Union[bool, 'DriftWindowArgsFromTrainingJobRecursive4']
+
+
+class TrainingLinguisticSignalIncludeFromTrainingJobRecursive4(TypedDict, total=False):
+    """Relational arguments for TrainingJob"""
+
+    
+
+class TrainingLinguisticSignalArgsFromTrainingJob(TypedDict, total=False):
+    """Arguments for TrainingJob"""
+    include: 'TrainingLinguisticSignalIncludeFromTrainingLinguisticSignalRecursive1'
+
+
+class TrainingLinguisticSignalArgsFromTrainingJobRecursive1(TypedDict, total=False):
+    """Arguments for TrainingJob"""
+    include: 'TrainingLinguisticSignalIncludeFromTrainingLinguisticSignalRecursive2'
+
+
+class TrainingLinguisticSignalArgsFromTrainingJobRecursive2(TypedDict, total=False):
+    """Arguments for TrainingJob"""
+    include: 'TrainingLinguisticSignalIncludeFromTrainingLinguisticSignalRecursive3'
+
+
+class TrainingLinguisticSignalArgsFromTrainingJobRecursive3(TypedDict, total=False):
+    """Arguments for TrainingJob"""
+    include: 'TrainingLinguisticSignalIncludeFromTrainingLinguisticSignalRecursive4'
+
+
+class TrainingLinguisticSignalArgsFromTrainingJobRecursive4(TypedDict, total=False):
+    """Arguments for TrainingJob"""
+    
+    
+
+class FindManyTrainingLinguisticSignalArgsFromTrainingJob(TypedDict, total=False):
+    """Arguments for TrainingJob"""
+    take: int
+    skip: int
+    order_by: Union['TrainingLinguisticSignalOrderByInput', List['TrainingLinguisticSignalOrderByInput']]
+    where: 'TrainingLinguisticSignalWhereInput'
+    cursor: 'TrainingLinguisticSignalWhereUniqueInput'
+    distinct: List['TrainingLinguisticSignalScalarFieldKeys']
+    include: 'TrainingLinguisticSignalIncludeFromTrainingLinguisticSignalRecursive1'
+
+
+class FindManyTrainingLinguisticSignalArgsFromTrainingJobRecursive1(TypedDict, total=False):
+    """Arguments for TrainingJob"""
+    take: int
+    skip: int
+    order_by: Union['TrainingLinguisticSignalOrderByInput', List['TrainingLinguisticSignalOrderByInput']]
+    where: 'TrainingLinguisticSignalWhereInput'
+    cursor: 'TrainingLinguisticSignalWhereUniqueInput'
+    distinct: List['TrainingLinguisticSignalScalarFieldKeys']
+    include: 'TrainingLinguisticSignalIncludeFromTrainingLinguisticSignalRecursive2'
+
+
+class FindManyTrainingLinguisticSignalArgsFromTrainingJobRecursive2(TypedDict, total=False):
+    """Arguments for TrainingJob"""
+    take: int
+    skip: int
+    order_by: Union['TrainingLinguisticSignalOrderByInput', List['TrainingLinguisticSignalOrderByInput']]
+    where: 'TrainingLinguisticSignalWhereInput'
+    cursor: 'TrainingLinguisticSignalWhereUniqueInput'
+    distinct: List['TrainingLinguisticSignalScalarFieldKeys']
+    include: 'TrainingLinguisticSignalIncludeFromTrainingLinguisticSignalRecursive3'
+
+
+class FindManyTrainingLinguisticSignalArgsFromTrainingJobRecursive3(TypedDict, total=False):
+    """Arguments for TrainingJob"""
+    take: int
+    skip: int
+    order_by: Union['TrainingLinguisticSignalOrderByInput', List['TrainingLinguisticSignalOrderByInput']]
+    where: 'TrainingLinguisticSignalWhereInput'
+    cursor: 'TrainingLinguisticSignalWhereUniqueInput'
+    distinct: List['TrainingLinguisticSignalScalarFieldKeys']
+    include: 'TrainingLinguisticSignalIncludeFromTrainingLinguisticSignalRecursive4'
+
+
+class FindManyTrainingLinguisticSignalArgsFromTrainingJobRecursive4(TypedDict, total=False):
+    """Arguments for TrainingJob"""
+    take: int
+    skip: int
+    order_by: Union['TrainingLinguisticSignalOrderByInput', List['TrainingLinguisticSignalOrderByInput']]
+    where: 'TrainingLinguisticSignalWhereInput'
+    cursor: 'TrainingLinguisticSignalWhereUniqueInput'
+    distinct: List['TrainingLinguisticSignalScalarFieldKeys']
+    
 
 
 FindManyTrainingJobArgs = FindManyTrainingJobArgsFromTrainingJob
@@ -7097,6 +9906,7 @@ class TrainingJobWhereInput(TypedDict, total=False):
     maxAttempts: Union[_int, 'types.IntFilter']
     error: Union[None, _str, 'types.StringFilter']
     lossHistory: Union[None, 'fields.Json', 'types.JsonFilter']
+    linguisticSignals: 'TrainingLinguisticSignalListRelationFilter'
     queuedAt: Union[datetime.datetime, 'types.DateTimeFilter']
     startedAt: Union[None, datetime.datetime, 'types.DateTimeFilter']
     finishedAt: Union[None, datetime.datetime, 'types.DateTimeFilter']
@@ -7124,6 +9934,7 @@ class TrainingJobWhereInputRecursive1(TypedDict, total=False):
     maxAttempts: Union[_int, 'types.IntFilter']
     error: Union[None, _str, 'types.StringFilter']
     lossHistory: Union[None, 'fields.Json', 'types.JsonFilter']
+    linguisticSignals: 'TrainingLinguisticSignalListRelationFilter'
     queuedAt: Union[datetime.datetime, 'types.DateTimeFilter']
     startedAt: Union[None, datetime.datetime, 'types.DateTimeFilter']
     finishedAt: Union[None, datetime.datetime, 'types.DateTimeFilter']
@@ -7151,6 +9962,7 @@ class TrainingJobWhereInputRecursive2(TypedDict, total=False):
     maxAttempts: Union[_int, 'types.IntFilter']
     error: Union[None, _str, 'types.StringFilter']
     lossHistory: Union[None, 'fields.Json', 'types.JsonFilter']
+    linguisticSignals: 'TrainingLinguisticSignalListRelationFilter'
     queuedAt: Union[datetime.datetime, 'types.DateTimeFilter']
     startedAt: Union[None, datetime.datetime, 'types.DateTimeFilter']
     finishedAt: Union[None, datetime.datetime, 'types.DateTimeFilter']
@@ -7178,6 +9990,7 @@ class TrainingJobWhereInputRecursive3(TypedDict, total=False):
     maxAttempts: Union[_int, 'types.IntFilter']
     error: Union[None, _str, 'types.StringFilter']
     lossHistory: Union[None, 'fields.Json', 'types.JsonFilter']
+    linguisticSignals: 'TrainingLinguisticSignalListRelationFilter'
     queuedAt: Union[datetime.datetime, 'types.DateTimeFilter']
     startedAt: Union[None, datetime.datetime, 'types.DateTimeFilter']
     finishedAt: Union[None, datetime.datetime, 'types.DateTimeFilter']
@@ -7205,6 +10018,7 @@ class TrainingJobWhereInputRecursive4(TypedDict, total=False):
     maxAttempts: Union[_int, 'types.IntFilter']
     error: Union[None, _str, 'types.StringFilter']
     lossHistory: Union[None, 'fields.Json', 'types.JsonFilter']
+    linguisticSignals: 'TrainingLinguisticSignalListRelationFilter'
     queuedAt: Union[datetime.datetime, 'types.DateTimeFilter']
     startedAt: Union[None, datetime.datetime, 'types.DateTimeFilter']
     finishedAt: Union[None, datetime.datetime, 'types.DateTimeFilter']
@@ -7499,6 +10313,7 @@ TrainingJobKeys = Literal[
     'maxAttempts',
     'error',
     'lossHistory',
+    'linguisticSignals',
     'queuedAt',
     'startedAt',
     'finishedAt',
@@ -7525,6 +10340,1310 @@ TrainingJobScalarFieldKeysT = TypeVar('TrainingJobScalarFieldKeysT', bound=Train
 TrainingJobRelationalFieldKeys = Literal[
         'driftWindow',
         'modelVersion',
+        'linguisticSignals',
+    ]
+
+# TrainingLinguisticSignal types
+
+class TrainingLinguisticSignalOptionalCreateInput(TypedDict, total=False):
+    """Optional arguments to the TrainingLinguisticSignal create method"""
+    id: _str
+    trainingJobId: _str
+    trainingJob: 'TrainingJobCreateNestedWithoutRelationsInput'
+    linguisticWindowId: _str
+    linguisticWindow: 'LinguisticWindowCreateNestedWithoutRelationsInput'
+    driftWindowId: Optional[_str]
+    driftWindow: 'DriftWindowCreateNestedWithoutRelationsInput'
+    signalWeight: _float
+    createdAt: datetime.datetime
+
+
+class TrainingLinguisticSignalCreateInput(TrainingLinguisticSignalOptionalCreateInput):
+    """Required arguments to the TrainingLinguisticSignal create method"""
+
+
+# TODO: remove this in favour of without explicit relations
+# e.g. PostCreateWithoutAuthorInput
+
+class TrainingLinguisticSignalOptionalCreateWithoutRelationsInput(TypedDict, total=False):
+    """Optional arguments to the TrainingLinguisticSignal create method, without relations"""
+    id: _str
+    trainingJobId: _str
+    linguisticWindowId: _str
+    driftWindowId: Optional[_str]
+    signalWeight: _float
+    createdAt: datetime.datetime
+
+
+class TrainingLinguisticSignalCreateWithoutRelationsInput(TrainingLinguisticSignalOptionalCreateWithoutRelationsInput):
+    """Required arguments to the TrainingLinguisticSignal create method, without relations"""
+
+class TrainingLinguisticSignalConnectOrCreateWithoutRelationsInput(TypedDict):
+    create: 'TrainingLinguisticSignalCreateWithoutRelationsInput'
+    where: 'TrainingLinguisticSignalWhereUniqueInput'
+
+class TrainingLinguisticSignalCreateNestedWithoutRelationsInput(TypedDict, total=False):
+    create: 'TrainingLinguisticSignalCreateWithoutRelationsInput'
+    connect: 'TrainingLinguisticSignalWhereUniqueInput'
+    connect_or_create: 'TrainingLinguisticSignalConnectOrCreateWithoutRelationsInput'
+
+
+class TrainingLinguisticSignalCreateManyNestedWithoutRelationsInput(TypedDict, total=False):
+    create: Union['TrainingLinguisticSignalCreateWithoutRelationsInput', List['TrainingLinguisticSignalCreateWithoutRelationsInput']]
+    connect: Union['TrainingLinguisticSignalWhereUniqueInput', List['TrainingLinguisticSignalWhereUniqueInput']]
+    connect_or_create: Union['TrainingLinguisticSignalConnectOrCreateWithoutRelationsInput', List['TrainingLinguisticSignalConnectOrCreateWithoutRelationsInput']]
+
+_TrainingLinguisticSignalWhereUnique_id_Input = TypedDict(
+    '_TrainingLinguisticSignalWhereUnique_id_Input',
+    {
+        'id': '_str',
+    },
+    total=True
+)
+
+_TrainingLinguisticSignalCompoundtrainingJobId_linguisticWindowIdKeyInner = TypedDict(
+    '_TrainingLinguisticSignalCompoundtrainingJobId_linguisticWindowIdKeyInner',
+    {
+        'trainingJobId': '_str',
+        'linguisticWindowId': '_str',
+    },
+    total=True
+)
+
+_TrainingLinguisticSignalCompoundtrainingJobId_linguisticWindowIdKey = TypedDict(
+    '_TrainingLinguisticSignalCompoundtrainingJobId_linguisticWindowIdKey',
+    {
+        'trainingJobId_linguisticWindowId': '_TrainingLinguisticSignalCompoundtrainingJobId_linguisticWindowIdKeyInner',
+    },
+    total=True
+)
+
+TrainingLinguisticSignalWhereUniqueInput = Union[
+    '_TrainingLinguisticSignalWhereUnique_id_Input',
+    '_TrainingLinguisticSignalCompoundtrainingJobId_linguisticWindowIdKey',
+]
+
+
+class TrainingLinguisticSignalUpdateInput(TypedDict, total=False):
+    """Optional arguments for updating a record"""
+    id: _str
+    trainingJob: 'TrainingJobUpdateOneWithoutRelationsInput'
+    linguisticWindow: 'LinguisticWindowUpdateOneWithoutRelationsInput'
+    driftWindow: 'DriftWindowUpdateOneWithoutRelationsInput'
+    signalWeight: Union[AtomicFloatInput, _float]
+    createdAt: datetime.datetime
+
+
+class TrainingLinguisticSignalUpdateManyMutationInput(TypedDict, total=False):
+    """Arguments for updating many records"""
+    id: _str
+    signalWeight: Union[AtomicFloatInput, _float]
+    createdAt: datetime.datetime
+
+
+class TrainingLinguisticSignalUpdateManyWithoutRelationsInput(TypedDict, total=False):
+    create: List['TrainingLinguisticSignalCreateWithoutRelationsInput']
+    connect: List['TrainingLinguisticSignalWhereUniqueInput']
+    connect_or_create: List['TrainingLinguisticSignalConnectOrCreateWithoutRelationsInput']
+    set: List['TrainingLinguisticSignalWhereUniqueInput']
+    disconnect: List['TrainingLinguisticSignalWhereUniqueInput']
+    delete: List['TrainingLinguisticSignalWhereUniqueInput']
+
+    # TODO
+    # update: List['TrainingLinguisticSignalUpdateWithWhereUniqueWithoutRelationsInput']
+    # updateMany: List['TrainingLinguisticSignalUpdateManyWithWhereUniqueWithoutRelationsInput']
+    # deleteMany: List['TrainingLinguisticSignalScalarWhereInput']
+    # upsert: List['TrainingLinguisticSignalUpserteWithWhereUniqueWithoutRelationsInput']
+
+
+class TrainingLinguisticSignalUpdateOneWithoutRelationsInput(TypedDict, total=False):
+    create: 'TrainingLinguisticSignalCreateWithoutRelationsInput'
+    connect: 'TrainingLinguisticSignalWhereUniqueInput'
+    connect_or_create: 'TrainingLinguisticSignalConnectOrCreateWithoutRelationsInput'
+    disconnect: bool
+    delete: bool
+
+    # TODO
+    # update: 'TrainingLinguisticSignalUpdateInput'
+    # upsert: 'TrainingLinguisticSignalUpsertWithoutRelationsInput'
+
+
+class TrainingLinguisticSignalUpsertInput(TypedDict):
+    create: 'TrainingLinguisticSignalCreateInput'
+    update: 'TrainingLinguisticSignalUpdateInput'  # pyright: ignore[reportIncompatibleMethodOverride]
+
+
+_TrainingLinguisticSignal_id_OrderByInput = TypedDict(
+    '_TrainingLinguisticSignal_id_OrderByInput',
+    {
+        'id': 'SortOrder',
+    },
+    total=True
+)
+
+_TrainingLinguisticSignal_trainingJobId_OrderByInput = TypedDict(
+    '_TrainingLinguisticSignal_trainingJobId_OrderByInput',
+    {
+        'trainingJobId': 'SortOrder',
+    },
+    total=True
+)
+
+_TrainingLinguisticSignal_linguisticWindowId_OrderByInput = TypedDict(
+    '_TrainingLinguisticSignal_linguisticWindowId_OrderByInput',
+    {
+        'linguisticWindowId': 'SortOrder',
+    },
+    total=True
+)
+
+_TrainingLinguisticSignal_driftWindowId_OrderByInput = TypedDict(
+    '_TrainingLinguisticSignal_driftWindowId_OrderByInput',
+    {
+        'driftWindowId': 'SortOrder',
+    },
+    total=True
+)
+
+_TrainingLinguisticSignal_signalWeight_OrderByInput = TypedDict(
+    '_TrainingLinguisticSignal_signalWeight_OrderByInput',
+    {
+        'signalWeight': 'SortOrder',
+    },
+    total=True
+)
+
+_TrainingLinguisticSignal_createdAt_OrderByInput = TypedDict(
+    '_TrainingLinguisticSignal_createdAt_OrderByInput',
+    {
+        'createdAt': 'SortOrder',
+    },
+    total=True
+)
+
+_TrainingLinguisticSignal_RelevanceInner = TypedDict(
+    '_TrainingLinguisticSignal_RelevanceInner',
+    {
+        'fields': 'List[TrainingLinguisticSignalScalarFieldKeys]',
+        'search': 'str',
+        'sort': 'SortOrder',
+    },
+    total=True
+)
+
+_TrainingLinguisticSignal_RelevanceOrderByInput = TypedDict(
+    '_TrainingLinguisticSignal_RelevanceOrderByInput',
+    {
+        '_relevance': '_TrainingLinguisticSignal_RelevanceInner',
+    },
+    total=True
+)
+
+TrainingLinguisticSignalOrderByInput = Union[
+    '_TrainingLinguisticSignal_id_OrderByInput',
+    '_TrainingLinguisticSignal_trainingJobId_OrderByInput',
+    '_TrainingLinguisticSignal_linguisticWindowId_OrderByInput',
+    '_TrainingLinguisticSignal_driftWindowId_OrderByInput',
+    '_TrainingLinguisticSignal_signalWeight_OrderByInput',
+    '_TrainingLinguisticSignal_createdAt_OrderByInput',
+    '_TrainingLinguisticSignal_RelevanceOrderByInput',
+]
+
+
+
+# recursive TrainingLinguisticSignal types
+# TODO: cleanup these types
+
+
+# Dict[str, Any] is a mypy limitation
+# see https://github.com/RobertCraigie/prisma-client-py/issues/45
+# switch to pyright for improved types, see https://prisma-client-py.readthedocs.io/en/stable/reference/limitations/
+
+TrainingLinguisticSignalRelationFilter = TypedDict(
+    'TrainingLinguisticSignalRelationFilter',
+    {
+        'is': 'Dict[str, Any]',
+        'is_not': 'Dict[str, Any]',
+    },
+    total=False,
+)
+
+
+class TrainingLinguisticSignalListRelationFilter(TypedDict, total=False):
+    some: 'Dict[str, Any]'
+    none: 'Dict[str, Any]'
+    every: 'Dict[str, Any]'
+
+
+class TrainingLinguisticSignalInclude(TypedDict, total=False):
+    """TrainingLinguisticSignal relational arguments"""
+    trainingJob: Union[bool, 'TrainingJobArgsFromTrainingLinguisticSignal']
+    linguisticWindow: Union[bool, 'LinguisticWindowArgsFromTrainingLinguisticSignal']
+    driftWindow: Union[bool, 'DriftWindowArgsFromTrainingLinguisticSignal']
+
+
+    
+
+class DocumentIncludeFromTrainingLinguisticSignal(TypedDict, total=False):
+    """Relational arguments for TrainingLinguisticSignal"""
+    embedding: Union[bool, 'EmbeddingArgsFromTrainingLinguisticSignalRecursive1']
+
+
+class DocumentIncludeFromTrainingLinguisticSignalRecursive1(TypedDict, total=False):
+    """Relational arguments for TrainingLinguisticSignal"""
+    embedding: Union[bool, 'EmbeddingArgsFromTrainingLinguisticSignalRecursive2']
+
+
+class DocumentIncludeFromTrainingLinguisticSignalRecursive2(TypedDict, total=False):
+    """Relational arguments for TrainingLinguisticSignal"""
+    embedding: Union[bool, 'EmbeddingArgsFromTrainingLinguisticSignalRecursive3']
+
+
+class DocumentIncludeFromTrainingLinguisticSignalRecursive3(TypedDict, total=False):
+    """Relational arguments for TrainingLinguisticSignal"""
+    embedding: Union[bool, 'EmbeddingArgsFromTrainingLinguisticSignalRecursive4']
+
+
+class DocumentIncludeFromTrainingLinguisticSignalRecursive4(TypedDict, total=False):
+    """Relational arguments for TrainingLinguisticSignal"""
+
+    
+
+class DocumentArgsFromTrainingLinguisticSignal(TypedDict, total=False):
+    """Arguments for TrainingLinguisticSignal"""
+    include: 'DocumentIncludeFromDocumentRecursive1'
+
+
+class DocumentArgsFromTrainingLinguisticSignalRecursive1(TypedDict, total=False):
+    """Arguments for TrainingLinguisticSignal"""
+    include: 'DocumentIncludeFromDocumentRecursive2'
+
+
+class DocumentArgsFromTrainingLinguisticSignalRecursive2(TypedDict, total=False):
+    """Arguments for TrainingLinguisticSignal"""
+    include: 'DocumentIncludeFromDocumentRecursive3'
+
+
+class DocumentArgsFromTrainingLinguisticSignalRecursive3(TypedDict, total=False):
+    """Arguments for TrainingLinguisticSignal"""
+    include: 'DocumentIncludeFromDocumentRecursive4'
+
+
+class DocumentArgsFromTrainingLinguisticSignalRecursive4(TypedDict, total=False):
+    """Arguments for TrainingLinguisticSignal"""
+    
+    
+
+class FindManyDocumentArgsFromTrainingLinguisticSignal(TypedDict, total=False):
+    """Arguments for TrainingLinguisticSignal"""
+    take: int
+    skip: int
+    order_by: Union['DocumentOrderByInput', List['DocumentOrderByInput']]
+    where: 'DocumentWhereInput'
+    cursor: 'DocumentWhereUniqueInput'
+    distinct: List['DocumentScalarFieldKeys']
+    include: 'DocumentIncludeFromDocumentRecursive1'
+
+
+class FindManyDocumentArgsFromTrainingLinguisticSignalRecursive1(TypedDict, total=False):
+    """Arguments for TrainingLinguisticSignal"""
+    take: int
+    skip: int
+    order_by: Union['DocumentOrderByInput', List['DocumentOrderByInput']]
+    where: 'DocumentWhereInput'
+    cursor: 'DocumentWhereUniqueInput'
+    distinct: List['DocumentScalarFieldKeys']
+    include: 'DocumentIncludeFromDocumentRecursive2'
+
+
+class FindManyDocumentArgsFromTrainingLinguisticSignalRecursive2(TypedDict, total=False):
+    """Arguments for TrainingLinguisticSignal"""
+    take: int
+    skip: int
+    order_by: Union['DocumentOrderByInput', List['DocumentOrderByInput']]
+    where: 'DocumentWhereInput'
+    cursor: 'DocumentWhereUniqueInput'
+    distinct: List['DocumentScalarFieldKeys']
+    include: 'DocumentIncludeFromDocumentRecursive3'
+
+
+class FindManyDocumentArgsFromTrainingLinguisticSignalRecursive3(TypedDict, total=False):
+    """Arguments for TrainingLinguisticSignal"""
+    take: int
+    skip: int
+    order_by: Union['DocumentOrderByInput', List['DocumentOrderByInput']]
+    where: 'DocumentWhereInput'
+    cursor: 'DocumentWhereUniqueInput'
+    distinct: List['DocumentScalarFieldKeys']
+    include: 'DocumentIncludeFromDocumentRecursive4'
+
+
+class FindManyDocumentArgsFromTrainingLinguisticSignalRecursive4(TypedDict, total=False):
+    """Arguments for TrainingLinguisticSignal"""
+    take: int
+    skip: int
+    order_by: Union['DocumentOrderByInput', List['DocumentOrderByInput']]
+    where: 'DocumentWhereInput'
+    cursor: 'DocumentWhereUniqueInput'
+    distinct: List['DocumentScalarFieldKeys']
+    
+    
+
+class EmbeddingIncludeFromTrainingLinguisticSignal(TypedDict, total=False):
+    """Relational arguments for TrainingLinguisticSignal"""
+    document: Union[bool, 'DocumentArgsFromTrainingLinguisticSignalRecursive1']
+    modelVersion: Union[bool, 'ModelVersionArgsFromTrainingLinguisticSignalRecursive1']
+
+
+class EmbeddingIncludeFromTrainingLinguisticSignalRecursive1(TypedDict, total=False):
+    """Relational arguments for TrainingLinguisticSignal"""
+    document: Union[bool, 'DocumentArgsFromTrainingLinguisticSignalRecursive2']
+    modelVersion: Union[bool, 'ModelVersionArgsFromTrainingLinguisticSignalRecursive2']
+
+
+class EmbeddingIncludeFromTrainingLinguisticSignalRecursive2(TypedDict, total=False):
+    """Relational arguments for TrainingLinguisticSignal"""
+    document: Union[bool, 'DocumentArgsFromTrainingLinguisticSignalRecursive3']
+    modelVersion: Union[bool, 'ModelVersionArgsFromTrainingLinguisticSignalRecursive3']
+
+
+class EmbeddingIncludeFromTrainingLinguisticSignalRecursive3(TypedDict, total=False):
+    """Relational arguments for TrainingLinguisticSignal"""
+    document: Union[bool, 'DocumentArgsFromTrainingLinguisticSignalRecursive4']
+    modelVersion: Union[bool, 'ModelVersionArgsFromTrainingLinguisticSignalRecursive4']
+
+
+class EmbeddingIncludeFromTrainingLinguisticSignalRecursive4(TypedDict, total=False):
+    """Relational arguments for TrainingLinguisticSignal"""
+
+    
+
+class EmbeddingArgsFromTrainingLinguisticSignal(TypedDict, total=False):
+    """Arguments for TrainingLinguisticSignal"""
+    include: 'EmbeddingIncludeFromEmbeddingRecursive1'
+
+
+class EmbeddingArgsFromTrainingLinguisticSignalRecursive1(TypedDict, total=False):
+    """Arguments for TrainingLinguisticSignal"""
+    include: 'EmbeddingIncludeFromEmbeddingRecursive2'
+
+
+class EmbeddingArgsFromTrainingLinguisticSignalRecursive2(TypedDict, total=False):
+    """Arguments for TrainingLinguisticSignal"""
+    include: 'EmbeddingIncludeFromEmbeddingRecursive3'
+
+
+class EmbeddingArgsFromTrainingLinguisticSignalRecursive3(TypedDict, total=False):
+    """Arguments for TrainingLinguisticSignal"""
+    include: 'EmbeddingIncludeFromEmbeddingRecursive4'
+
+
+class EmbeddingArgsFromTrainingLinguisticSignalRecursive4(TypedDict, total=False):
+    """Arguments for TrainingLinguisticSignal"""
+    
+    
+
+class FindManyEmbeddingArgsFromTrainingLinguisticSignal(TypedDict, total=False):
+    """Arguments for TrainingLinguisticSignal"""
+    take: int
+    skip: int
+    order_by: Union['EmbeddingOrderByInput', List['EmbeddingOrderByInput']]
+    where: 'EmbeddingWhereInput'
+    cursor: 'EmbeddingWhereUniqueInput'
+    distinct: List['EmbeddingScalarFieldKeys']
+    include: 'EmbeddingIncludeFromEmbeddingRecursive1'
+
+
+class FindManyEmbeddingArgsFromTrainingLinguisticSignalRecursive1(TypedDict, total=False):
+    """Arguments for TrainingLinguisticSignal"""
+    take: int
+    skip: int
+    order_by: Union['EmbeddingOrderByInput', List['EmbeddingOrderByInput']]
+    where: 'EmbeddingWhereInput'
+    cursor: 'EmbeddingWhereUniqueInput'
+    distinct: List['EmbeddingScalarFieldKeys']
+    include: 'EmbeddingIncludeFromEmbeddingRecursive2'
+
+
+class FindManyEmbeddingArgsFromTrainingLinguisticSignalRecursive2(TypedDict, total=False):
+    """Arguments for TrainingLinguisticSignal"""
+    take: int
+    skip: int
+    order_by: Union['EmbeddingOrderByInput', List['EmbeddingOrderByInput']]
+    where: 'EmbeddingWhereInput'
+    cursor: 'EmbeddingWhereUniqueInput'
+    distinct: List['EmbeddingScalarFieldKeys']
+    include: 'EmbeddingIncludeFromEmbeddingRecursive3'
+
+
+class FindManyEmbeddingArgsFromTrainingLinguisticSignalRecursive3(TypedDict, total=False):
+    """Arguments for TrainingLinguisticSignal"""
+    take: int
+    skip: int
+    order_by: Union['EmbeddingOrderByInput', List['EmbeddingOrderByInput']]
+    where: 'EmbeddingWhereInput'
+    cursor: 'EmbeddingWhereUniqueInput'
+    distinct: List['EmbeddingScalarFieldKeys']
+    include: 'EmbeddingIncludeFromEmbeddingRecursive4'
+
+
+class FindManyEmbeddingArgsFromTrainingLinguisticSignalRecursive4(TypedDict, total=False):
+    """Arguments for TrainingLinguisticSignal"""
+    take: int
+    skip: int
+    order_by: Union['EmbeddingOrderByInput', List['EmbeddingOrderByInput']]
+    where: 'EmbeddingWhereInput'
+    cursor: 'EmbeddingWhereUniqueInput'
+    distinct: List['EmbeddingScalarFieldKeys']
+    
+    
+
+class DriftWindowIncludeFromTrainingLinguisticSignal(TypedDict, total=False):
+    """Relational arguments for TrainingLinguisticSignal"""
+    baseline: Union[bool, 'DriftWindowArgsFromTrainingLinguisticSignalRecursive1']
+    derived: Union[bool, 'FindManyDriftWindowArgsFromTrainingLinguisticSignalRecursive1']
+    trainingJobs: Union[bool, 'FindManyTrainingJobArgsFromTrainingLinguisticSignalRecursive1']
+    linguisticSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromTrainingLinguisticSignalRecursive1']
+
+
+class DriftWindowIncludeFromTrainingLinguisticSignalRecursive1(TypedDict, total=False):
+    """Relational arguments for TrainingLinguisticSignal"""
+    baseline: Union[bool, 'DriftWindowArgsFromTrainingLinguisticSignalRecursive2']
+    derived: Union[bool, 'FindManyDriftWindowArgsFromTrainingLinguisticSignalRecursive2']
+    trainingJobs: Union[bool, 'FindManyTrainingJobArgsFromTrainingLinguisticSignalRecursive2']
+    linguisticSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromTrainingLinguisticSignalRecursive2']
+
+
+class DriftWindowIncludeFromTrainingLinguisticSignalRecursive2(TypedDict, total=False):
+    """Relational arguments for TrainingLinguisticSignal"""
+    baseline: Union[bool, 'DriftWindowArgsFromTrainingLinguisticSignalRecursive3']
+    derived: Union[bool, 'FindManyDriftWindowArgsFromTrainingLinguisticSignalRecursive3']
+    trainingJobs: Union[bool, 'FindManyTrainingJobArgsFromTrainingLinguisticSignalRecursive3']
+    linguisticSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromTrainingLinguisticSignalRecursive3']
+
+
+class DriftWindowIncludeFromTrainingLinguisticSignalRecursive3(TypedDict, total=False):
+    """Relational arguments for TrainingLinguisticSignal"""
+    baseline: Union[bool, 'DriftWindowArgsFromTrainingLinguisticSignalRecursive4']
+    derived: Union[bool, 'FindManyDriftWindowArgsFromTrainingLinguisticSignalRecursive4']
+    trainingJobs: Union[bool, 'FindManyTrainingJobArgsFromTrainingLinguisticSignalRecursive4']
+    linguisticSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromTrainingLinguisticSignalRecursive4']
+
+
+class DriftWindowIncludeFromTrainingLinguisticSignalRecursive4(TypedDict, total=False):
+    """Relational arguments for TrainingLinguisticSignal"""
+
+    
+
+class DriftWindowArgsFromTrainingLinguisticSignal(TypedDict, total=False):
+    """Arguments for TrainingLinguisticSignal"""
+    include: 'DriftWindowIncludeFromDriftWindowRecursive1'
+
+
+class DriftWindowArgsFromTrainingLinguisticSignalRecursive1(TypedDict, total=False):
+    """Arguments for TrainingLinguisticSignal"""
+    include: 'DriftWindowIncludeFromDriftWindowRecursive2'
+
+
+class DriftWindowArgsFromTrainingLinguisticSignalRecursive2(TypedDict, total=False):
+    """Arguments for TrainingLinguisticSignal"""
+    include: 'DriftWindowIncludeFromDriftWindowRecursive3'
+
+
+class DriftWindowArgsFromTrainingLinguisticSignalRecursive3(TypedDict, total=False):
+    """Arguments for TrainingLinguisticSignal"""
+    include: 'DriftWindowIncludeFromDriftWindowRecursive4'
+
+
+class DriftWindowArgsFromTrainingLinguisticSignalRecursive4(TypedDict, total=False):
+    """Arguments for TrainingLinguisticSignal"""
+    
+    
+
+class FindManyDriftWindowArgsFromTrainingLinguisticSignal(TypedDict, total=False):
+    """Arguments for TrainingLinguisticSignal"""
+    take: int
+    skip: int
+    order_by: Union['DriftWindowOrderByInput', List['DriftWindowOrderByInput']]
+    where: 'DriftWindowWhereInput'
+    cursor: 'DriftWindowWhereUniqueInput'
+    distinct: List['DriftWindowScalarFieldKeys']
+    include: 'DriftWindowIncludeFromDriftWindowRecursive1'
+
+
+class FindManyDriftWindowArgsFromTrainingLinguisticSignalRecursive1(TypedDict, total=False):
+    """Arguments for TrainingLinguisticSignal"""
+    take: int
+    skip: int
+    order_by: Union['DriftWindowOrderByInput', List['DriftWindowOrderByInput']]
+    where: 'DriftWindowWhereInput'
+    cursor: 'DriftWindowWhereUniqueInput'
+    distinct: List['DriftWindowScalarFieldKeys']
+    include: 'DriftWindowIncludeFromDriftWindowRecursive2'
+
+
+class FindManyDriftWindowArgsFromTrainingLinguisticSignalRecursive2(TypedDict, total=False):
+    """Arguments for TrainingLinguisticSignal"""
+    take: int
+    skip: int
+    order_by: Union['DriftWindowOrderByInput', List['DriftWindowOrderByInput']]
+    where: 'DriftWindowWhereInput'
+    cursor: 'DriftWindowWhereUniqueInput'
+    distinct: List['DriftWindowScalarFieldKeys']
+    include: 'DriftWindowIncludeFromDriftWindowRecursive3'
+
+
+class FindManyDriftWindowArgsFromTrainingLinguisticSignalRecursive3(TypedDict, total=False):
+    """Arguments for TrainingLinguisticSignal"""
+    take: int
+    skip: int
+    order_by: Union['DriftWindowOrderByInput', List['DriftWindowOrderByInput']]
+    where: 'DriftWindowWhereInput'
+    cursor: 'DriftWindowWhereUniqueInput'
+    distinct: List['DriftWindowScalarFieldKeys']
+    include: 'DriftWindowIncludeFromDriftWindowRecursive4'
+
+
+class FindManyDriftWindowArgsFromTrainingLinguisticSignalRecursive4(TypedDict, total=False):
+    """Arguments for TrainingLinguisticSignal"""
+    take: int
+    skip: int
+    order_by: Union['DriftWindowOrderByInput', List['DriftWindowOrderByInput']]
+    where: 'DriftWindowWhereInput'
+    cursor: 'DriftWindowWhereUniqueInput'
+    distinct: List['DriftWindowScalarFieldKeys']
+    
+    
+
+class LinguisticWindowIncludeFromTrainingLinguisticSignal(TypedDict, total=False):
+    """Relational arguments for TrainingLinguisticSignal"""
+    trainingSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromTrainingLinguisticSignalRecursive1']
+
+
+class LinguisticWindowIncludeFromTrainingLinguisticSignalRecursive1(TypedDict, total=False):
+    """Relational arguments for TrainingLinguisticSignal"""
+    trainingSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromTrainingLinguisticSignalRecursive2']
+
+
+class LinguisticWindowIncludeFromTrainingLinguisticSignalRecursive2(TypedDict, total=False):
+    """Relational arguments for TrainingLinguisticSignal"""
+    trainingSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromTrainingLinguisticSignalRecursive3']
+
+
+class LinguisticWindowIncludeFromTrainingLinguisticSignalRecursive3(TypedDict, total=False):
+    """Relational arguments for TrainingLinguisticSignal"""
+    trainingSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromTrainingLinguisticSignalRecursive4']
+
+
+class LinguisticWindowIncludeFromTrainingLinguisticSignalRecursive4(TypedDict, total=False):
+    """Relational arguments for TrainingLinguisticSignal"""
+
+    
+
+class LinguisticWindowArgsFromTrainingLinguisticSignal(TypedDict, total=False):
+    """Arguments for TrainingLinguisticSignal"""
+    include: 'LinguisticWindowIncludeFromLinguisticWindowRecursive1'
+
+
+class LinguisticWindowArgsFromTrainingLinguisticSignalRecursive1(TypedDict, total=False):
+    """Arguments for TrainingLinguisticSignal"""
+    include: 'LinguisticWindowIncludeFromLinguisticWindowRecursive2'
+
+
+class LinguisticWindowArgsFromTrainingLinguisticSignalRecursive2(TypedDict, total=False):
+    """Arguments for TrainingLinguisticSignal"""
+    include: 'LinguisticWindowIncludeFromLinguisticWindowRecursive3'
+
+
+class LinguisticWindowArgsFromTrainingLinguisticSignalRecursive3(TypedDict, total=False):
+    """Arguments for TrainingLinguisticSignal"""
+    include: 'LinguisticWindowIncludeFromLinguisticWindowRecursive4'
+
+
+class LinguisticWindowArgsFromTrainingLinguisticSignalRecursive4(TypedDict, total=False):
+    """Arguments for TrainingLinguisticSignal"""
+    
+    
+
+class FindManyLinguisticWindowArgsFromTrainingLinguisticSignal(TypedDict, total=False):
+    """Arguments for TrainingLinguisticSignal"""
+    take: int
+    skip: int
+    order_by: Union['LinguisticWindowOrderByInput', List['LinguisticWindowOrderByInput']]
+    where: 'LinguisticWindowWhereInput'
+    cursor: 'LinguisticWindowWhereUniqueInput'
+    distinct: List['LinguisticWindowScalarFieldKeys']
+    include: 'LinguisticWindowIncludeFromLinguisticWindowRecursive1'
+
+
+class FindManyLinguisticWindowArgsFromTrainingLinguisticSignalRecursive1(TypedDict, total=False):
+    """Arguments for TrainingLinguisticSignal"""
+    take: int
+    skip: int
+    order_by: Union['LinguisticWindowOrderByInput', List['LinguisticWindowOrderByInput']]
+    where: 'LinguisticWindowWhereInput'
+    cursor: 'LinguisticWindowWhereUniqueInput'
+    distinct: List['LinguisticWindowScalarFieldKeys']
+    include: 'LinguisticWindowIncludeFromLinguisticWindowRecursive2'
+
+
+class FindManyLinguisticWindowArgsFromTrainingLinguisticSignalRecursive2(TypedDict, total=False):
+    """Arguments for TrainingLinguisticSignal"""
+    take: int
+    skip: int
+    order_by: Union['LinguisticWindowOrderByInput', List['LinguisticWindowOrderByInput']]
+    where: 'LinguisticWindowWhereInput'
+    cursor: 'LinguisticWindowWhereUniqueInput'
+    distinct: List['LinguisticWindowScalarFieldKeys']
+    include: 'LinguisticWindowIncludeFromLinguisticWindowRecursive3'
+
+
+class FindManyLinguisticWindowArgsFromTrainingLinguisticSignalRecursive3(TypedDict, total=False):
+    """Arguments for TrainingLinguisticSignal"""
+    take: int
+    skip: int
+    order_by: Union['LinguisticWindowOrderByInput', List['LinguisticWindowOrderByInput']]
+    where: 'LinguisticWindowWhereInput'
+    cursor: 'LinguisticWindowWhereUniqueInput'
+    distinct: List['LinguisticWindowScalarFieldKeys']
+    include: 'LinguisticWindowIncludeFromLinguisticWindowRecursive4'
+
+
+class FindManyLinguisticWindowArgsFromTrainingLinguisticSignalRecursive4(TypedDict, total=False):
+    """Arguments for TrainingLinguisticSignal"""
+    take: int
+    skip: int
+    order_by: Union['LinguisticWindowOrderByInput', List['LinguisticWindowOrderByInput']]
+    where: 'LinguisticWindowWhereInput'
+    cursor: 'LinguisticWindowWhereUniqueInput'
+    distinct: List['LinguisticWindowScalarFieldKeys']
+    
+    
+
+class ModelVersionIncludeFromTrainingLinguisticSignal(TypedDict, total=False):
+    """Relational arguments for TrainingLinguisticSignal"""
+    trainingJob: Union[bool, 'TrainingJobArgsFromTrainingLinguisticSignalRecursive1']
+    embeddings: Union[bool, 'FindManyEmbeddingArgsFromTrainingLinguisticSignalRecursive1']
+
+
+class ModelVersionIncludeFromTrainingLinguisticSignalRecursive1(TypedDict, total=False):
+    """Relational arguments for TrainingLinguisticSignal"""
+    trainingJob: Union[bool, 'TrainingJobArgsFromTrainingLinguisticSignalRecursive2']
+    embeddings: Union[bool, 'FindManyEmbeddingArgsFromTrainingLinguisticSignalRecursive2']
+
+
+class ModelVersionIncludeFromTrainingLinguisticSignalRecursive2(TypedDict, total=False):
+    """Relational arguments for TrainingLinguisticSignal"""
+    trainingJob: Union[bool, 'TrainingJobArgsFromTrainingLinguisticSignalRecursive3']
+    embeddings: Union[bool, 'FindManyEmbeddingArgsFromTrainingLinguisticSignalRecursive3']
+
+
+class ModelVersionIncludeFromTrainingLinguisticSignalRecursive3(TypedDict, total=False):
+    """Relational arguments for TrainingLinguisticSignal"""
+    trainingJob: Union[bool, 'TrainingJobArgsFromTrainingLinguisticSignalRecursive4']
+    embeddings: Union[bool, 'FindManyEmbeddingArgsFromTrainingLinguisticSignalRecursive4']
+
+
+class ModelVersionIncludeFromTrainingLinguisticSignalRecursive4(TypedDict, total=False):
+    """Relational arguments for TrainingLinguisticSignal"""
+
+    
+
+class ModelVersionArgsFromTrainingLinguisticSignal(TypedDict, total=False):
+    """Arguments for TrainingLinguisticSignal"""
+    include: 'ModelVersionIncludeFromModelVersionRecursive1'
+
+
+class ModelVersionArgsFromTrainingLinguisticSignalRecursive1(TypedDict, total=False):
+    """Arguments for TrainingLinguisticSignal"""
+    include: 'ModelVersionIncludeFromModelVersionRecursive2'
+
+
+class ModelVersionArgsFromTrainingLinguisticSignalRecursive2(TypedDict, total=False):
+    """Arguments for TrainingLinguisticSignal"""
+    include: 'ModelVersionIncludeFromModelVersionRecursive3'
+
+
+class ModelVersionArgsFromTrainingLinguisticSignalRecursive3(TypedDict, total=False):
+    """Arguments for TrainingLinguisticSignal"""
+    include: 'ModelVersionIncludeFromModelVersionRecursive4'
+
+
+class ModelVersionArgsFromTrainingLinguisticSignalRecursive4(TypedDict, total=False):
+    """Arguments for TrainingLinguisticSignal"""
+    
+    
+
+class FindManyModelVersionArgsFromTrainingLinguisticSignal(TypedDict, total=False):
+    """Arguments for TrainingLinguisticSignal"""
+    take: int
+    skip: int
+    order_by: Union['ModelVersionOrderByInput', List['ModelVersionOrderByInput']]
+    where: 'ModelVersionWhereInput'
+    cursor: 'ModelVersionWhereUniqueInput'
+    distinct: List['ModelVersionScalarFieldKeys']
+    include: 'ModelVersionIncludeFromModelVersionRecursive1'
+
+
+class FindManyModelVersionArgsFromTrainingLinguisticSignalRecursive1(TypedDict, total=False):
+    """Arguments for TrainingLinguisticSignal"""
+    take: int
+    skip: int
+    order_by: Union['ModelVersionOrderByInput', List['ModelVersionOrderByInput']]
+    where: 'ModelVersionWhereInput'
+    cursor: 'ModelVersionWhereUniqueInput'
+    distinct: List['ModelVersionScalarFieldKeys']
+    include: 'ModelVersionIncludeFromModelVersionRecursive2'
+
+
+class FindManyModelVersionArgsFromTrainingLinguisticSignalRecursive2(TypedDict, total=False):
+    """Arguments for TrainingLinguisticSignal"""
+    take: int
+    skip: int
+    order_by: Union['ModelVersionOrderByInput', List['ModelVersionOrderByInput']]
+    where: 'ModelVersionWhereInput'
+    cursor: 'ModelVersionWhereUniqueInput'
+    distinct: List['ModelVersionScalarFieldKeys']
+    include: 'ModelVersionIncludeFromModelVersionRecursive3'
+
+
+class FindManyModelVersionArgsFromTrainingLinguisticSignalRecursive3(TypedDict, total=False):
+    """Arguments for TrainingLinguisticSignal"""
+    take: int
+    skip: int
+    order_by: Union['ModelVersionOrderByInput', List['ModelVersionOrderByInput']]
+    where: 'ModelVersionWhereInput'
+    cursor: 'ModelVersionWhereUniqueInput'
+    distinct: List['ModelVersionScalarFieldKeys']
+    include: 'ModelVersionIncludeFromModelVersionRecursive4'
+
+
+class FindManyModelVersionArgsFromTrainingLinguisticSignalRecursive4(TypedDict, total=False):
+    """Arguments for TrainingLinguisticSignal"""
+    take: int
+    skip: int
+    order_by: Union['ModelVersionOrderByInput', List['ModelVersionOrderByInput']]
+    where: 'ModelVersionWhereInput'
+    cursor: 'ModelVersionWhereUniqueInput'
+    distinct: List['ModelVersionScalarFieldKeys']
+    
+    
+
+class TrainingJobIncludeFromTrainingLinguisticSignal(TypedDict, total=False):
+    """Relational arguments for TrainingLinguisticSignal"""
+    driftWindow: Union[bool, 'DriftWindowArgsFromTrainingLinguisticSignalRecursive1']
+    modelVersion: Union[bool, 'ModelVersionArgsFromTrainingLinguisticSignalRecursive1']
+    linguisticSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromTrainingLinguisticSignalRecursive1']
+
+
+class TrainingJobIncludeFromTrainingLinguisticSignalRecursive1(TypedDict, total=False):
+    """Relational arguments for TrainingLinguisticSignal"""
+    driftWindow: Union[bool, 'DriftWindowArgsFromTrainingLinguisticSignalRecursive2']
+    modelVersion: Union[bool, 'ModelVersionArgsFromTrainingLinguisticSignalRecursive2']
+    linguisticSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromTrainingLinguisticSignalRecursive2']
+
+
+class TrainingJobIncludeFromTrainingLinguisticSignalRecursive2(TypedDict, total=False):
+    """Relational arguments for TrainingLinguisticSignal"""
+    driftWindow: Union[bool, 'DriftWindowArgsFromTrainingLinguisticSignalRecursive3']
+    modelVersion: Union[bool, 'ModelVersionArgsFromTrainingLinguisticSignalRecursive3']
+    linguisticSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromTrainingLinguisticSignalRecursive3']
+
+
+class TrainingJobIncludeFromTrainingLinguisticSignalRecursive3(TypedDict, total=False):
+    """Relational arguments for TrainingLinguisticSignal"""
+    driftWindow: Union[bool, 'DriftWindowArgsFromTrainingLinguisticSignalRecursive4']
+    modelVersion: Union[bool, 'ModelVersionArgsFromTrainingLinguisticSignalRecursive4']
+    linguisticSignals: Union[bool, 'FindManyTrainingLinguisticSignalArgsFromTrainingLinguisticSignalRecursive4']
+
+
+class TrainingJobIncludeFromTrainingLinguisticSignalRecursive4(TypedDict, total=False):
+    """Relational arguments for TrainingLinguisticSignal"""
+
+    
+
+class TrainingJobArgsFromTrainingLinguisticSignal(TypedDict, total=False):
+    """Arguments for TrainingLinguisticSignal"""
+    include: 'TrainingJobIncludeFromTrainingJobRecursive1'
+
+
+class TrainingJobArgsFromTrainingLinguisticSignalRecursive1(TypedDict, total=False):
+    """Arguments for TrainingLinguisticSignal"""
+    include: 'TrainingJobIncludeFromTrainingJobRecursive2'
+
+
+class TrainingJobArgsFromTrainingLinguisticSignalRecursive2(TypedDict, total=False):
+    """Arguments for TrainingLinguisticSignal"""
+    include: 'TrainingJobIncludeFromTrainingJobRecursive3'
+
+
+class TrainingJobArgsFromTrainingLinguisticSignalRecursive3(TypedDict, total=False):
+    """Arguments for TrainingLinguisticSignal"""
+    include: 'TrainingJobIncludeFromTrainingJobRecursive4'
+
+
+class TrainingJobArgsFromTrainingLinguisticSignalRecursive4(TypedDict, total=False):
+    """Arguments for TrainingLinguisticSignal"""
+    
+    
+
+class FindManyTrainingJobArgsFromTrainingLinguisticSignal(TypedDict, total=False):
+    """Arguments for TrainingLinguisticSignal"""
+    take: int
+    skip: int
+    order_by: Union['TrainingJobOrderByInput', List['TrainingJobOrderByInput']]
+    where: 'TrainingJobWhereInput'
+    cursor: 'TrainingJobWhereUniqueInput'
+    distinct: List['TrainingJobScalarFieldKeys']
+    include: 'TrainingJobIncludeFromTrainingJobRecursive1'
+
+
+class FindManyTrainingJobArgsFromTrainingLinguisticSignalRecursive1(TypedDict, total=False):
+    """Arguments for TrainingLinguisticSignal"""
+    take: int
+    skip: int
+    order_by: Union['TrainingJobOrderByInput', List['TrainingJobOrderByInput']]
+    where: 'TrainingJobWhereInput'
+    cursor: 'TrainingJobWhereUniqueInput'
+    distinct: List['TrainingJobScalarFieldKeys']
+    include: 'TrainingJobIncludeFromTrainingJobRecursive2'
+
+
+class FindManyTrainingJobArgsFromTrainingLinguisticSignalRecursive2(TypedDict, total=False):
+    """Arguments for TrainingLinguisticSignal"""
+    take: int
+    skip: int
+    order_by: Union['TrainingJobOrderByInput', List['TrainingJobOrderByInput']]
+    where: 'TrainingJobWhereInput'
+    cursor: 'TrainingJobWhereUniqueInput'
+    distinct: List['TrainingJobScalarFieldKeys']
+    include: 'TrainingJobIncludeFromTrainingJobRecursive3'
+
+
+class FindManyTrainingJobArgsFromTrainingLinguisticSignalRecursive3(TypedDict, total=False):
+    """Arguments for TrainingLinguisticSignal"""
+    take: int
+    skip: int
+    order_by: Union['TrainingJobOrderByInput', List['TrainingJobOrderByInput']]
+    where: 'TrainingJobWhereInput'
+    cursor: 'TrainingJobWhereUniqueInput'
+    distinct: List['TrainingJobScalarFieldKeys']
+    include: 'TrainingJobIncludeFromTrainingJobRecursive4'
+
+
+class FindManyTrainingJobArgsFromTrainingLinguisticSignalRecursive4(TypedDict, total=False):
+    """Arguments for TrainingLinguisticSignal"""
+    take: int
+    skip: int
+    order_by: Union['TrainingJobOrderByInput', List['TrainingJobOrderByInput']]
+    where: 'TrainingJobWhereInput'
+    cursor: 'TrainingJobWhereUniqueInput'
+    distinct: List['TrainingJobScalarFieldKeys']
+    
+    
+
+class TrainingLinguisticSignalIncludeFromTrainingLinguisticSignal(TypedDict, total=False):
+    """Relational arguments for TrainingLinguisticSignal"""
+    trainingJob: Union[bool, 'TrainingJobArgsFromTrainingLinguisticSignalRecursive1']
+    linguisticWindow: Union[bool, 'LinguisticWindowArgsFromTrainingLinguisticSignalRecursive1']
+    driftWindow: Union[bool, 'DriftWindowArgsFromTrainingLinguisticSignalRecursive1']
+
+
+class TrainingLinguisticSignalIncludeFromTrainingLinguisticSignalRecursive1(TypedDict, total=False):
+    """Relational arguments for TrainingLinguisticSignal"""
+    trainingJob: Union[bool, 'TrainingJobArgsFromTrainingLinguisticSignalRecursive2']
+    linguisticWindow: Union[bool, 'LinguisticWindowArgsFromTrainingLinguisticSignalRecursive2']
+    driftWindow: Union[bool, 'DriftWindowArgsFromTrainingLinguisticSignalRecursive2']
+
+
+class TrainingLinguisticSignalIncludeFromTrainingLinguisticSignalRecursive2(TypedDict, total=False):
+    """Relational arguments for TrainingLinguisticSignal"""
+    trainingJob: Union[bool, 'TrainingJobArgsFromTrainingLinguisticSignalRecursive3']
+    linguisticWindow: Union[bool, 'LinguisticWindowArgsFromTrainingLinguisticSignalRecursive3']
+    driftWindow: Union[bool, 'DriftWindowArgsFromTrainingLinguisticSignalRecursive3']
+
+
+class TrainingLinguisticSignalIncludeFromTrainingLinguisticSignalRecursive3(TypedDict, total=False):
+    """Relational arguments for TrainingLinguisticSignal"""
+    trainingJob: Union[bool, 'TrainingJobArgsFromTrainingLinguisticSignalRecursive4']
+    linguisticWindow: Union[bool, 'LinguisticWindowArgsFromTrainingLinguisticSignalRecursive4']
+    driftWindow: Union[bool, 'DriftWindowArgsFromTrainingLinguisticSignalRecursive4']
+
+
+class TrainingLinguisticSignalIncludeFromTrainingLinguisticSignalRecursive4(TypedDict, total=False):
+    """Relational arguments for TrainingLinguisticSignal"""
+
+    
+
+class TrainingLinguisticSignalArgsFromTrainingLinguisticSignal(TypedDict, total=False):
+    """Arguments for TrainingLinguisticSignal"""
+    include: 'TrainingLinguisticSignalIncludeFromTrainingLinguisticSignalRecursive1'
+
+
+class TrainingLinguisticSignalArgsFromTrainingLinguisticSignalRecursive1(TypedDict, total=False):
+    """Arguments for TrainingLinguisticSignal"""
+    include: 'TrainingLinguisticSignalIncludeFromTrainingLinguisticSignalRecursive2'
+
+
+class TrainingLinguisticSignalArgsFromTrainingLinguisticSignalRecursive2(TypedDict, total=False):
+    """Arguments for TrainingLinguisticSignal"""
+    include: 'TrainingLinguisticSignalIncludeFromTrainingLinguisticSignalRecursive3'
+
+
+class TrainingLinguisticSignalArgsFromTrainingLinguisticSignalRecursive3(TypedDict, total=False):
+    """Arguments for TrainingLinguisticSignal"""
+    include: 'TrainingLinguisticSignalIncludeFromTrainingLinguisticSignalRecursive4'
+
+
+class TrainingLinguisticSignalArgsFromTrainingLinguisticSignalRecursive4(TypedDict, total=False):
+    """Arguments for TrainingLinguisticSignal"""
+    
+    
+
+class FindManyTrainingLinguisticSignalArgsFromTrainingLinguisticSignal(TypedDict, total=False):
+    """Arguments for TrainingLinguisticSignal"""
+    take: int
+    skip: int
+    order_by: Union['TrainingLinguisticSignalOrderByInput', List['TrainingLinguisticSignalOrderByInput']]
+    where: 'TrainingLinguisticSignalWhereInput'
+    cursor: 'TrainingLinguisticSignalWhereUniqueInput'
+    distinct: List['TrainingLinguisticSignalScalarFieldKeys']
+    include: 'TrainingLinguisticSignalIncludeFromTrainingLinguisticSignalRecursive1'
+
+
+class FindManyTrainingLinguisticSignalArgsFromTrainingLinguisticSignalRecursive1(TypedDict, total=False):
+    """Arguments for TrainingLinguisticSignal"""
+    take: int
+    skip: int
+    order_by: Union['TrainingLinguisticSignalOrderByInput', List['TrainingLinguisticSignalOrderByInput']]
+    where: 'TrainingLinguisticSignalWhereInput'
+    cursor: 'TrainingLinguisticSignalWhereUniqueInput'
+    distinct: List['TrainingLinguisticSignalScalarFieldKeys']
+    include: 'TrainingLinguisticSignalIncludeFromTrainingLinguisticSignalRecursive2'
+
+
+class FindManyTrainingLinguisticSignalArgsFromTrainingLinguisticSignalRecursive2(TypedDict, total=False):
+    """Arguments for TrainingLinguisticSignal"""
+    take: int
+    skip: int
+    order_by: Union['TrainingLinguisticSignalOrderByInput', List['TrainingLinguisticSignalOrderByInput']]
+    where: 'TrainingLinguisticSignalWhereInput'
+    cursor: 'TrainingLinguisticSignalWhereUniqueInput'
+    distinct: List['TrainingLinguisticSignalScalarFieldKeys']
+    include: 'TrainingLinguisticSignalIncludeFromTrainingLinguisticSignalRecursive3'
+
+
+class FindManyTrainingLinguisticSignalArgsFromTrainingLinguisticSignalRecursive3(TypedDict, total=False):
+    """Arguments for TrainingLinguisticSignal"""
+    take: int
+    skip: int
+    order_by: Union['TrainingLinguisticSignalOrderByInput', List['TrainingLinguisticSignalOrderByInput']]
+    where: 'TrainingLinguisticSignalWhereInput'
+    cursor: 'TrainingLinguisticSignalWhereUniqueInput'
+    distinct: List['TrainingLinguisticSignalScalarFieldKeys']
+    include: 'TrainingLinguisticSignalIncludeFromTrainingLinguisticSignalRecursive4'
+
+
+class FindManyTrainingLinguisticSignalArgsFromTrainingLinguisticSignalRecursive4(TypedDict, total=False):
+    """Arguments for TrainingLinguisticSignal"""
+    take: int
+    skip: int
+    order_by: Union['TrainingLinguisticSignalOrderByInput', List['TrainingLinguisticSignalOrderByInput']]
+    where: 'TrainingLinguisticSignalWhereInput'
+    cursor: 'TrainingLinguisticSignalWhereUniqueInput'
+    distinct: List['TrainingLinguisticSignalScalarFieldKeys']
+    
+
+
+FindManyTrainingLinguisticSignalArgs = FindManyTrainingLinguisticSignalArgsFromTrainingLinguisticSignal
+FindFirstTrainingLinguisticSignalArgs = FindManyTrainingLinguisticSignalArgsFromTrainingLinguisticSignal
+
+
+    
+
+class TrainingLinguisticSignalWhereInput(TypedDict, total=False):
+    """TrainingLinguisticSignal arguments for searching"""
+    id: Union[_str, 'types.StringFilter']
+    trainingJobId: Union[_str, 'types.StringFilter']
+    trainingJob: 'TrainingJobRelationFilter'
+    linguisticWindowId: Union[_str, 'types.StringFilter']
+    linguisticWindow: 'LinguisticWindowRelationFilter'
+    driftWindowId: Union[None, _str, 'types.StringFilter']
+    driftWindow: 'DriftWindowRelationFilter'
+    signalWeight: Union[_float, 'types.FloatFilter']
+    createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
+
+    # should be noted that AND and NOT should be Union['TrainingLinguisticSignalWhereInputRecursive1', List['TrainingLinguisticSignalWhereInputRecursive1']]
+    # but this causes mypy to hang :/
+    AND: List['TrainingLinguisticSignalWhereInputRecursive1']
+    OR: List['TrainingLinguisticSignalWhereInputRecursive1']
+    NOT: List['TrainingLinguisticSignalWhereInputRecursive1']
+
+
+class TrainingLinguisticSignalWhereInputRecursive1(TypedDict, total=False):
+    """TrainingLinguisticSignal arguments for searching"""
+    id: Union[_str, 'types.StringFilter']
+    trainingJobId: Union[_str, 'types.StringFilter']
+    trainingJob: 'TrainingJobRelationFilter'
+    linguisticWindowId: Union[_str, 'types.StringFilter']
+    linguisticWindow: 'LinguisticWindowRelationFilter'
+    driftWindowId: Union[None, _str, 'types.StringFilter']
+    driftWindow: 'DriftWindowRelationFilter'
+    signalWeight: Union[_float, 'types.FloatFilter']
+    createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
+
+    # should be noted that AND and NOT should be Union['TrainingLinguisticSignalWhereInputRecursive2', List['TrainingLinguisticSignalWhereInputRecursive2']]
+    # but this causes mypy to hang :/
+    AND: List['TrainingLinguisticSignalWhereInputRecursive2']
+    OR: List['TrainingLinguisticSignalWhereInputRecursive2']
+    NOT: List['TrainingLinguisticSignalWhereInputRecursive2']
+
+
+class TrainingLinguisticSignalWhereInputRecursive2(TypedDict, total=False):
+    """TrainingLinguisticSignal arguments for searching"""
+    id: Union[_str, 'types.StringFilter']
+    trainingJobId: Union[_str, 'types.StringFilter']
+    trainingJob: 'TrainingJobRelationFilter'
+    linguisticWindowId: Union[_str, 'types.StringFilter']
+    linguisticWindow: 'LinguisticWindowRelationFilter'
+    driftWindowId: Union[None, _str, 'types.StringFilter']
+    driftWindow: 'DriftWindowRelationFilter'
+    signalWeight: Union[_float, 'types.FloatFilter']
+    createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
+
+    # should be noted that AND and NOT should be Union['TrainingLinguisticSignalWhereInputRecursive3', List['TrainingLinguisticSignalWhereInputRecursive3']]
+    # but this causes mypy to hang :/
+    AND: List['TrainingLinguisticSignalWhereInputRecursive3']
+    OR: List['TrainingLinguisticSignalWhereInputRecursive3']
+    NOT: List['TrainingLinguisticSignalWhereInputRecursive3']
+
+
+class TrainingLinguisticSignalWhereInputRecursive3(TypedDict, total=False):
+    """TrainingLinguisticSignal arguments for searching"""
+    id: Union[_str, 'types.StringFilter']
+    trainingJobId: Union[_str, 'types.StringFilter']
+    trainingJob: 'TrainingJobRelationFilter'
+    linguisticWindowId: Union[_str, 'types.StringFilter']
+    linguisticWindow: 'LinguisticWindowRelationFilter'
+    driftWindowId: Union[None, _str, 'types.StringFilter']
+    driftWindow: 'DriftWindowRelationFilter'
+    signalWeight: Union[_float, 'types.FloatFilter']
+    createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
+
+    # should be noted that AND and NOT should be Union['TrainingLinguisticSignalWhereInputRecursive4', List['TrainingLinguisticSignalWhereInputRecursive4']]
+    # but this causes mypy to hang :/
+    AND: List['TrainingLinguisticSignalWhereInputRecursive4']
+    OR: List['TrainingLinguisticSignalWhereInputRecursive4']
+    NOT: List['TrainingLinguisticSignalWhereInputRecursive4']
+
+
+class TrainingLinguisticSignalWhereInputRecursive4(TypedDict, total=False):
+    """TrainingLinguisticSignal arguments for searching"""
+    id: Union[_str, 'types.StringFilter']
+    trainingJobId: Union[_str, 'types.StringFilter']
+    trainingJob: 'TrainingJobRelationFilter'
+    linguisticWindowId: Union[_str, 'types.StringFilter']
+    linguisticWindow: 'LinguisticWindowRelationFilter'
+    driftWindowId: Union[None, _str, 'types.StringFilter']
+    driftWindow: 'DriftWindowRelationFilter'
+    signalWeight: Union[_float, 'types.FloatFilter']
+    createdAt: Union[datetime.datetime, 'types.DateTimeFilter']
+
+
+
+# aggregate TrainingLinguisticSignal types
+
+
+    
+
+class TrainingLinguisticSignalScalarWhereWithAggregatesInput(TypedDict, total=False):
+    """TrainingLinguisticSignal arguments for searching"""
+    id: Union[_str, 'types.StringWithAggregatesFilter']
+    trainingJobId: Union[_str, 'types.StringWithAggregatesFilter']
+    linguisticWindowId: Union[_str, 'types.StringWithAggregatesFilter']
+    driftWindowId: Union[_str, 'types.StringWithAggregatesFilter']
+    signalWeight: Union[_float, 'types.FloatWithAggregatesFilter']
+    createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
+
+    AND: List['TrainingLinguisticSignalScalarWhereWithAggregatesInputRecursive1']
+    OR: List['TrainingLinguisticSignalScalarWhereWithAggregatesInputRecursive1']
+    NOT: List['TrainingLinguisticSignalScalarWhereWithAggregatesInputRecursive1']
+
+
+class TrainingLinguisticSignalScalarWhereWithAggregatesInputRecursive1(TypedDict, total=False):
+    """TrainingLinguisticSignal arguments for searching"""
+    id: Union[_str, 'types.StringWithAggregatesFilter']
+    trainingJobId: Union[_str, 'types.StringWithAggregatesFilter']
+    linguisticWindowId: Union[_str, 'types.StringWithAggregatesFilter']
+    driftWindowId: Union[_str, 'types.StringWithAggregatesFilter']
+    signalWeight: Union[_float, 'types.FloatWithAggregatesFilter']
+    createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
+
+    AND: List['TrainingLinguisticSignalScalarWhereWithAggregatesInputRecursive2']
+    OR: List['TrainingLinguisticSignalScalarWhereWithAggregatesInputRecursive2']
+    NOT: List['TrainingLinguisticSignalScalarWhereWithAggregatesInputRecursive2']
+
+
+class TrainingLinguisticSignalScalarWhereWithAggregatesInputRecursive2(TypedDict, total=False):
+    """TrainingLinguisticSignal arguments for searching"""
+    id: Union[_str, 'types.StringWithAggregatesFilter']
+    trainingJobId: Union[_str, 'types.StringWithAggregatesFilter']
+    linguisticWindowId: Union[_str, 'types.StringWithAggregatesFilter']
+    driftWindowId: Union[_str, 'types.StringWithAggregatesFilter']
+    signalWeight: Union[_float, 'types.FloatWithAggregatesFilter']
+    createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
+
+    AND: List['TrainingLinguisticSignalScalarWhereWithAggregatesInputRecursive3']
+    OR: List['TrainingLinguisticSignalScalarWhereWithAggregatesInputRecursive3']
+    NOT: List['TrainingLinguisticSignalScalarWhereWithAggregatesInputRecursive3']
+
+
+class TrainingLinguisticSignalScalarWhereWithAggregatesInputRecursive3(TypedDict, total=False):
+    """TrainingLinguisticSignal arguments for searching"""
+    id: Union[_str, 'types.StringWithAggregatesFilter']
+    trainingJobId: Union[_str, 'types.StringWithAggregatesFilter']
+    linguisticWindowId: Union[_str, 'types.StringWithAggregatesFilter']
+    driftWindowId: Union[_str, 'types.StringWithAggregatesFilter']
+    signalWeight: Union[_float, 'types.FloatWithAggregatesFilter']
+    createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
+
+    AND: List['TrainingLinguisticSignalScalarWhereWithAggregatesInputRecursive4']
+    OR: List['TrainingLinguisticSignalScalarWhereWithAggregatesInputRecursive4']
+    NOT: List['TrainingLinguisticSignalScalarWhereWithAggregatesInputRecursive4']
+
+
+class TrainingLinguisticSignalScalarWhereWithAggregatesInputRecursive4(TypedDict, total=False):
+    """TrainingLinguisticSignal arguments for searching"""
+    id: Union[_str, 'types.StringWithAggregatesFilter']
+    trainingJobId: Union[_str, 'types.StringWithAggregatesFilter']
+    linguisticWindowId: Union[_str, 'types.StringWithAggregatesFilter']
+    driftWindowId: Union[_str, 'types.StringWithAggregatesFilter']
+    signalWeight: Union[_float, 'types.FloatWithAggregatesFilter']
+    createdAt: Union[datetime.datetime, 'types.DateTimeWithAggregatesFilter']
+
+
+
+class TrainingLinguisticSignalGroupByOutput(TypedDict, total=False):
+    id: _str
+    trainingJobId: _str
+    linguisticWindowId: _str
+    driftWindowId: _str
+    signalWeight: _float
+    createdAt: datetime.datetime
+    _sum: 'TrainingLinguisticSignalSumAggregateOutput'
+    _avg: 'TrainingLinguisticSignalAvgAggregateOutput'
+    _min: 'TrainingLinguisticSignalMinAggregateOutput'
+    _max: 'TrainingLinguisticSignalMaxAggregateOutput'
+    _count: 'TrainingLinguisticSignalCountAggregateOutput'
+
+
+class TrainingLinguisticSignalAvgAggregateOutput(TypedDict, total=False):
+    """TrainingLinguisticSignal output for aggregating averages"""
+    signalWeight: float
+
+
+class TrainingLinguisticSignalSumAggregateOutput(TypedDict, total=False):
+    """TrainingLinguisticSignal output for aggregating sums"""
+    signalWeight: _float
+
+
+class TrainingLinguisticSignalScalarAggregateOutput(TypedDict, total=False):
+    """TrainingLinguisticSignal output including scalar fields"""
+    id: _str
+    trainingJobId: _str
+    linguisticWindowId: _str
+    driftWindowId: _str
+    signalWeight: _float
+    createdAt: datetime.datetime
+
+
+TrainingLinguisticSignalMinAggregateOutput = TrainingLinguisticSignalScalarAggregateOutput
+TrainingLinguisticSignalMaxAggregateOutput = TrainingLinguisticSignalScalarAggregateOutput
+
+
+class TrainingLinguisticSignalMaxAggregateInput(TypedDict, total=False):
+    """TrainingLinguisticSignal input for aggregating by max"""
+    id: bool
+    trainingJobId: bool
+    linguisticWindowId: bool
+    driftWindowId: bool
+    signalWeight: bool
+    createdAt: bool
+
+
+class TrainingLinguisticSignalMinAggregateInput(TypedDict, total=False):
+    """TrainingLinguisticSignal input for aggregating by min"""
+    id: bool
+    trainingJobId: bool
+    linguisticWindowId: bool
+    driftWindowId: bool
+    signalWeight: bool
+    createdAt: bool
+
+
+class TrainingLinguisticSignalNumberAggregateInput(TypedDict, total=False):
+    """TrainingLinguisticSignal input for aggregating numbers"""
+    signalWeight: bool
+
+
+TrainingLinguisticSignalAvgAggregateInput = TrainingLinguisticSignalNumberAggregateInput
+TrainingLinguisticSignalSumAggregateInput = TrainingLinguisticSignalNumberAggregateInput
+
+
+TrainingLinguisticSignalCountAggregateInput = TypedDict(
+    'TrainingLinguisticSignalCountAggregateInput',
+    {
+        'id': bool,
+        'trainingJobId': bool,
+        'linguisticWindowId': bool,
+        'driftWindowId': bool,
+        'signalWeight': bool,
+        'createdAt': bool,
+        '_all': bool,
+    },
+    total=False,
+)
+
+TrainingLinguisticSignalCountAggregateOutput = TypedDict(
+    'TrainingLinguisticSignalCountAggregateOutput',
+    {
+        'id': int,
+        'trainingJobId': int,
+        'linguisticWindowId': int,
+        'driftWindowId': int,
+        'signalWeight': int,
+        'createdAt': int,
+        '_all': int,
+    },
+    total=False,
+)
+
+
+TrainingLinguisticSignalKeys = Literal[
+    'id',
+    'trainingJobId',
+    'trainingJob',
+    'linguisticWindowId',
+    'linguisticWindow',
+    'driftWindowId',
+    'driftWindow',
+    'signalWeight',
+    'createdAt',
+]
+TrainingLinguisticSignalScalarFieldKeys = Literal[
+    'id',
+    'trainingJobId',
+    'linguisticWindowId',
+    'driftWindowId',
+    'signalWeight',
+    'createdAt',
+]
+TrainingLinguisticSignalScalarFieldKeysT = TypeVar('TrainingLinguisticSignalScalarFieldKeysT', bound=TrainingLinguisticSignalScalarFieldKeys)
+
+TrainingLinguisticSignalRelationalFieldKeys = Literal[
+        'trainingJob',
+        'linguisticWindow',
+        'driftWindow',
     ]
 
 

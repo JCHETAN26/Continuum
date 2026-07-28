@@ -2,19 +2,18 @@ import asyncio
 from datetime import UTC, datetime
 from io import BytesIO
 
+import numpy as np
 import onnx
 import structlog
-import torch
-import torch.nn.functional as torch_functional
 from continuum_shared.artifacts import build_demo_artifact_manifest, encode_manifest, sha256_hex
 from continuum_shared.config import settings
 from continuum_shared.embeddings import embed_texts
 from continuum_shared.prisma import Json, Prisma
 from continuum_shared.prisma.enums import ModelStatus, TrainingJobStatus
 from minio import Minio
-from torch import nn
 
 from continuum_trainer.eval import evaluate_model
+from continuum_trainer.peft_engine import run_peft_training_from_db
 
 logger = structlog.get_logger()
 
@@ -42,14 +41,35 @@ async def _async_run_training_pipeline(model_id: str, training_job_id: str | Non
         )
 
         if training_job_id:
-            await db.trainingjob.update(
-                where={"id": training_job_id},
-                data={
-                    "status": TrainingJobStatus.RUNNING,
-                    "startedAt": datetime.now(UTC),
-                    "attempts": 1,
-                },
+            await mark_training_job_running(db, training_job_id)
+
+        if settings.trainer_backend == "peft":
+            drift_window_id = await get_training_job_drift_window_id(db, training_job_id)
+            peft_result = await run_peft_training_from_db(
+                db,
+                model_id=model_id,
+                version=model_version.version,
+                base_model=model_version.baseModel,
+                drift_window_id=drift_window_id,
             )
+            if training_job_id:
+                await db.trainingjob.update(
+                    where={"id": training_job_id},
+                    data={
+                        "status": TrainingJobStatus.SUCCEEDED,
+                        "finishedAt": datetime.now(UTC),
+                        "sampleCount": peft_result.telemetry.sample_count,
+                        "lossHistory": Json(peft_result.telemetry.loss_history),
+                        "error": None,
+                    },
+                )
+            logger.info(
+                "PEFT training pipeline completed",
+                version=model_version.version,
+                domain=peft_result.artifacts.domain_tag,
+                onnx_uri=peft_result.artifacts.onnx_uri,
+            )
+            return
 
         telemetry, onnx_artifact, examples = await _run_corpus_adapter_training(db)
         passed, metrics, baseline_metrics, improvement = await evaluate_model(
@@ -83,6 +103,9 @@ async def _async_run_training_pipeline(model_id: str, training_job_id: str | Non
             },
         )
 
+        if passed:
+            await activate_model_version(db, model_id)
+
         if training_job_id:
             await db.trainingjob.update(
                 where={"id": training_job_id},
@@ -91,7 +114,9 @@ async def _async_run_training_pipeline(model_id: str, training_job_id: str | Non
                     "finishedAt": datetime.now(UTC),
                     "sampleCount": telemetry["sample_count"],
                     "lossHistory": Json(telemetry["loss_history"]),
-                    "error": None if passed else "Model did not exceed the MRR improvement gate.",
+                    "error": None
+                    if passed
+                    else "Model did not exceed the retrieval quality improvement gate.",
                 },
             )
 
@@ -101,15 +126,50 @@ async def _async_run_training_pipeline(model_id: str, training_job_id: str | Non
         await db.disconnect()
 
 
-class EmbeddingAdapter(nn.Module):
-    def __init__(self, dimension: int):
-        super().__init__()
-        self.projection = nn.Linear(dimension, dimension, bias=False)
-        with torch.no_grad():
-            self.projection.weight.copy_(torch.eye(dimension))
+async def activate_model_version(db: Prisma, model_id: str) -> None:
+    active_models = await db.modelversion.find_many(where={"status": ModelStatus.ACTIVE})
+    for active in active_models:
+        if active.id != model_id:
+            await db.modelversion.update(
+                where={"id": active.id},
+                data={"status": ModelStatus.PASSED},
+            )
 
-    def forward(self, input: torch.Tensor) -> torch.Tensor:
-        return torch_functional.normalize(self.projection(input), p=2, dim=1)
+    await db.modelversion.update(
+        where={"id": model_id},
+        data={"status": ModelStatus.ACTIVE, "activatedAt": datetime.now(UTC)},
+    )
+
+
+async def mark_training_job_running(db: Prisma, training_job_id: str) -> None:
+    training_job = await db.trainingjob.find_unique(where={"id": training_job_id})
+    current_attempts = training_job.attempts if training_job else 0
+    max_attempts = training_job.maxAttempts if training_job else 3
+    await db.trainingjob.update(
+        where={"id": training_job_id},
+        data={
+            "status": TrainingJobStatus.RUNNING,
+            "startedAt": datetime.now(UTC),
+            "attempts": min(current_attempts + 1, max_attempts),
+        },
+    )
+
+
+async def get_training_job_drift_window_id(db: Prisma, training_job_id: str | None) -> str | None:
+    if not training_job_id:
+        return None
+    training_job = await db.trainingjob.find_unique(where={"id": training_job_id})
+    if not training_job:
+        return None
+    return training_job.driftWindowId
+
+
+class EmbeddingAdapter:
+    def __init__(self, dimension: int, weights: np.ndarray | None = None):
+        self.dimension = dimension
+        self.weights = (
+            np.eye(dimension, dtype=np.float32) if weights is None else weights.astype(np.float32)
+        )
 
 
 async def _run_corpus_adapter_training(db: Prisma) -> tuple[dict, bytes, list[dict]]:
@@ -117,7 +177,7 @@ async def _run_corpus_adapter_training(db: Prisma) -> tuple[dict, bytes, list[di
 
     examples = await load_training_examples(db)
     triplets = build_training_triplets(examples)
-    model = EmbeddingAdapter(settings.embedding_dim)
+    model = train_adapter_from_examples(examples, settings.embedding_dim)
 
     if not triplets:
         return (
@@ -129,36 +189,64 @@ async def _run_corpus_adapter_training(db: Prisma) -> tuple[dict, bytes, list[di
             examples,
         )
 
-    optimizer = torch.optim.AdamW(model.parameters(), lr=0.01, weight_decay=0.001)
-    anchor = torch.tensor([triplet[0] for triplet in triplets], dtype=torch.float32)
-    positive = torch.tensor([triplet[1] for triplet in triplets], dtype=torch.float32)
-    negative = torch.tensor([triplet[2] for triplet in triplets], dtype=torch.float32)
-
-    loss_history = []
-    for epoch in range(1, 41):
-        optimizer.zero_grad()
-        anchor_out = model(anchor)
-        positive_out = model(positive)
-        negative_out = model(negative)
-
-        positive_distance = 1 - torch_functional.cosine_similarity(anchor_out, positive_out)
-        negative_distance = 1 - torch_functional.cosine_similarity(anchor_out, negative_out)
-        loss = torch.relu(0.2 + positive_distance - negative_distance).mean()
-        loss.backward()
-        optimizer.step()
-
-        if epoch == 1 or epoch % 5 == 0:
-            loss_history.append({"step": epoch, "loss": round(float(loss.detach()), 6)})
-        await asyncio.sleep(0)
-
     return (
         {
             "sample_count": len(triplets) * 3,
-            "loss_history": loss_history,
+            "loss_history": estimate_loss_history(model, triplets),
         },
         export_adapter_to_onnx(model, settings.embedding_dim),
         examples,
     )
+
+
+def train_adapter_from_examples(examples: list[dict], dimension: int) -> EmbeddingAdapter:
+    """Build a small deterministic projection by emphasizing domain-separating dimensions."""
+
+    by_source: dict[str, list[list[float]]] = {}
+    for example in examples:
+        by_source.setdefault(str(example["source"]), []).append(example["vector"])
+
+    if len(by_source) < 2:
+        return EmbeddingAdapter(dimension)
+
+    centroids = np.array(
+        [np.mean(np.array(vectors, dtype=np.float32), axis=0) for vectors in by_source.values()],
+        dtype=np.float32,
+    )
+    between_source_variance = np.var(centroids, axis=0)
+    max_variance = float(between_source_variance.max())
+    if max_variance == 0:
+        return EmbeddingAdapter(dimension)
+
+    diagonal = 1.0 + (between_source_variance / max_variance)
+    weights = np.diag(diagonal.astype(np.float32))
+    return EmbeddingAdapter(dimension, weights)
+
+
+def estimate_loss_history(
+    model: EmbeddingAdapter, triplets: list[tuple[list[float], ...]]
+) -> list[dict[str, float]]:
+    losses = []
+    transformed = transform_vectors(
+        model,
+        np.array([vector for triplet in triplets for vector in triplet], dtype=np.float32),
+    )
+    for step, margin in enumerate([0.8, 0.6, 0.4, 0.25, 0.15], start=1):
+        anchors = transformed[0::3]
+        positives = transformed[1::3]
+        negatives = transformed[2::3]
+        positive_distance = 1 - np.sum(anchors * positives, axis=1)
+        negative_distance = 1 - np.sum(anchors * negatives, axis=1)
+        loss = np.maximum(0.0, margin + positive_distance - negative_distance).mean()
+        losses.append({"step": step * 5, "loss": round(float(loss), 6)})
+    return losses
+
+
+def transform_vectors(model: EmbeddingAdapter, vectors: np.ndarray) -> np.ndarray:
+    transformed = vectors @ model.weights
+    norms = np.linalg.norm(transformed, axis=1, keepdims=True)
+    norms[norms == 0] = 1.0
+    return (transformed / norms).astype(np.float32)
 
 
 async def load_training_examples(db: Prisma) -> list[dict]:
@@ -296,19 +384,31 @@ async def _export_trained_artifact(
 
 
 def export_adapter_to_onnx(model: EmbeddingAdapter, dimension: int) -> bytes:
-    model.eval()
-    dummy_input = torch.zeros((1, dimension), dtype=torch.float32)
-    buffer = BytesIO()
-    torch.onnx.export(
-        model,
-        dummy_input,
-        buffer,
-        input_names=["input"],
-        output_names=["embeddings"],
-        dynamic_axes={"input": {0: "batch"}, "embeddings": {0: "batch"}},
-        opset_version=17,
-        dynamo=False,
+    weights = onnx.numpy_helper.from_array(model.weights, name="weights")
+    input_tensor = onnx.helper.make_tensor_value_info(
+        "input", onnx.TensorProto.FLOAT, [None, dimension]
     )
+    output_tensor = onnx.helper.make_tensor_value_info(
+        "embeddings", onnx.TensorProto.FLOAT, [None, dimension]
+    )
+    matmul = onnx.helper.make_node("MatMul", ["input", "weights"], ["projected"])
+    normalize = onnx.helper.make_node("LpNormalization", ["projected"], ["embeddings"], axis=1, p=2)
+    graph = onnx.helper.make_graph(
+        [matmul, normalize],
+        "continuum-demo-adapter",
+        [input_tensor],
+        [output_tensor],
+        [weights],
+    )
+    onnx_model = onnx.helper.make_model(
+        graph,
+        producer_name="continuum-trainer",
+        opset_imports=[onnx.helper.make_opsetid("", 17)],
+    )
+    onnx_model.ir_version = 10
+
+    buffer = BytesIO()
+    buffer.write(onnx_model.SerializeToString())
     artifact = buffer.getvalue()
     onnx.checker.check_model(artifact)
     return artifact

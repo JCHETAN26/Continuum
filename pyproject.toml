@@ -12,6 +12,7 @@ members = [
     "apps/ingest",
     "apps/embedding",
     "apps/drift",
+    "apps/linguistic-drift",
     "apps/trainer",
     "apps/server",
 ]

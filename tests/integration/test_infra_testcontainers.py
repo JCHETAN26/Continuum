@@ -170,7 +170,9 @@ def test_redpanda_produce_consume_with_real_container():
     # RedpandaContainer advertises a separate OUTSIDE listener bound to the mapped host
     # port. A single-listener container can only advertise the in-container port, so
     # clients follow the broker metadata to an unreachable address and time out.
-    with PortStableRedpandaContainer("redpandadata/redpanda:v24.3.4") as redpanda:
+    redpanda = PortStableRedpandaContainer("redpandadata/redpanda:v24.3.4")
+    try:
+        redpanda.start(timeout=60)
         bootstrap = redpanda.get_bootstrap_server()
         topic = f"continuum-integration-{uuid.uuid4()}"
 
@@ -198,3 +200,5 @@ def test_redpanda_produce_consume_with_real_container():
             assert message.value() == b"ready"
         finally:
             consumer.close()
+    finally:
+        redpanda.stop()

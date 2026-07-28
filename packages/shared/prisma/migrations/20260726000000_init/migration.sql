@@ -18,12 +18,13 @@ CREATE SCHEMA IF NOT EXISTS "public";
 
 -- CreateExtension
 CREATE EXTENSION IF NOT EXISTS "vector";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- CreateEnum
 CREATE TYPE "DriftWindowSize" AS ENUM ('FIVE_MIN', 'ONE_HOUR', 'TWENTY_FOUR_HOUR');
 
 -- CreateEnum
-CREATE TYPE "ModelStatus" AS ENUM ('DRAFT', 'EVALUATING', 'PASSED', 'REJECTED', 'ACTIVE', 'ARCHIVED');
+CREATE TYPE "ModelStatus" AS ENUM ('DRAFT', 'EVALUATING', 'PENDING_EVAL', 'PASSED', 'REJECTED', 'ACTIVE', 'ARCHIVED');
 
 -- CreateEnum
 CREATE TYPE "TrainingJobStatus" AS ENUM ('QUEUED', 'RUNNING', 'SUCCEEDED', 'FAILED', 'CANCELLED');
@@ -33,7 +34,7 @@ CREATE TYPE "TrainingTrigger" AS ENUM ('DRIFT_ALERT', 'MANUAL', 'SCHEDULED');
 
 -- CreateTable
 CREATE TABLE "documents" (
-    "id" UUID NOT NULL,
+    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
     "external_id" VARCHAR(256) NOT NULL,
     "idempotency_key" VARCHAR(256) NOT NULL,
     "text" TEXT NOT NULL,
@@ -49,7 +50,7 @@ CREATE TABLE "documents" (
 
 -- CreateTable
 CREATE TABLE "embeddings" (
-    "id" UUID NOT NULL,
+    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
     "document_id" UUID NOT NULL,
     "model_version_id" UUID,
     "vector" vector(384) NOT NULL,
@@ -61,7 +62,7 @@ CREATE TABLE "embeddings" (
 
 -- CreateTable
 CREATE TABLE "drift_windows" (
-    "id" UUID NOT NULL,
+    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
     "window_size" "DriftWindowSize" NOT NULL,
     "window_start" TIMESTAMPTZ(6) NOT NULL,
     "window_end" TIMESTAMPTZ(6) NOT NULL,
@@ -79,19 +80,42 @@ CREATE TABLE "drift_windows" (
 );
 
 -- CreateTable
+CREATE TABLE "linguistic_windows" (
+    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+    "window_start" TIMESTAMPTZ(6) NOT NULL,
+    "window_end" TIMESTAMPTZ(6) NOT NULL,
+    "document_count" INTEGER NOT NULL,
+    "entity_kl_divergence" DOUBLE PRECISION NOT NULL,
+    "topic_wasserstein" DOUBLE PRECISION NOT NULL,
+    "vocab_chi2_pvalue" DOUBLE PRECISION NOT NULL,
+    "composite_score" DOUBLE PRECISION NOT NULL,
+    "threshold" DOUBLE PRECISION NOT NULL DEFAULT 0.65,
+    "breached" BOOLEAN NOT NULL DEFAULT false,
+    "new_entities" JSONB NOT NULL,
+    "emerging_topics" JSONB NOT NULL,
+    "emerging_terms" JSONB NOT NULL,
+    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "linguistic_windows_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "model_versions" (
-    "id" UUID NOT NULL,
+    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
     "version" VARCHAR(64) NOT NULL,
     "base_model" VARCHAR(256) NOT NULL,
     "status" "ModelStatus" NOT NULL DEFAULT 'DRAFT',
     "artifact_uri" VARCHAR(512),
     "artifact_sha256" CHAR(64),
     "artifact_bytes" BIGINT,
+    "domain_tag" VARCHAR(128),
+    "onnx_path" VARCHAR(512),
     "embedding_dim" INTEGER NOT NULL DEFAULT 384,
     "lora_rank" INTEGER,
     "metrics" JSONB,
     "baseline_metrics" JSONB,
     "improvement_pct" DOUBLE PRECISION,
+    "eval_mrr" DOUBLE PRECISION,
     "activated_at" TIMESTAMPTZ(6),
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ(6) NOT NULL,
@@ -101,7 +125,7 @@ CREATE TABLE "model_versions" (
 
 -- CreateTable
 CREATE TABLE "training_jobs" (
-    "id" UUID NOT NULL,
+    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
     "status" "TrainingJobStatus" NOT NULL DEFAULT 'QUEUED',
     "trigger" "TrainingTrigger" NOT NULL,
     "drift_window_id" UUID,
@@ -118,6 +142,18 @@ CREATE TABLE "training_jobs" (
     "finished_at" TIMESTAMPTZ(6),
 
     CONSTRAINT "training_jobs_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "training_linguistic_signals" (
+    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+    "training_job_id" UUID NOT NULL,
+    "linguistic_window_id" UUID NOT NULL,
+    "drift_window_id" UUID,
+    "signal_weight" DOUBLE PRECISION NOT NULL DEFAULT 1.0,
+    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "training_linguistic_signals_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex
@@ -154,6 +190,15 @@ CREATE INDEX "drift_windows_window_start_idx" ON "drift_windows"("window_start")
 CREATE UNIQUE INDEX "drift_windows_window_size_window_start_key" ON "drift_windows"("window_size", "window_start");
 
 -- CreateIndex
+CREATE INDEX "linguistic_windows_breached_window_start_idx" ON "linguistic_windows"("breached", "window_start");
+
+-- CreateIndex
+CREATE INDEX "linguistic_windows_window_start_idx" ON "linguistic_windows"("window_start");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "linguistic_windows_window_start_window_end_key" ON "linguistic_windows"("window_start", "window_end");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "model_versions_version_key" ON "model_versions"("version");
 
 -- CreateIndex
@@ -171,6 +216,18 @@ CREATE INDEX "training_jobs_status_queued_at_idx" ON "training_jobs"("status", "
 -- CreateIndex
 CREATE INDEX "training_jobs_drift_window_id_idx" ON "training_jobs"("drift_window_id");
 
+-- CreateIndex
+CREATE UNIQUE INDEX "training_jobs_trigger_drift_window_id_key" ON "training_jobs"("trigger", "drift_window_id");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "training_linguistic_signals_training_job_id_linguistic_window_id_key" ON "training_linguistic_signals"("training_job_id", "linguistic_window_id");
+
+-- CreateIndex
+CREATE INDEX "training_linguistic_signals_linguistic_window_id_idx" ON "training_linguistic_signals"("linguistic_window_id");
+
+-- CreateIndex
+CREATE INDEX "training_linguistic_signals_drift_window_id_idx" ON "training_linguistic_signals"("drift_window_id");
+
 -- AddForeignKey
 ALTER TABLE "embeddings" ADD CONSTRAINT "embeddings_document_id_fkey" FOREIGN KEY ("document_id") REFERENCES "documents"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
@@ -185,6 +242,15 @@ ALTER TABLE "training_jobs" ADD CONSTRAINT "training_jobs_drift_window_id_fkey" 
 
 -- AddForeignKey
 ALTER TABLE "training_jobs" ADD CONSTRAINT "training_jobs_model_version_id_fkey" FOREIGN KEY ("model_version_id") REFERENCES "model_versions"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "training_linguistic_signals" ADD CONSTRAINT "training_linguistic_signals_training_job_id_fkey" FOREIGN KEY ("training_job_id") REFERENCES "training_jobs"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "training_linguistic_signals" ADD CONSTRAINT "training_linguistic_signals_linguistic_window_id_fkey" FOREIGN KEY ("linguistic_window_id") REFERENCES "linguistic_windows"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "training_linguistic_signals" ADD CONSTRAINT "training_linguistic_signals_drift_window_id_fkey" FOREIGN KEY ("drift_window_id") REFERENCES "drift_windows"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- ===========================================================================
 -- Hand-authored: not expressible in the Prisma schema language
@@ -233,6 +299,15 @@ ALTER TABLE "drift_windows"
     ADD CONSTRAINT "drift_windows_centroid_presence_check"
         CHECK (("document_count" = 0) = ("centroid" IS NULL));
 
+ALTER TABLE "linguistic_windows"
+    ADD CONSTRAINT "linguistic_windows_interval_check" CHECK ("window_end" > "window_start"),
+    ADD CONSTRAINT "linguistic_windows_document_count_check" CHECK ("document_count" >= 0),
+    ADD CONSTRAINT "linguistic_windows_entity_kl_check" CHECK ("entity_kl_divergence" >= 0),
+    ADD CONSTRAINT "linguistic_windows_topic_wasserstein_check" CHECK ("topic_wasserstein" >= 0),
+    ADD CONSTRAINT "linguistic_windows_vocab_pvalue_check" CHECK ("vocab_chi2_pvalue" >= 0 AND "vocab_chi2_pvalue" <= 1),
+    ADD CONSTRAINT "linguistic_windows_composite_score_check" CHECK ("composite_score" >= 0 AND "composite_score" <= 1),
+    ADD CONSTRAINT "linguistic_windows_threshold_check" CHECK ("threshold" >= 0 AND "threshold" <= 1);
+
 -- Content and artifact digests are lowercase hex SHA-256. Enforcing the shape here keeps
 -- deduplication and artifact-integrity checks from being defeated by casing drift.
 ALTER TABLE "documents"
@@ -247,3 +322,6 @@ ALTER TABLE "model_versions"
 ALTER TABLE "training_jobs"
     ADD CONSTRAINT "training_jobs_max_attempts_check" CHECK ("max_attempts" >= 1),
     ADD CONSTRAINT "training_jobs_attempts_check" CHECK ("attempts" >= 0 AND "attempts" <= "max_attempts");
+
+ALTER TABLE "training_linguistic_signals"
+    ADD CONSTRAINT "training_linguistic_signals_weight_check" CHECK ("signal_weight" >= 0 AND "signal_weight" <= 1);

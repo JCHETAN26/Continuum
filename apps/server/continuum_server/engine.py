@@ -15,6 +15,8 @@ from continuum_shared.prisma.enums import ModelStatus
 from minio import Minio
 from tokenizers import Tokenizer
 
+from continuum_server.rollback import ModelRollbackPolicy
+
 logger = structlog.get_logger()
 
 
@@ -29,6 +31,7 @@ class ModelEngine:
         self.dimension: int = 384
         self._lock = asyncio.Lock()
         self.db = Prisma()
+        self.rollback_policy = ModelRollbackPolicy.from_env()
 
     async def connect(self):
         await self.db.connect()
@@ -60,6 +63,7 @@ class ModelEngine:
             return  # Unchanged
 
         logger.info("New ACTIVE model detected, initiating hot-swap", version=active_model.version)
+        previous_version = self.current_version
 
         try:
             manifest = await self._load_artifact_manifest(
@@ -78,9 +82,85 @@ class ModelEngine:
                 self.session = session
                 self.onnx_input_name = input_name
                 self.onnx_output_name = output_name
+                self.rollback_policy.note_activation(previous_version, active_model.version)
                 logger.info("Hot-swap complete", version=self.current_version)
         except Exception as e:
             logger.error("Failed to load new model", error=str(e), version=active_model.version)
+
+    async def record_request_metric(
+        self, model_version: str, *, status_code: int, latency_ms: float
+    ) -> None:
+        self.rollback_policy.record(
+            model_version,
+            status_code=status_code,
+            latency_ms=latency_ms,
+        )
+        try:
+            await self.db.execute_raw(
+                """
+                INSERT INTO model_request_metrics (model_version, status_code, latency_ms)
+                VALUES ($1, $2, $3)
+                """,
+                model_version,
+                status_code,
+                latency_ms,
+            )
+        except Exception as e:
+            logger.debug("Unable to persist request metric", error=str(e))
+
+    async def rollback_if_needed(self):
+        decision = await self.rollback_policy.rollback_if_needed(
+            self.current_version,
+            self._activate_previous_model,
+        )
+        if decision.should_rollback:
+            await self._log_rollback_event(decision)
+            logger.error(
+                "Model rollback executed",
+                failed_version=decision.model_version,
+                restored_version=decision.previous_version,
+                error_rate=decision.error_rate,
+                request_count=decision.request_count,
+            )
+        return decision
+
+    async def _activate_previous_model(self, failed_version: str, previous_version: str) -> None:
+        async with self.db.tx() as tx:
+            previous = await tx.modelversion.find_unique(where={"version": previous_version})
+            failed = await tx.modelversion.find_unique(where={"version": failed_version})
+            if not previous or not failed:
+                raise RuntimeError("Rollback target model no longer exists.")
+            await tx.modelversion.update(
+                where={"id": failed.id},
+                data={"status": ModelStatus.ARCHIVED},
+            )
+            await tx.modelversion.update(
+                where={"id": previous.id},
+                data={"status": ModelStatus.ACTIVE, "activatedAt": datetime.now(UTC)},
+            )
+        await self.poll_active_model()
+
+    async def _log_rollback_event(self, decision) -> None:
+        if not decision.model_version or not decision.previous_version:
+            return
+        try:
+            await self.db.execute_raw(
+                """
+                INSERT INTO model_rollbacks (
+                    failed_version,
+                    restored_version,
+                    error_rate,
+                    request_count
+                )
+                VALUES ($1, $2, $3, $4)
+                """,
+                decision.model_version,
+                decision.previous_version,
+                decision.error_rate,
+                decision.request_count,
+            )
+        except Exception as e:
+            logger.debug("Unable to persist rollback audit event", error=str(e))
 
     async def embed_batch(
         self, texts: list[str], model_version: str = "auto"

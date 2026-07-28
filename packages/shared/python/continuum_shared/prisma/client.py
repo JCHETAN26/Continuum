@@ -88,7 +88,7 @@ log: logging.Logger = logging.getLogger(__name__)
 SCHEMA_PATH = Path('/Users/chetan/Continuum/Continuum/packages/shared/prisma/schema.prisma')
 PACKAGED_SCHEMA_PATH = Path(__file__).parent.joinpath('schema.prisma')
 ENGINE_TYPE: EngineType = EngineType.binary
-BINARY_PATHS = model_parse(BinaryPaths, {'queryEngine': {'darwin-arm64': '/Users/chetan/.npm/_npx/cc9dcd50cd5d7787/node_modules/prisma/query-engine-darwin-arm64'}, 'introspectionEngine': {}, 'migrationEngine': {}, 'libqueryEngine': {}, 'prismaFmt': {}})
+BINARY_PATHS = model_parse(BinaryPaths, {'queryEngine': {'darwin-arm64': '/Users/chetan/.cache/prisma-python/binaries/5.17.0/393aa359c9ad4a4bb28630fb5613f9c281cde053/node_modules/prisma/query-engine-darwin-arm64'}, 'introspectionEngine': {}, 'migrationEngine': {}, 'libqueryEngine': {}, 'prismaFmt': {}})
 
 
 class Prisma(AsyncBasePrisma):
@@ -97,15 +97,19 @@ class Prisma(AsyncBasePrisma):
     document: 'actions.DocumentActions[models.Document]'
     embedding: 'actions.EmbeddingActions[models.Embedding]'
     driftwindow: 'actions.DriftWindowActions[models.DriftWindow]'
+    linguisticwindow: 'actions.LinguisticWindowActions[models.LinguisticWindow]'
     modelversion: 'actions.ModelVersionActions[models.ModelVersion]'
     trainingjob: 'actions.TrainingJobActions[models.TrainingJob]'
+    traininglinguisticsignal: 'actions.TrainingLinguisticSignalActions[models.TrainingLinguisticSignal]'
 
     __slots__ = (
         'document',
         'embedding',
         'driftwindow',
+        'linguisticwindow',
         'modelversion',
         'trainingjob',
+        'traininglinguisticsignal',
     )
 
     def __init__(
@@ -139,8 +143,10 @@ class Prisma(AsyncBasePrisma):
         self.document = actions.DocumentActions[models.Document](self, models.Document)
         self.embedding = actions.EmbeddingActions[models.Embedding](self, models.Embedding)
         self.driftwindow = actions.DriftWindowActions[models.DriftWindow](self, models.DriftWindow)
+        self.linguisticwindow = actions.LinguisticWindowActions[models.LinguisticWindow](self, models.LinguisticWindow)
         self.modelversion = actions.ModelVersionActions[models.ModelVersion](self, models.ModelVersion)
         self.trainingjob = actions.TrainingJobActions[models.TrainingJob](self, models.TrainingJob)
+        self.traininglinguisticsignal = actions.TrainingLinguisticSignalActions[models.TrainingLinguisticSignal](self, models.TrainingLinguisticSignal)
 
         if auto_register:
             register(self)
@@ -294,8 +300,10 @@ class Batch:
     document: 'DocumentBatchActions'
     embedding: 'EmbeddingBatchActions'
     driftwindow: 'DriftWindowBatchActions'
+    linguisticwindow: 'LinguisticWindowBatchActions'
     modelversion: 'ModelVersionBatchActions'
     trainingjob: 'TrainingJobBatchActions'
+    traininglinguisticsignal: 'TrainingLinguisticSignalBatchActions'
 
     def __init__(self, client: Prisma) -> None:
         self.__client = client
@@ -304,8 +312,10 @@ class Batch:
         self.document = DocumentBatchActions(self)
         self.embedding = EmbeddingBatchActions(self)
         self.driftwindow = DriftWindowBatchActions(self)
+        self.linguisticwindow = LinguisticWindowBatchActions(self)
         self.modelversion = ModelVersionBatchActions(self)
         self.trainingjob = TrainingJobBatchActions(self)
+        self.traininglinguisticsignal = TrainingLinguisticSignalBatchActions(self)
 
     def _add(self, **kwargs: Any) -> None:
         builder = QueryBuilder(
@@ -693,6 +703,117 @@ class DriftWindowBatchActions:
 
 # NOTE: some arguments are meaningless in this context but are included
 # for completeness sake
+class LinguisticWindowBatchActions:
+    def __init__(self, batcher: Batch) -> None:
+        self._batcher = batcher
+
+    def create(
+        self,
+        data: types.LinguisticWindowCreateInput,
+        include: Optional[types.LinguisticWindowInclude] = None
+    ) -> None:
+        self._batcher._add(
+            method='create',
+            model=models.LinguisticWindow,
+            arguments={
+                'data': data,
+                'include': include,
+            },
+        )
+
+    def create_many(
+        self,
+        data: List[types.LinguisticWindowCreateWithoutRelationsInput],
+        *,
+        skip_duplicates: Optional[bool] = None,
+    ) -> None:
+        if skip_duplicates and self._batcher._active_provider in CREATE_MANY_SKIP_DUPLICATES_UNSUPPORTED:
+            raise errors.UnsupportedDatabaseError(self._batcher._active_provider, 'create_many_skip_duplicates')
+
+        self._batcher._add(
+            method='create_many',
+            model=models.LinguisticWindow,
+            arguments={
+                'data': data,
+                'skipDuplicates': skip_duplicates,
+            },
+            root_selection=['count'],
+        )
+
+    def delete(
+        self,
+        where: types.LinguisticWindowWhereUniqueInput,
+        include: Optional[types.LinguisticWindowInclude] = None,
+    ) -> None:
+        self._batcher._add(
+            method='delete',
+            model=models.LinguisticWindow,
+            arguments={
+                'where': where,
+                'include': include,
+            },
+        )
+
+    def update(
+        self,
+        data: types.LinguisticWindowUpdateInput,
+        where: types.LinguisticWindowWhereUniqueInput,
+        include: Optional[types.LinguisticWindowInclude] = None
+    ) -> None:
+        self._batcher._add(
+            method='update',
+            model=models.LinguisticWindow,
+            arguments={
+                'data': data,
+                'where': where,
+                'include': include,
+            },
+        )
+
+    def upsert(
+        self,
+        where: types.LinguisticWindowWhereUniqueInput,
+        data: types.LinguisticWindowUpsertInput,
+        include: Optional[types.LinguisticWindowInclude] = None,
+    ) -> None:
+        self._batcher._add(
+            method='upsert',
+            model=models.LinguisticWindow,
+            arguments={
+                'where': where,
+                'include': include,
+                'create': data.get('create'),
+                'update': data.get('update'),
+            },
+        )
+
+    def update_many(
+        self,
+        data: types.LinguisticWindowUpdateManyMutationInput,
+        where: types.LinguisticWindowWhereInput,
+    ) -> None:
+        self._batcher._add(
+            method='update_many',
+            model=models.LinguisticWindow,
+            arguments={'data': data, 'where': where,},
+            root_selection=['count'],
+        )
+
+    def delete_many(
+        self,
+        where: Optional[types.LinguisticWindowWhereInput] = None,
+    ) -> None:
+        self._batcher._add(
+            method='delete_many',
+            model=models.LinguisticWindow,
+            arguments={'where': where},
+            root_selection=['count'],
+        )
+
+
+
+# NOTE: some arguments are meaningless in this context but are included
+# for completeness sake
 class ModelVersionBatchActions:
     def __init__(self, batcher: Batch) -> None:
         self._batcher = batcher
@@ -907,6 +1028,117 @@ class TrainingJobBatchActions:
         self._batcher._add(
             method='delete_many',
             model=models.TrainingJob,
+            arguments={'where': where},
+            root_selection=['count'],
+        )
+
+
+
+# NOTE: some arguments are meaningless in this context but are included
+# for completeness sake
+class TrainingLinguisticSignalBatchActions:
+    def __init__(self, batcher: Batch) -> None:
+        self._batcher = batcher
+
+    def create(
+        self,
+        data: types.TrainingLinguisticSignalCreateInput,
+        include: Optional[types.TrainingLinguisticSignalInclude] = None
+    ) -> None:
+        self._batcher._add(
+            method='create',
+            model=models.TrainingLinguisticSignal,
+            arguments={
+                'data': data,
+                'include': include,
+            },
+        )
+
+    def create_many(
+        self,
+        data: List[types.TrainingLinguisticSignalCreateWithoutRelationsInput],
+        *,
+        skip_duplicates: Optional[bool] = None,
+    ) -> None:
+        if skip_duplicates and self._batcher._active_provider in CREATE_MANY_SKIP_DUPLICATES_UNSUPPORTED:
+            raise errors.UnsupportedDatabaseError(self._batcher._active_provider, 'create_many_skip_duplicates')
+
+        self._batcher._add(
+            method='create_many',
+            model=models.TrainingLinguisticSignal,
+            arguments={
+                'data': data,
+                'skipDuplicates': skip_duplicates,
+            },
+            root_selection=['count'],
+        )
+
+    def delete(
+        self,
+        where: types.TrainingLinguisticSignalWhereUniqueInput,
+        include: Optional[types.TrainingLinguisticSignalInclude] = None,
+    ) -> None:
+        self._batcher._add(
+            method='delete',
+            model=models.TrainingLinguisticSignal,
+            arguments={
+                'where': where,
+                'include': include,
+            },
+        )
+
+    def update(
+        self,
+        data: types.TrainingLinguisticSignalUpdateInput,
+        where: types.TrainingLinguisticSignalWhereUniqueInput,
+        include: Optional[types.TrainingLinguisticSignalInclude] = None
+    ) -> None:
+        self._batcher._add(
+            method='update',
+            model=models.TrainingLinguisticSignal,
+            arguments={
+                'data': data,
+                'where': where,
+                'include': include,
+            },
+        )
+
+    def upsert(
+        self,
+        where: types.TrainingLinguisticSignalWhereUniqueInput,
+        data: types.TrainingLinguisticSignalUpsertInput,
+        include: Optional[types.TrainingLinguisticSignalInclude] = None,
+    ) -> None:
+        self._batcher._add(
+            method='upsert',
+            model=models.TrainingLinguisticSignal,
+            arguments={
+                'where': where,
+                'include': include,
+                'create': data.get('create'),
+                'update': data.get('update'),
+            },
+        )
+
+    def update_many(
+        self,
+        data: types.TrainingLinguisticSignalUpdateManyMutationInput,
+        where: types.TrainingLinguisticSignalWhereInput,
+    ) -> None:
+        self._batcher._add(
+            method='update_many',
+            model=models.TrainingLinguisticSignal,
+            arguments={'data': data, 'where': where,},
+            root_selection=['count'],
+        )
+
+    def delete_many(
+        self,
+        where: Optional[types.TrainingLinguisticSignalWhereInput] = None,
+    ) -> None:
+        self._batcher._add(
+            method='delete_many',
+            model=models.TrainingLinguisticSignal,
             arguments={'where': where},
             root_selection=['count'],
         )

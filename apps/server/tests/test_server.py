@@ -6,6 +6,7 @@ from continuum_shared.artifacts import (
     encode_manifest,
     sha256_hex,
 )
+from continuum_shared.security import hash_api_key
 from continuum_trainer.pipeline import EmbeddingAdapter, export_adapter_to_onnx
 from fastapi.testclient import TestClient
 
@@ -45,6 +46,40 @@ def test_embed_rest_success(mock_engine_state):
     assert data["model_version_used"] == "test-version"
     assert data["dimension"] == 384
     assert len(data["embeddings"]) == 2
+
+
+def test_embed_rest_accepts_bcrypt_api_key(mock_engine_state, monkeypatch):
+    monkeypatch.setenv("API_KEY_BCRYPT_HASH", hash_api_key("hashed-secret"))
+    response = client.post(
+        "/v1/embed",
+        json={"texts": ["hello"]},
+        headers={"x-api-key": "hashed-secret"},
+    )
+
+    assert response.status_code == 200
+
+
+def test_list_rollbacks(mock_engine_state, monkeypatch):
+    class FakeDb:
+        async def query_raw(self, query: str):
+            return [
+                {
+                    "id": "event-1",
+                    "failed_version": "candidate",
+                    "restored_version": "baseline",
+                    "error_rate": 0.06,
+                    "request_count": 120,
+                    "created_at": "2026-07-28T00:00:00Z",
+                }
+            ]
+
+    monkeypatch.setattr(engine, "db", FakeDb())
+
+    response = client.get("/v1/rollbacks")
+
+    assert response.status_code == 200
+    assert response.json()[0]["failedVersion"] == "candidate"
+    assert response.json()[0]["restoredVersion"] == "baseline"
 
 
 def test_embed_rest_baseline_override(mock_engine_state):

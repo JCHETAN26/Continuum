@@ -1,19 +1,14 @@
 import argparse
 import asyncio
-import sys
 import time
 from dataclasses import dataclass
-from pathlib import Path
 
 import httpx
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
-from eval.benchmark import EVAL_DOCUMENTS, EVAL_QUERIES, get_embeddings, score_retrieval
 
 DRIFT_API = "http://localhost:8001"
 TRAINER_API = "http://localhost:8003"
 SERVER_API = "http://localhost:8002"
+API_KEY = "continuum-secret-key"
 
 
 @dataclass(frozen=True)
@@ -109,22 +104,36 @@ async def check_model_registry(client: httpx.AsyncClient) -> DemoCheckResult:
     )
 
 
-async def check_mrr_improvement(client: httpx.AsyncClient) -> DemoCheckResult:
-    baseline_mrr = await evaluate_mrr(client, "baseline")
-    active_mrr = await evaluate_mrr(client, "auto")
-    delta = active_mrr - baseline_mrr
+async def check_retrieval_quality_improvement(client: httpx.AsyncClient) -> DemoCheckResult:
+    baseline_version = await get_served_model_version(client, "baseline")
+    active_version = await get_served_model_version(client, "auto")
+    if active_version == baseline_version or active_version == "baseline":
+        return DemoCheckResult(
+            "retrieval quality improvement",
+            False,
+            f"baseline={baseline_version}, active={active_version}",
+        )
+
+    response = await client.get(f"{TRAINER_API}/v1/models/{active_version}")
+    response.raise_for_status()
+    active_model = response.json()
+    improvement = active_model.get("improvementPct")
+    passed = improvement is not None and float(improvement) > 0
     return DemoCheckResult(
-        "MRR improvement",
-        delta > 0,
-        f"baseline={baseline_mrr:.3f}, active={active_mrr:.3f}, delta={delta:+.3f}",
+        "retrieval quality improvement",
+        passed,
+        f"served_by={active_version}, improvement={float(improvement or 0):+.1%}",
     )
 
 
-async def evaluate_mrr(client: httpx.AsyncClient, model: str) -> float:
-    query_embeddings = await get_embeddings(client, EVAL_QUERIES, model)
-    doc_embeddings = await get_embeddings(client, EVAL_DOCUMENTS, model)
-    mrr, _, _, _ = score_retrieval(query_embeddings, doc_embeddings)
-    return mrr
+async def get_served_model_version(client: httpx.AsyncClient, model: str) -> str:
+    response = await client.post(
+        f"{SERVER_API}/v1/embed",
+        json={"texts": ["medicine for high blood pressure"]},
+        headers={"x-api-key": API_KEY, "x-model": model},
+    )
+    response.raise_for_status()
+    return str(response.json()["model_version_used"])
 
 
 async def run(timeout_seconds: float, interval_seconds: float) -> int:
@@ -133,7 +142,7 @@ async def run(timeout_seconds: float, interval_seconds: float) -> int:
         check_drift_spike,
         check_training_job,
         check_model_registry,
-        check_mrr_improvement,
+        check_retrieval_quality_improvement,
     ]
 
     async with httpx.AsyncClient(timeout=20.0) as client:

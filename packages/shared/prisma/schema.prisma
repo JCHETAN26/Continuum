@@ -53,6 +53,8 @@ enum ModelStatus {
   DRAFT
   /// Artifact present, evaluation in progress.
   EVALUATING
+  /// LoRA artifact exported and waiting for offline A/B evaluation.
+  PENDING_EVAL
   /// Passed the A/B gate, eligible for activation.
   PASSED
   /// Failed the A/B gate; retained for audit, never served.
@@ -85,7 +87,7 @@ enum TrainingTrigger {
 
 /// A document submitted by a client system, before embedding.
 model Document {
-  id String @id @default(uuid(7)) @db.Uuid
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
 
   /// Caller-supplied natural key. Stable across re-ingestion of the same document.
   externalId String @map("external_id") @db.VarChar(256)
@@ -120,7 +122,7 @@ model Document {
 
 /// The 384-dimensional embedding of a document, produced by a specific model version.
 model Embedding {
-  id String @id @default(uuid(7)) @db.Uuid
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
 
   documentId String   @unique @map("document_id") @db.Uuid
   document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
@@ -145,7 +147,7 @@ model Embedding {
 
 /// An aggregated drift measurement over one time window.
 model DriftWindow {
-  id String @id @default(uuid(7)) @db.Uuid
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
 
   windowSize  DriftWindowSize @map("window_size")
   windowStart DateTime        @map("window_start") @db.Timestamptz(6)
@@ -171,7 +173,8 @@ model DriftWindow {
   baseline   DriftWindow? @relation("DriftBaseline", fields: [baselineId], references: [id], onDelete: SetNull)
   derived    DriftWindow[] @relation("DriftBaseline")
 
-  trainingJobs TrainingJob[]
+  trainingJobs       TrainingJob[]
+  linguisticSignals TrainingLinguisticSignal[]
 
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
@@ -181,9 +184,39 @@ model DriftWindow {
   @@map("drift_windows")
 }
 
+/// NLP-level drift over a document text window: entity, topic, and vocabulary movement.
+model LinguisticWindow {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  windowStart DateTime @map("window_start") @db.Timestamptz(6)
+  windowEnd   DateTime @map("window_end") @db.Timestamptz(6)
+
+  documentCount Int @map("document_count")
+
+  entityKlDivergence Float @map("entity_kl_divergence")
+  topicWasserstein   Float @map("topic_wasserstein")
+  vocabChi2Pvalue    Float @map("vocab_chi2_pvalue")
+  compositeScore     Float @map("composite_score")
+  threshold          Float @default(0.65)
+  breached           Boolean @default(false)
+
+  newEntities    Json @map("new_entities")
+  emergingTopics Json @map("emerging_topics")
+  emergingTerms  Json @map("emerging_terms")
+
+  trainingSignals TrainingLinguisticSignal[]
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([windowStart, windowEnd])
+  @@index([breached, windowStart])
+  @@index([windowStart])
+  @@map("linguistic_windows")
+}
+
 /// An entry in the model registry.
 model ModelVersion {
-  id String @id @default(uuid(7)) @db.Uuid
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
 
   /// Human-facing identifier, e.g. "2026.07.26-1". Immutable once created.
   version String @unique @db.VarChar(64)
@@ -198,6 +231,10 @@ model ModelVersion {
   /// SHA-256 of the artifact, hex encoded. Verified on load before serving.
   artifactSha256 String? @map("artifact_sha256") @db.Char(64)
   artifactBytes  BigInt? @map("artifact_bytes")
+  /// Domain that produced this adapter, e.g. "medical_records".
+  domainTag      String? @map("domain_tag") @db.VarChar(128)
+  /// Direct MinIO URI for a PEFT-exported ONNX feature-extraction model.
+  onnxPath       String? @map("onnx_path") @db.VarChar(512)
 
   embeddingDim Int  @default(384) @map("embedding_dim")
   /// LoRA rank used for this adapter. Null for the base model.
@@ -209,6 +246,8 @@ model ModelVersion {
   baselineMetrics Json?  @map("baseline_metrics")
   /// Relative MRR improvement over baseline, as a fraction. Gate requires > 0.10.
   improvementPct  Float? @map("improvement_pct")
+  /// Raw MRR for the PEFT artifact before promotion.
+  evalMrr         Float? @map("eval_mrr")
 
   activatedAt DateTime? @map("activated_at") @db.Timestamptz(6)
   createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -224,7 +263,7 @@ model ModelVersion {
 
 /// An asynchronous LoRA fine-tuning run.
 model TrainingJob {
-  id String @id @default(uuid(7)) @db.Uuid
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
 
   status  TrainingJobStatus @default(QUEUED)
   trigger TrainingTrigger
@@ -253,11 +292,35 @@ model TrainingJob {
   /// Per-step loss, streamed to the dashboard: [{ "step": 1, "loss": 0.42 }, ...].
   lossHistory Json? @map("loss_history")
 
+  linguisticSignals TrainingLinguisticSignal[]
+
   queuedAt   DateTime  @default(now()) @map("queued_at") @db.Timestamptz(6)
   startedAt  DateTime? @map("started_at") @db.Timestamptz(6)
   finishedAt DateTime? @map("finished_at") @db.Timestamptz(6)
 
   @@index([status, queuedAt])
   @@index([driftWindowId])
+  @@unique([trigger, driftWindowId])
   @@map("training_jobs")
+}
+
+/// Signals that connect a training job to the linguistic drift windows that influenced it.
+model TrainingLinguisticSignal {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  trainingJobId      String           @map("training_job_id") @db.Uuid
+  trainingJob        TrainingJob      @relation(fields: [trainingJobId], references: [id], onDelete: Cascade)
+  linguisticWindowId String           @map("linguistic_window_id") @db.Uuid
+  linguisticWindow   LinguisticWindow @relation(fields: [linguisticWindowId], references: [id], onDelete: Cascade)
+  driftWindowId      String?          @map("drift_window_id") @db.Uuid
+  driftWindow        DriftWindow?     @relation(fields: [driftWindowId], references: [id], onDelete: SetNull)
+
+  signalWeight Float @default(1.0) @map("signal_weight")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([trainingJobId, linguisticWindowId])
+  @@index([linguisticWindowId])
+  @@index([driftWindowId])
+  @@map("training_linguistic_signals")
 }

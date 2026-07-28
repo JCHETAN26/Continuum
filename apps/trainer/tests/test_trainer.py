@@ -4,7 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 with patch("continuum_trainer.api.Prisma"), patch("continuum_trainer.pipeline.Prisma"):
-    from continuum_shared.prisma.enums import ModelStatus
+    from continuum_shared.prisma.enums import ModelStatus, TrainingJobStatus
     from continuum_trainer.api import ModelVersionResponse, TrainingJobResponse, app
     from continuum_trainer.pipeline import _async_run_training_pipeline
 
@@ -109,6 +109,7 @@ async def test_pipeline_execution():
         mock_model.version = "test-version"
         mock_model.baseModel = "base"
         mock_db.modelversion.find_unique = AsyncMock(return_value=mock_model)
+        mock_db.modelversion.find_many = AsyncMock(return_value=[])
         mock_db.modelversion.update = AsyncMock()
 
         mock_prisma_cls.return_value = mock_db
@@ -136,9 +137,67 @@ async def test_pipeline_execution():
             "test-version", b"onnx-bytes", [{"source": "software", "vector": [1.0, 0.0]}]
         )
 
-        # Ensure final update set status to PASSED
-        args, kwargs = mock_db.modelversion.update.call_args
-        assert kwargs["data"]["status"] == ModelStatus.PASSED
+        statuses = [
+            call.kwargs["data"]["status"]
+            for call in mock_db.modelversion.update.call_args_list
+            if "status" in call.kwargs["data"]
+        ]
+        assert ModelStatus.PASSED in statuses
+        assert statuses[-1] == ModelStatus.ACTIVE
+
+
+@pytest.mark.asyncio
+async def test_pipeline_uses_peft_backend_when_configured():
+    with (
+        patch("continuum_trainer.pipeline.Prisma") as mock_prisma_cls,
+        patch(
+            "continuum_trainer.pipeline.run_peft_training_from_db", new_callable=AsyncMock
+        ) as mock_peft,
+        patch(
+            "continuum_trainer.pipeline._run_corpus_adapter_training", new_callable=AsyncMock
+        ) as mock_demo_training,
+        patch("continuum_trainer.pipeline.settings") as mock_settings,
+    ):
+        mock_settings.trainer_backend = "peft"
+
+        mock_db = MagicMock()
+        mock_db.connect = AsyncMock()
+        mock_db.disconnect = AsyncMock()
+
+        mock_model = MagicMock()
+        mock_model.id = "model-id"
+        mock_model.version = "2026.07.28-peft"
+        mock_model.baseModel = "sentence-transformers/all-MiniLM-L6-v2"
+        mock_db.modelversion.find_unique = AsyncMock(return_value=mock_model)
+        mock_db.modelversion.update = AsyncMock()
+
+        mock_job = MagicMock()
+        mock_job.driftWindowId = "window-id"
+        mock_job.attempts = 0
+        mock_job.maxAttempts = 3
+        mock_db.trainingjob.find_unique = AsyncMock(return_value=mock_job)
+        mock_db.trainingjob.update = AsyncMock()
+
+        mock_prisma_cls.return_value = mock_db
+        mock_peft.return_value = MagicMock()
+        mock_peft.return_value.telemetry.sample_count = 50
+        mock_peft.return_value.telemetry.loss_history = [{"step": 1, "loss": 0.25}]
+        mock_peft.return_value.artifacts.domain_tag = "medical_records"
+        mock_peft.return_value.artifacts.onnx_uri = "s3://continuum-models/model.onnx"
+
+        await _async_run_training_pipeline("model-id", "job-id")
+
+        mock_demo_training.assert_not_called()
+        mock_peft.assert_awaited_once_with(
+            mock_db,
+            model_id="model-id",
+            version="2026.07.28-peft",
+            base_model="sentence-transformers/all-MiniLM-L6-v2",
+            drift_window_id="window-id",
+        )
+        final_job_update = mock_db.trainingjob.update.call_args_list[-1].kwargs["data"]
+        assert final_job_update["status"] == TrainingJobStatus.SUCCEEDED
+        assert final_job_update["sampleCount"] == 50
 
 
 @pytest.mark.asyncio

@@ -7,12 +7,14 @@ from typing import Any
 import structlog
 from confluent_kafka import Producer
 from continuum_shared.config import settings
+from continuum_shared.observability import get_tracer, instrument_fastapi
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from continuum_ingest.api.schema import DocumentPayload
 
 logger = structlog.get_logger()
+tracer = get_tracer("continuum-ingest")
 
 producer_instance: Producer | None = None
 
@@ -35,6 +37,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(title="Continuum Ingest API", lifespan=lifespan)
+instrument_fastapi(app, "continuum-ingest")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -54,7 +57,25 @@ async def ingest_batch(payloads: list[DocumentPayload]) -> dict[str, Any]:
     if not producer_instance:
         raise HTTPException(status_code=500, detail="Producer not initialized")
 
-    for payload in payloads:
+    with tracer.start_as_current_span(
+        "ingest.receive",
+        attributes={"document_count": len(payloads)},
+    ):
+        for payload in payloads:
+            await publish_document(payload)
+
+    producer_instance.poll(0)
+    return {"status": "accepted", "count": len(payloads)}
+
+
+async def publish_document(payload: DocumentPayload) -> None:
+    if not producer_instance:
+        raise HTTPException(status_code=500, detail="Producer not initialized")
+
+    with tracer.start_as_current_span(
+        "ingest.publish",
+        attributes={"document_id": payload.document_id, "source": payload.source},
+    ):
         # Generate idempotency key
         key_str = f"{payload.source}:{payload.document_id}:{payload.timestamp.isoformat()}"
         idempotency_key = hashlib.sha256(key_str.encode()).hexdigest()
@@ -79,6 +100,3 @@ async def ingest_batch(payloads: list[DocumentPayload]) -> dict[str, Any]:
         except Exception as e:
             logger.error("Failed to enqueue message", error=str(e), document_id=payload.document_id)
             raise HTTPException(status_code=500, detail="Failed to enqueue documents")
-
-    producer_instance.poll(0)
-    return {"status": "accepted", "count": len(payloads)}

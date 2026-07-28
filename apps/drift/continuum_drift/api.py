@@ -5,6 +5,7 @@ from datetime import datetime
 
 import numpy as np
 from continuum_shared.config import settings
+from continuum_shared.observability import instrument_fastapi
 from continuum_shared.prisma import Prisma
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -24,6 +25,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Continuum Drift API", lifespan=lifespan)
+instrument_fastapi(app, "continuum-drift")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -90,7 +92,10 @@ async def get_drift_status():
 async def get_drift_summary():
     document_rows = await db.query_raw("SELECT COUNT(*)::int AS count FROM documents")
     embedding_rows = await db.query_raw("SELECT COUNT(*)::int AS count FROM embeddings")
-    latest = await db.driftwindow.find_first(order={"windowStart": "desc"})
+    latest = await db.driftwindow.find_first(
+        where={"documentCount": {"gt": 0}},
+        order={"windowStart": "desc"},
+    )
 
     return DriftSummaryResponse(
         documentCount=document_rows[0]["count"] if document_rows else 0,

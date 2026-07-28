@@ -5,9 +5,17 @@ description = "Shared configuration and domain types for Continuum"
 authors = [{ name = "Continuum Team" }]
 requires-python = ">=3.12"
 dependencies = [
+    "alembic>=1.13.0",
+    "bcrypt>=4.2.0",
+    "fastapi>=0.111.0",
+    "opentelemetry-api>=1.27.0",
+    "opentelemetry-sdk>=1.27.0",
+    "opentelemetry-instrumentation-fastapi>=0.48b0",
     "pydantic>=2.9.0",
     "pydantic-settings>=2.5.0",
     "prisma>=0.13.1",
+    "psycopg[binary]>=3.2.0",
+    "structlog>=24.4.0",
 ]
 
 [build-system]

@@ -104,6 +104,16 @@ class BaseDriftWindow(_PrismaModel):
         return actions.DriftWindowActions[_PrismaModelT](client or get_client(), cls)
 
 
+class BaseLinguisticWindow(_PrismaModel):
+    __prisma_model__: ClassVar[Literal['LinguisticWindow']] = 'LinguisticWindow'  # pyright: ignore[reportIncompatibleVariableOverride]
+
+    @classmethod
+    def prisma(cls: Type[_PrismaModelT], client: Optional['Prisma'] = None) -> 'actions.LinguisticWindowActions[_PrismaModelT]':
+        from .client import get_client
+
+        return actions.LinguisticWindowActions[_PrismaModelT](client or get_client(), cls)
+
+
 class BaseModelVersion(_PrismaModel):
     __prisma_model__: ClassVar[Literal['ModelVersion']] = 'ModelVersion'  # pyright: ignore[reportIncompatibleVariableOverride]
 
@@ -122,5 +132,15 @@ class BaseTrainingJob(_PrismaModel):
         from .client import get_client
 
         return actions.TrainingJobActions[_PrismaModelT](client or get_client(), cls)
+
+
+class BaseTrainingLinguisticSignal(_PrismaModel):
+    __prisma_model__: ClassVar[Literal['TrainingLinguisticSignal']] = 'TrainingLinguisticSignal'  # pyright: ignore[reportIncompatibleVariableOverride]
+
+    @classmethod
+    def prisma(cls: Type[_PrismaModelT], client: Optional['Prisma'] = None) -> 'actions.TrainingLinguisticSignalActions[_PrismaModelT]':
+        from .client import get_client
+
+        return actions.TrainingLinguisticSignalActions[_PrismaModelT](client or get_client(), cls)
 
 

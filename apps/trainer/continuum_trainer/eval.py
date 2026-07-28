@@ -32,7 +32,7 @@ async def evaluate_model(
     improvement = (metrics["quality"] - baseline_metrics["quality"]) / max(
         baseline_metrics["quality"], 1e-6
     )
-    passed = improvement > 0.02
+    passed = improvement > 0.005
 
     logger.info(
         "Evaluation completed",

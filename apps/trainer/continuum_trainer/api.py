@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from typing import Any
 
+from continuum_shared.observability import instrument_fastapi
 from continuum_shared.prisma import Json, Prisma
 from continuum_shared.prisma.enums import ModelStatus, TrainingJobStatus, TrainingTrigger
 from fastapi import BackgroundTasks, FastAPI, HTTPException
@@ -25,6 +26,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Continuum Trainer API", lifespan=lifespan)
+instrument_fastapi(app, "continuum-trainer")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],

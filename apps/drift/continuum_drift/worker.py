@@ -9,6 +9,8 @@ from continuum_shared.config import settings
 from continuum_shared.prisma import Prisma
 from scipy.spatial.distance import cosine
 
+from continuum_drift.throttle import TriggerThrottler
+
 logger = structlog.get_logger()
 
 # As agreed, we use Centroid Cosine Distance as a proxy for Drift.
@@ -31,7 +33,7 @@ async def compute_centroid(
     query = """
         SELECT vector::text as vec_str
         FROM embeddings
-        WHERE created_at >= $1 AND created_at < $2
+        WHERE created_at >= $1::timestamptz AND created_at < $2::timestamptz
     """
     rows = await db.query_raw(query, start_time, end_time)
 
@@ -58,7 +60,7 @@ async def get_or_create_baseline(db: Prisma) -> tuple[str, np.ndarray]:
     )
 
     if baseline_record:
-        query = "SELECT centroid::text as vec_str FROM drift_windows WHERE id = $1"
+        query = "SELECT centroid::text as vec_str FROM drift_windows WHERE id = $1::uuid"
         rows = await db.query_raw(query, baseline_record.id)
         if rows and rows[0]["vec_str"]:
             v_str = rows[0]["vec_str"].strip("[]")
@@ -97,7 +99,18 @@ async def get_or_create_baseline(db: Prisma) -> tuple[str, np.ndarray]:
             breached,
             created_at
         )
-        VALUES ($1::uuid, 'ONE_HOUR', $2, $3, $4, $5::vector, 0.0, $6, false, NOW())
+        VALUES (
+            $1::uuid,
+            'ONE_HOUR',
+            $2::timestamptz,
+            $3::timestamptz,
+            $4,
+            $5::vector,
+            0.0,
+            $6,
+            false,
+            NOW()
+        )
     """
     await db.execute_raw(
         insert_query,
@@ -114,7 +127,7 @@ async def get_or_create_baseline(db: Prisma) -> tuple[str, np.ndarray]:
 
 async def process_window(db: Prisma, producer: Producer, window_size: str, duration: timedelta):
     now = datetime.now(UTC)
-    window_end = now.replace(microsecond=0)
+    window_end = now.replace(second=0, microsecond=0)
     window_start = window_end - duration
 
     # Check if this window was already processed
@@ -181,7 +194,20 @@ async def process_window(db: Prisma, producer: Producer, window_size: str, durat
             baseline_id,
             created_at
         )
-        VALUES ($1::uuid, $2, $3, $4, $5, $6::vector, $7, $8, $9, $10, $11::uuid, NOW())
+        VALUES (
+            $1::uuid,
+            $2::"DriftWindowSize",
+            $3::timestamptz,
+            $4::timestamptz,
+            $5,
+            $6::vector,
+            $7,
+            $8,
+            $9,
+            $10,
+            $11::uuid,
+            NOW()
+        )
     """
     await db.execute_raw(
         insert_query,
@@ -206,11 +232,32 @@ async def process_window(db: Prisma, producer: Producer, window_size: str, durat
     )
 
     if breached:
+        linguistic_drift = await latest_linguistic_drift_score(db, window_start, window_end)
+        decision = await TriggerThrottler.from_settings().decide(
+            db,
+            document_count=document_count,
+            embedding_drift=drift_score,
+            linguistic_drift=linguistic_drift,
+            now=now,
+        )
+        if not decision.accepted:
+            logger.info(
+                "Drift alert suppressed by trigger throttler",
+                window_id=window_id,
+                reason=decision.reason,
+                document_count=document_count,
+                embedding_drift=drift_score,
+                linguistic_drift=linguistic_drift,
+            )
+            return
+
         alert = {
             "window_id": window_id,
             "window_size": window_size,
             "drift_score": drift_score,
+            "linguistic_drift_score": linguistic_drift,
             "threshold": settings.drift_threshold,
+            "priority": decision.priority,
             "timestamp": now.isoformat(),
         }
         producer.produce(
@@ -218,6 +265,24 @@ async def process_window(db: Prisma, producer: Producer, window_size: str, durat
         )
         producer.poll(0)
         logger.warning("Drift threshold breached! Alert published to Kafka.", alert=alert)
+
+
+async def latest_linguistic_drift_score(
+    db: Prisma, window_start: datetime, window_end: datetime
+) -> float | None:
+    rows = await db.query_raw(
+        """
+        SELECT composite_score
+        FROM linguistic_windows
+        WHERE window_end >= $1::timestamptz
+          AND window_start <= $2::timestamptz
+        ORDER BY window_end DESC
+        LIMIT 1
+        """,
+        window_start,
+        window_end,
+    )
+    return float(rows[0]["composite_score"]) if rows else None
 
 
 async def run_drift_worker():

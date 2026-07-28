@@ -8,13 +8,19 @@ Ensure Docker is installed and running on your machine.
 
 ## 1. Start the Platform
 
-Boot up the entire infrastructure and all 5 Continuum microservices:
+Boot up the infrastructure, APIs, workers, serving engine, and dashboard:
 
 ```bash
 docker compose up --build -d
 ```
 
-_Wait ~30 seconds for Kafka and the services to initialize._
+Compose healthchecks coordinate startup, so app services wait for their required infrastructure and the dashboard waits for the drift and trainer APIs.
+
+Confirm the host can reach every exposed service:
+
+```bash
+pnpm stack:health
+```
 
 ## 2. Open the Mission Control Dashboard
 
@@ -28,6 +34,10 @@ In a new terminal window, run the seed script to start streaming normal software
 ```bash
 uv run scripts/seed.py
 ```
+
+The default seed injects 1,000 software documents followed by 500 healthcare documents.
+For a faster smoke run, lower the counts with `--baseline-docs`, `--drift-docs`, and `--delay`.
+The script exits non-zero if ingestion fails.
 
 _Observe the dashboard._ The drift chart will remain stable since the documents match the baseline distribution.
 
@@ -48,8 +58,8 @@ You will see telemetry for the deterministic demo adaptation job. Watch the reco
 
 Click on the **Model Registry** tab.
 
-1. You will see a new model version listed with a status of **PASSED** and a positive MRR delta.
-2. Click the **Activate** button to hot-swap it into the Serving Engine.
+1. You will see a new model version listed with a status of **ACTIVE** or **PASSED** and a positive retrieval-quality delta.
+2. Use the **Activate** button to hot-swap a passed model manually; successful drift-triggered jobs also auto-activate the new model.
 
 ## 7. Prove the Improvement
 
@@ -68,7 +78,7 @@ pnpm demo:verify
 ```
 
 The verifier waits for document/embedding counts, drift breach, a completed training job,
-an active or passed model, and an active-model MRR lift over the baseline.
+an active or passed model, and active-model retrieval-quality improvement over the baseline.
 
 ## Clean Up
 

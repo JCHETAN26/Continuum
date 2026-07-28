@@ -52,6 +52,25 @@ async def test_process_window_creates_alert(monkeypatch):
 
     mock_producer = MagicMock()
 
+    async def mock_linguistic_score(*args, **kwargs):
+        return 0.8
+
+    monkeypatch.setattr(
+        "continuum_drift.worker.latest_linguistic_drift_score", mock_linguistic_score
+    )
+    monkeypatch.setattr(
+        "continuum_drift.worker.TriggerThrottler.from_settings",
+        lambda: MagicMock(
+            decide=AsyncMock(
+                return_value=MagicMock(
+                    accepted=True,
+                    reason="accepted",
+                    priority="dual_signal_high",
+                )
+            )
+        ),
+    )
+
     await process_window(mock_db, mock_producer, "FIVE_MIN", timedelta(minutes=5))
 
     # Should insert into drift_windows
