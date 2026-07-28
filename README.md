@@ -43,6 +43,19 @@ pnpm ops:migrate:test
 Docker Compose runs the same Alembic upgrade through the `migrations` one-shot service before app
 containers become eligible to serve traffic.
 
+Long-running services declare `restart: unless-stopped` so a crash does not silently remove a
+service from the loop. The one-shot containers (`redpanda-init`, `minio-init`, `migrations`)
+deliberately have no restart policy, because dependents wait on them via
+`service_completed_successfully` and a restart loop would block startup forever.
+
+`DATABASE_URL` pins `connection_limit=10&pool_timeout=30`. Left implicit, Prisma sizes its pool
+from the CPUs the container can see (`num_cpus * 2 + 1`), which the per-service `cpus` limits
+reduce to 3 — small enough that the drift services exhaust it under sustained load and exit on
+`Timed out fetching a new connection from the connection pool`. Postgres runs with
+`max_connections=200` to leave headroom above the summed pools for migrations and seeding.
+Alembic strips the Prisma-only parameters before psycopg sees the URL
+(`continuum_shared.db_url`), since libpq rejects connection options it does not recognise.
+
 Every FastAPI service emits structured JSON logs with an `x-correlation-id` value, and local
 OpenTelemetry spans are exported to stdout. Set `API_KEY_BCRYPT_HASH` instead of `API_KEY` in
 real deployments; plaintext `API_KEY` exists only for local development compatibility.

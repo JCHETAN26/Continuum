@@ -36,6 +36,7 @@ plugins = ["pydantic.mypy"]
 files = [
     "packages/shared/python/continuum_shared/artifacts.py",
     "packages/shared/python/continuum_shared/config.py",
+    "packages/shared/python/continuum_shared/db_url.py",
     "packages/shared/python/continuum_shared/embeddings.py",
 ]
 

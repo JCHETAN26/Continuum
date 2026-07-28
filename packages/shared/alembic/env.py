@@ -3,9 +3,9 @@ from __future__ import annotations
 import os
 from logging.config import fileConfig
 from pathlib import Path
-from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from alembic import context
+from continuum_shared.db_url import to_psycopg_url
 from sqlalchemy import engine_from_config, pool
 
 config = context.config
@@ -19,16 +19,7 @@ def database_url() -> str:
     url = os.environ.get("DATABASE_URL") or read_dotenv_value("DATABASE_URL")
     if not url:
         raise RuntimeError("DATABASE_URL is required for Alembic migrations.")
-    url = strip_prisma_schema_param(url)
-    if url.startswith("postgresql://"):
-        return url.replace("postgresql://", "postgresql+psycopg://", 1)
-    return url
-
-
-def strip_prisma_schema_param(url: str) -> str:
-    parts = urlsplit(url)
-    query = urlencode([(key, value) for key, value in parse_qsl(parts.query) if key != "schema"])
-    return urlunsplit((parts.scheme, parts.netloc, parts.path, query, parts.fragment))
+    return to_psycopg_url(url)
 
 
 def read_dotenv_value(key: str) -> str | None:
