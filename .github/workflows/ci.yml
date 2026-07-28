@@ -73,27 +73,10 @@ jobs:
     name: Integration (Testcontainers)
     runs-on: ubuntu-latest
     services:
-      redis:
-        image: redis:7.4-alpine
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 5s
-          --health-timeout 3s
-          --health-retries 20
-      minio:
-        image: minio/minio:RELEASE.2024-12-18T13-15-44Z
-        env:
-          MINIO_ROOT_USER: continuum
-          MINIO_ROOT_PASSWORD: continuum-local-dev
-        ports:
-          - 9000:9000
-        options: >-
-          --health-cmd "mc ready local || exit 1"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 20
+      # Only postgres runs as a service container, for the Alembic reversibility
+      # step. Redis and MinIO are started by Testcontainers inside the tests
+      # themselves; a `services:` block cannot pass the `server /data` command
+      # MinIO's entrypoint requires, so it could never become healthy here.
       postgres:
         image: pgvector/pgvector:pg16
         env:
