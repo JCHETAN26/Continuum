@@ -11,7 +11,12 @@ import argparse
 import shutil
 from pathlib import Path
 
-from continuum_shared.embeddings import MODEL_REPO, ONNX_FILENAME, TOKENIZER_FILENAME
+# Deliberately not imported from continuum_shared. That package instantiates Settings at
+# import time, which requires DATABASE_URL and friends — none of which exist during a
+# docker build. test_fetch_embedding_model.py asserts these stay equal to the module's.
+MODEL_REPO = "sentence-transformers/all-MiniLM-L6-v2"
+ONNX_FILENAME = "onnx/model.onnx"
+TOKENIZER_FILENAME = "tokenizer.json"
 
 
 def fetch(target: Path) -> Path:
