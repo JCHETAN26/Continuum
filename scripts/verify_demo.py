@@ -1,8 +1,10 @@
 import argparse
 import asyncio
 import os
+import sys
 import time
 from dataclasses import dataclass
+from pathlib import Path
 
 import httpx
 
@@ -11,6 +13,14 @@ TRAINER_API = "http://localhost:8003"
 # Mirrors settings.activation_min_improvement. Read from the environment so the check
 # tracks whatever bar the stack under test is actually configured with.
 ACTIVATION_MIN_IMPROVEMENT = float(os.environ.get("ACTIVATION_MIN_IMPROVEMENT", "0.10"))
+
+# Taken from the seed script rather than restated. These drifted apart once already: the
+# baseline dropped to 700 documents when the corpus changed, and this check kept asserting
+# the old 1500 and failed a run in which every document had in fact been embedded.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from seed import DEFAULT_BASELINE_DOCUMENTS, DEFAULT_DRIFT_DOCUMENTS  # noqa: E402
+
+EXPECTED_DOCUMENTS = DEFAULT_BASELINE_DOCUMENTS + DEFAULT_DRIFT_DOCUMENTS
 SERVER_API = "http://localhost:8002"
 API_KEY = "continuum-secret-key"
 
@@ -48,11 +58,11 @@ async def check_document_flow(client: httpx.AsyncClient) -> DemoCheckResult:
     summary = response.json()
     documents = int(summary["documentCount"])
     embeddings = int(summary["embeddingCount"])
-    passed = documents >= 1500 and embeddings >= 1500
+    passed = documents >= EXPECTED_DOCUMENTS and embeddings >= EXPECTED_DOCUMENTS
     return DemoCheckResult(
         "document flow",
         passed,
-        f"{documents} documents, {embeddings} embeddings",
+        f"{documents}/{EXPECTED_DOCUMENTS} documents, {embeddings}/{EXPECTED_DOCUMENTS} embeddings",
     )
 
 
