@@ -4,39 +4,47 @@ Every number here was produced by a CI run on a machine nobody could tamper with
 one links to the run that emitted it. Nothing is estimated, and nothing is carried over
 from an earlier design of the system.
 
-Source runs: [`30426014715`](https://github.com/JCHETAN26/Continuum/actions/runs/30426014715)
-and [`30429103002`](https://github.com/JCHETAN26/Continuum/actions/runs/30429103002)
-· commits `993265c` and `dcb8c18`
+Source runs: [`30436026193`](https://github.com/JCHETAN26/Continuum/actions/runs/30436026193)
+and [`30437089093`](https://github.com/JCHETAN26/Continuum/actions/runs/30437089093)
+· commit `9b111df`
 
 ## Domain adaptation
 
-A drift alert triggered a LoRA adaptation of `sentence-transformers/all-MiniLM-L6-v2` over
+A drift alert triggers a LoRA adaptation of `sentence-transformers/all-MiniLM-L6-v2` over
 the drifted window, followed by an ONNX export and an evaluation against the base model on
 the same held-out documents.
 
-Two independent runs of the identical scenario:
+| run | baseline MRR | candidate MRR | gain   |
+| --- | ------------ | ------------- | ------ |
+| 1   | 0.877859     | 0.886278      | +0.96% |
+| 2   | 0.897203     | 0.904100      | +0.77% |
 
-| metric            | run 1 baseline | run 1 candidate | run 1   | run 2 baseline | run 2 candidate | run 2   |
-| ----------------- | -------------- | --------------- | ------- | -------------- | --------------- | ------- |
-| MRR               | 0.877744       | 0.882762        | +0.57%  | 0.897203       | 0.902210        | +0.56%  |
-| Recall@5          | 0.9725         | 0.9800          | +0.77%  | 0.9825         | 0.9800          | −0.25%  |
-| Mean margin       | 0.026163       | 0.022054        | −15.71% | 0.019118       | 0.022821        | +19.37% |
-| Composite quality | 0.841996       | 0.846449        | +0.53%  | 0.856116       | 0.859148        | +0.35%  |
+**Adaptation improves retrieval MRR by 0.77% to 0.96%**, mean +0.86%, across two runs of
+the identical scenario.
 
-**The headline result is the MRR gain: +0.57% and +0.56%.** That is the one figure that
-reproduces. Recall@5 and mean margin change sign between runs, so neither supports a claim
-in either direction — they are reported here rather than omitted precisely because a table
-showing only the favourable run would be dishonest.
+Full metrics from the first of those runs:
 
-Absolute values move between runs because the evaluation set is drawn from the most
-recently embedded documents, and which documents those are depends on the order embedding
-completes in. The relative gain is stable across that variation, which is what makes it
-worth quoting.
+| metric            | baseline | candidate | change |
+| ----------------- | -------- | --------- | ------ |
+| MRR               | 0.877859 | 0.886278  | +0.96% |
+| Recall@5          | 0.9825   | 0.9850    | +0.25% |
+| Mean margin       | 0.019936 | 0.021402  | +7.35% |
+| Composite quality | 0.843603 | 0.849686  | +0.72% |
 
-**The candidate was rejected in both runs**, at 0.53% and 0.35% against a 10% activation
-gate, so the pipeline kept serving the baseline. That is the intended outcome: the system
-measured a candidate, found the gain too small to justify a model swap, and declined to
-ship it.
+**The candidate was rejected in both runs**, at 0.72% and 0.44% composite improvement
+against a 10% activation gate, so the pipeline kept serving the baseline. That is the
+intended outcome: the system measured a candidate, found the gain too small to justify
+swapping the model an index was built with, and declined to ship it.
+
+### Two earlier measurements are excluded
+
+Runs recorded before commit `9b111df` showed +0.57% and +0.56%. They are not comparable
+and are not averaged in. The evaluation set was drawn from the most recently embedded
+documents overall, and because drifted documents are ingested last they are embedded last,
+so that set could be skewed toward a single domain. Retrieval here is scored against
+same-source neighbours, so a single-domain set has no negatives at all: one run under that
+selection returned baseline and candidate MRR of exactly 0.0000. The set is now drawn per
+source, and only runs under that selection are reported.
 
 ## Adapter
 

@@ -188,9 +188,9 @@ the baseline centroids.
 ## Measured Results
 
 A LoRA adaptation of `all-MiniLM-L6-v2` over the drifted window improves retrieval MRR by
-+0.57% and +0.56% across two independent CI runs, tuning 337,920 parameters — 1.47% of the
-model. Composite improvement stayed below the 10% activation gate in both, so the pipeline
-kept serving the baseline rather than shipping a marginal model.
+0.77% to 0.96% across two CI runs, tuning 337,920 parameters — 1.47% of the model.
+Composite improvement stayed below the 10% activation gate in both, so the pipeline kept
+serving the baseline rather than shipping a marginal model.
 
 Full figures, method, and the CI run that produced them:
 [docs/benchmarks/RESUME_METRICS.md](docs/benchmarks/RESUME_METRICS.md).
