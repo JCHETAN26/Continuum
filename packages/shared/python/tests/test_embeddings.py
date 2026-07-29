@@ -96,3 +96,30 @@ def test_mean_pooling_ignores_masked_padding_positions():
 
 def test_vector_literal_formats_for_pgvector():
     assert vector_literal([1.0, -0.5]).startswith("[1.00000000,-0.50000000")
+
+
+def test_large_batches_are_chunked_not_sent_as_one_call():
+    """A single big ONNX call allocates batch x heads x seq x seq and exhausts memory.
+
+    1000 documents at 256 tokens is roughly 3.1 GB of attention in fp32, past the
+    trainer's limit. Evaluation encoded that in one call and hung for 26 minutes.
+    """
+    from continuum_shared import embeddings as module
+
+    calls: list[int] = []
+    real_run = module.get_runtime().session.run
+
+    def counting_run(outputs, feeds):
+        calls.append(len(feeds["input_ids"]))
+        return real_run(outputs, feeds)
+
+    runtime = module.get_runtime()
+    original = runtime.session.run
+    runtime.session.run = counting_run
+    try:
+        embed_texts([f"document {index}" for index in range(70)])
+    finally:
+        runtime.session.run = original
+
+    assert len(calls) == 3
+    assert max(calls) <= module.ENCODE_BATCH_SIZE

@@ -9,6 +9,8 @@ from continuum_shared.embeddings import embed_texts, encode_with_session, get_to
 
 logger = structlog.get_logger()
 
+MAX_EVALUATION_EXAMPLES = 400
+
 
 async def evaluate_model(
     version: str, onnx_artifact: bytes, examples: list[dict]
@@ -56,6 +58,13 @@ async def evaluate_encoder_model(
     projection path cannot be reused here: it scores a matrix applied to base vectors,
     while this model produces its own vectors from tokens.
     """
+    # Every document is encoded twice here, once by the base model and once by the
+    # candidate, so the evaluation set is the dominant cost of the whole pipeline. A few
+    # hundred documents already give a stable MRR across two domains; a thousand mostly
+    # buys runtime.
+    if len(examples) > MAX_EVALUATION_EXAMPLES:
+        examples = examples[:MAX_EVALUATION_EXAMPLES]
+
     logger.info("Running encoder evaluation", version=version, examples=len(examples))
     if len(examples) < 4 or len({example["source"] for example in examples}) < 2:
         empty = {"mrr": 0.0, "recall_at_5": 0.0, "mean_margin": 0.0, "quality": 0.0}

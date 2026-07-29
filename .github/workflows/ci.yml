@@ -211,8 +211,11 @@ jobs:
       - name: Run E2E Smoke
         run: pnpm e2e:smoke
 
+      # Always, not just on failure. A passing run is exactly when the measured
+      # baseline-vs-candidate comparison is worth keeping, and gating this on failure meant
+      # the one number the demo exists to produce was discarded on every green run.
       - name: Capture Compose Logs
-        if: failure()
+        if: always()
         run: docker compose --env-file .env.example -f infra/docker-compose.yml logs --tail=300
 
       - name: Stop Compose Stack

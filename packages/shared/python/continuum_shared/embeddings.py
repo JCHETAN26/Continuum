@@ -25,6 +25,11 @@ ONNX_FILENAME = "onnx/model.onnx"
 TOKENIZER_FILENAME = "tokenizer.json"
 EMBEDDING_DIMENSION = 384
 MAX_SEQUENCE_LENGTH = 256
+# Attention is quadratic in sequence length and linear in batch, so a single large call
+# allocates batch x heads x seq x seq floats: 1000 documents at 256 tokens is about 3.1 GB
+# in fp32, past the trainer's memory limit. Every caller funnels through
+# encode_with_session, so chunking here bounds them all.
+ENCODE_BATCH_SIZE = 32
 
 # Set to a directory holding model.onnx and tokenizer.json to skip the Hub entirely.
 # Container images bake the files in so no network call happens at startup.
@@ -42,18 +47,26 @@ def encode_with_session(session: Any, tokenizer: Any, texts: list[str]) -> np.nd
     under one pooling strategy and served under another yields vectors that are silently
     incomparable with the centroids drift is measured against.
     """
-    encoded = tokenizer.encode_batch(texts)
-    input_ids = np.array([item.ids for item in encoded], dtype=np.int64)
-    attention_mask = np.array([item.attention_mask for item in encoded], dtype=np.int64)
-    outputs = session.run(
-        ["last_hidden_state"],
-        {
-            "input_ids": input_ids,
-            "attention_mask": attention_mask,
-            "token_type_ids": np.zeros_like(input_ids),
-        },
-    )[0]
-    return mean_pool_and_normalize(outputs, attention_mask)
+    if not texts:
+        return np.zeros((0, EMBEDDING_DIMENSION), dtype=np.float32)
+
+    pooled: list[np.ndarray] = []
+    for start in range(0, len(texts), ENCODE_BATCH_SIZE):
+        chunk = texts[start : start + ENCODE_BATCH_SIZE]
+        encoded = tokenizer.encode_batch(chunk)
+        input_ids = np.array([item.ids for item in encoded], dtype=np.int64)
+        attention_mask = np.array([item.attention_mask for item in encoded], dtype=np.int64)
+        outputs = session.run(
+            ["last_hidden_state"],
+            {
+                "input_ids": input_ids,
+                "attention_mask": attention_mask,
+                "token_type_ids": np.zeros_like(input_ids),
+            },
+        )[0]
+        pooled.append(mean_pool_and_normalize(outputs, attention_mask))
+
+    return np.concatenate(pooled, axis=0)
 
 
 class _EmbeddingRuntime:

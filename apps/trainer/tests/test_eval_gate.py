@@ -77,3 +77,33 @@ def test_score_retrieval_reports_mrr():
     metrics = score_retrieval(examples, np.array([e["vector"] for e in examples], dtype=np.float32))
 
     assert metrics["mrr"] == pytest.approx(1.0)
+
+
+@pytest.mark.asyncio
+async def test_evaluation_set_is_capped(monkeypatch):
+    """Each document is encoded twice, so the eval set dominates pipeline runtime.
+
+    Passing a thousand documents through two encoders left the run evaluating for 26
+    minutes and timing out after training had already succeeded.
+    """
+    from continuum_trainer import eval as eval_module
+
+    seen: list[int] = []
+
+    def record(texts):
+        seen.append(len(texts))
+        return np.tile(np.array([1.0, 0.0], dtype=np.float32), (len(texts), 1))
+
+    monkeypatch.setattr("continuum_trainer.eval.embed_texts", record)
+    monkeypatch.setattr(
+        "continuum_trainer.eval.run_onnx_encoder",
+        lambda artifact, texts: np.tile(np.array([1.0, 0.0], dtype=np.float32), (len(texts), 1)),
+    )
+
+    examples = [
+        {"source": "pc_hardware" if index % 2 else "mac_hardware", "text": f"document {index}"}
+        for index in range(1000)
+    ]
+    await eval_module.evaluate_encoder_model("v1", b"onnx", examples)
+
+    assert seen == [eval_module.MAX_EVALUATION_EXAMPLES]
