@@ -58,7 +58,33 @@ async def test_training_job_fails_on_failed_completed_job():
         result = await verify_demo.check_training_job(client)
 
     assert result.passed is False
-    assert "status=FAILED" in result.detail
+    assert "FAILED" in result.detail
+
+
+@pytest.mark.asyncio
+async def test_terminal_failure_is_reported_without_waiting_out_the_budget():
+    """A retried-out job records no sampleCount, and waiting cannot change its outcome.
+
+    Requiring sampleCount meant such a job never counted as complete, so the check polled
+    until its 1800s budget expired before reporting a failure visible in 22 seconds.
+    """
+    async with client_for_routes(
+        {
+            "/v1/training/jobs": [
+                {
+                    "id": "job-9",
+                    "status": "FAILED",
+                    "sampleCount": None,
+                    "error": "PEFT training requires at least two training texts.",
+                }
+            ]
+        }
+    ) as client:
+        result = await verify_demo.check_training_job(client)
+
+    assert result.passed is False
+    assert "job-9" in result.detail
+    assert "at least two training texts" in result.detail
 
 
 @pytest.mark.asyncio

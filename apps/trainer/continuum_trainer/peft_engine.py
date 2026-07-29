@@ -407,34 +407,54 @@ def upload_peft_artifacts(
     )
 
 
+async def load_recent_document_rows(db: Prisma, limit: int) -> list[dict]:
+    return await db.query_raw(
+        """
+        SELECT text, source
+        FROM documents
+        ORDER BY ingested_at DESC
+        LIMIT $1
+        """,
+        limit,
+    )
+
+
 async def load_drifted_training_texts(
     db: Prisma, drift_window_id: str | None, limit: int = 1000
 ) -> list[TrainingText]:
     if drift_window_id:
+        # Membership follows embeddings.created_at, matching how the drift service builds a
+        # window's centroid. Selecting on documents.ingested_at instead described a
+        # different set entirely: embedding runs well behind ingestion once a real model is
+        # doing the work, so by the time a window breached, that slice held hundreds of
+        # embeddings and no newly ingested documents, and training died on an empty corpus.
         rows = await db.query_raw(
             """
             SELECT d.text, d.source
-            FROM documents d
+            FROM embeddings e
+            JOIN documents d ON d.id = e.document_id
             JOIN drift_windows w
-              ON d.ingested_at >= w.window_start
-             AND d.ingested_at < w.window_end
+              ON e.created_at >= w.window_start
+             AND e.created_at < w.window_end
             WHERE w.id = $1::uuid
-            ORDER BY d.ingested_at DESC
+            ORDER BY e.created_at DESC
             LIMIT $2
             """,
             drift_window_id,
             limit,
         )
+        if len(rows) < 2:
+            # An unlucky window boundary should not kill an adaptation run. Falling back to
+            # the most recent documents keeps the job alive, and the warning makes the
+            # degraded selection visible rather than silently training on the wrong set.
+            logger.warning(
+                "Drift window yielded too few documents to train on, using recent documents",
+                drift_window_id=drift_window_id,
+                window_documents=len(rows),
+            )
+            rows = await load_recent_document_rows(db, limit)
     else:
-        rows = await db.query_raw(
-            """
-            SELECT text, source
-            FROM documents
-            ORDER BY ingested_at DESC
-            LIMIT $1
-            """,
-            limit,
-        )
+        rows = await load_recent_document_rows(db, limit)
 
     return [
         TrainingText(
