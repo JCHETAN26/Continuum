@@ -185,6 +185,16 @@ Pooling — attention-masked mean, then L2 normalisation — is duplicated in
 pooling strategy and served under another yields vectors that are silently incomparable with
 the baseline centroids.
 
+## Measured Results
+
+A LoRA adaptation of `all-MiniLM-L6-v2` over the drifted window moved retrieval MRR from
+0.8777 to 0.8828 (+0.57%) and recall@5 from 0.9725 to 0.9800, tuning 337,920 parameters —
+1.47% of the model. Composite improvement of 0.53% fell below the 10% activation gate, so
+the pipeline kept serving the baseline rather than shipping a marginal model.
+
+Full figures, method, and the CI run that produced them:
+[docs/benchmarks/RESUME_METRICS.md](docs/benchmarks/RESUME_METRICS.md).
+
 ## Validation
 
 The default checks do not require Docker:
