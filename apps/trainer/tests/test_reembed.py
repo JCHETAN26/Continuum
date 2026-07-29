@@ -7,6 +7,7 @@ and the drift detector reads the discontinuity as drift that never happened.
 
 from __future__ import annotations
 
+from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import numpy as np
@@ -82,3 +83,33 @@ async def test_empty_corpus_is_a_no_op(monkeypatch):
 
     assert await reembed_corpus_with_encoder(db, model_id=MODEL_ID, onnx_artifact=b"x") == 0
     db.execute_raw.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_evaluation_set_is_drawn_per_source():
+    """A single-domain evaluation set cannot measure retrieval at all.
+
+    Relevance is same-source, so a set containing one source has no negatives and every
+    metric returns 0.0. Ordering purely by embedding time allowed exactly that: drifted
+    documents arrive last and embed last, so the most recent rows can be one source
+    entirely, and one run in three reported baseline and candidate MRR both 0.0000.
+    """
+    from continuum_trainer.pipeline import load_training_examples
+
+    captured: list = []
+
+    async def query_raw(sql: str, *args):
+        captured.append((sql, args))
+        return [
+            {"source": "pc_hardware", "text": "isa irq", "vec_str": "[0.1,0.2]"},
+            {"source": "mac_hardware", "text": "quadra vram", "vec_str": "[0.3,0.4]"},
+            {"source": "pc_hardware", "text": "bios beep", "vec_str": "[0.5,0.6]"},
+            {"source": "mac_hardware", "text": "scsi chain", "vec_str": "[0.7,0.8]"},
+        ]
+
+    examples = await load_training_examples(SimpleNamespace(query_raw=query_raw), per_source=250)
+
+    statement = " ".join(captured[0][0].split())
+    assert "PARTITION BY d.source" in statement
+    assert captured[0][1] == (250,)
+    assert {example["source"] for example in examples} == {"pc_hardware", "mac_hardware"}

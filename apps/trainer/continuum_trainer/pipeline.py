@@ -305,15 +305,32 @@ def transform_vectors(model: EmbeddingAdapter, vectors: np.ndarray) -> np.ndarra
     return (transformed / norms).astype(np.float32)
 
 
-async def load_training_examples(db: Prisma) -> list[dict]:
+async def load_training_examples(db: Prisma, per_source: int = 250) -> list[dict]:
+    """Take the most recent documents per source rather than overall.
+
+    Retrieval is scored by whether a document's nearest neighbour shares its source, so an
+    evaluation set drawn from a single domain cannot measure anything: it has no negatives
+    and the scorer returns zeros. Ordering purely by embedding time made that reachable,
+    because the drifted documents are ingested last and are therefore embedded last, so
+    the most recent rows could be entirely one source. One run in three came back with
+    baseline and candidate MRR both 0.0000 for exactly that reason.
+    """
     rows = await db.query_raw(
         """
-        SELECT d.source, d.text, e.vector::text AS vec_str
-        FROM embeddings e
-        JOIN documents d ON d.id = e.document_id
-        ORDER BY e.created_at DESC
-        LIMIT 1000
-        """
+        SELECT source, text, vec_str FROM (
+            SELECT
+                d.source,
+                d.text,
+                e.vector::text AS vec_str,
+                ROW_NUMBER() OVER (
+                    PARTITION BY d.source ORDER BY e.created_at DESC
+                ) AS source_rank
+            FROM embeddings e
+            JOIN documents d ON d.id = e.document_id
+        ) ranked
+        WHERE source_rank <= $1
+        """,
+        per_source,
     )
     examples = [
         {
