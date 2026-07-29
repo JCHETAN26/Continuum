@@ -17,19 +17,24 @@ the same held-out documents.
 | run | baseline MRR | candidate MRR | gain   |
 | --- | ------------ | ------------- | ------ |
 | 1   | 0.877859     | 0.886278      | +0.96% |
-| 2   | 0.897203     | 0.904100      | +0.77% |
+| 2   | 0.897169     | 0.904057      | +0.77% |
 
 **Adaptation improves retrieval MRR by 0.77% to 0.96%**, mean +0.86%, across two runs of
 the identical scenario.
 
-Full metrics from the first of those runs:
+Full metrics from both runs:
 
-| metric            | baseline | candidate | change |
-| ----------------- | -------- | --------- | ------ |
-| MRR               | 0.877859 | 0.886278  | +0.96% |
-| Recall@5          | 0.9825   | 0.9850    | +0.25% |
-| Mean margin       | 0.019936 | 0.021402  | +7.35% |
-| Composite quality | 0.843603 | 0.849686  | +0.72% |
+| metric            | run 1 baseline | run 1 candidate | run 1  | run 2 baseline | run 2 candidate | run 2   |
+| ----------------- | -------------- | --------------- | ------ | -------------- | --------------- | ------- |
+| MRR               | 0.877859       | 0.886278        | +0.96% | 0.897169       | 0.904057        | +0.77%  |
+| Recall@5          | 0.9825         | 0.9850          | +0.25% | 0.9925         | 0.9875          | −0.50%  |
+| Mean margin       | 0.019936       | 0.021402        | +7.35% | 0.018803       | 0.023058        | +22.63% |
+| Composite quality | 0.843603       | 0.849686        | +0.72% | 0.858070       | 0.861866        | +0.44%  |
+
+MRR is the only metric that moves consistently. Recall@5 rises in one run and falls in the
+other, and mean margin swings by very different amounts, so neither supports a claim in
+either direction. They are shown rather than omitted because a table carrying only the
+favourable column would misrepresent what was measured.
 
 **The candidate was rejected in both runs**, at 0.72% and 0.44% composite improvement
 against a 10% activation gate, so the pipeline kept serving the baseline. That is the
