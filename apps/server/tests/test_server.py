@@ -1,5 +1,6 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import numpy as np
 import pytest
 from continuum_shared.artifacts import (
     build_demo_artifact_manifest,
@@ -192,10 +193,16 @@ async def test_embed_batch_runs_loaded_onnx_session():
         new_callable=AsyncMock,
         return_value=onnx_artifact,
     ):
-        session, input_name, output_name = await engine_under_test._load_onnx_session(manifest)
+        session, input_name, output_name, kind = await engine_under_test._load_onnx_session(
+            manifest
+        )
         engine_under_test.session = session
         engine_under_test.onnx_input_name = input_name
         engine_under_test.onnx_output_name = output_name
+        engine_under_test.model_kind = kind
+
+    # A manifest with no declared kind is a legacy projection artifact.
+    assert kind == "projection"
 
     embeddings, version, dimension = await engine_under_test.embed_batch(["cardiology follow up"])
 
@@ -203,3 +210,62 @@ async def test_embed_batch_runs_loaded_onnx_session():
     assert dimension == 384
     assert len(embeddings) == 1
     assert len(embeddings[0]) == 384
+
+
+@pytest.mark.asyncio
+async def test_embed_batch_runs_an_adapted_encoder_end_to_end():
+    """A LoRA-adapted model replaces the base encoder rather than post-processing it.
+
+    The demo adapter is a 384x384 projection over base vectors; a PEFT export consumes
+    input_ids. Feeding one interface into the other silently produces nonsense, so the
+    manifest declares which shape the artifact is.
+    """
+    from continuum_shared.embeddings import resolve_model_files
+
+    onnx_path, _ = resolve_model_files()
+    artifact = onnx_path.read_bytes()
+    manifest = {
+        "embedding_dim": 384,
+        "onnx": {
+            "uri": "s3://continuum-models/candidate/encoder.onnx",
+            "sha256": sha256_hex(artifact),
+            "kind": "encoder",
+        },
+    }
+
+    engine_under_test = ModelEngine()
+    engine_under_test.current_version = "candidate"
+    with patch.object(
+        engine_under_test,
+        "_download_s3_object",
+        new_callable=AsyncMock,
+        return_value=artifact,
+    ):
+        session, _, _, kind = await engine_under_test._load_onnx_session(manifest)
+        engine_under_test.session = session
+        engine_under_test.model_kind = kind
+
+    assert kind == "encoder"
+
+    embeddings, version, dimension = await engine_under_test.embed_batch(
+        ["the mac quadra needs more vram", "isa card irq conflict on the motherboard"]
+    )
+
+    assert version == "candidate"
+    assert dimension == 384
+    assert len(embeddings) == 2
+    assert all(len(vector) == 384 for vector in embeddings)
+    # Encoder output is L2 normalised, unlike a raw projection.
+    assert np.linalg.norm(embeddings[0]) == pytest.approx(1.0, abs=1e-5)
+
+
+@pytest.mark.asyncio
+async def test_unknown_model_kind_is_rejected():
+    engine_under_test = ModelEngine()
+    manifest = {"onnx": {"uri": "s3://b/o.onnx", "sha256": "0" * 64, "kind": "wishful"}}
+
+    with patch.object(
+        engine_under_test, "_download_s3_object", new_callable=AsyncMock, return_value=b""
+    ):
+        with pytest.raises(ValueError, match="Unknown ONNX model kind"):
+            await engine_under_test._load_onnx_session(manifest)

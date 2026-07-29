@@ -5,6 +5,7 @@ import numpy as np
 import onnxruntime as ort
 import structlog
 from continuum_shared.config import settings
+from continuum_shared.embeddings import embed_texts, encode_with_session, get_tokenizer
 
 logger = structlog.get_logger()
 
@@ -44,6 +45,57 @@ async def evaluate_model(
         passed=passed,
     )
     return passed, metrics, baseline_metrics, improvement
+
+
+async def evaluate_encoder_model(
+    version: str, onnx_artifact: bytes, examples: list[dict]
+) -> tuple[bool, dict[str, float], dict[str, float], float]:
+    """Score a LoRA-adapted encoder against the base model on the same documents.
+
+    Both sides embed the same raw text, so the comparison isolates the adapter. The
+    projection path cannot be reused here: it scores a matrix applied to base vectors,
+    while this model produces its own vectors from tokens.
+    """
+    logger.info("Running encoder evaluation", version=version, examples=len(examples))
+    if len(examples) < 4 or len({example["source"] for example in examples}) < 2:
+        empty = {"mrr": 0.0, "recall_at_5": 0.0, "mean_margin": 0.0, "quality": 0.0}
+        return False, empty, empty.copy(), 0.0
+
+    texts = [str(example["text"]) for example in examples]
+    baseline_vectors = np.array(embed_texts(texts), dtype=np.float32)
+    adapted_vectors = run_onnx_encoder(onnx_artifact, texts)
+
+    baseline_metrics = score_retrieval(examples, baseline_vectors)
+    metrics = score_retrieval(examples, adapted_vectors)
+    improvement = (metrics["quality"] - baseline_metrics["quality"]) / max(
+        baseline_metrics["quality"], 1e-6
+    )
+    passed = improvement > settings.activation_min_improvement
+
+    logger.info(
+        "Encoder evaluation completed",
+        version=version,
+        baseline=baseline_metrics,
+        candidate=metrics,
+        baseline_mrr=baseline_metrics["mrr"],
+        candidate_mrr=metrics["mrr"],
+        improvement=f"{improvement * 100:.2f}%",
+        gate=f"{settings.activation_min_improvement * 100:.2f}%",
+        passed=passed,
+    )
+    return passed, metrics, baseline_metrics, improvement
+
+
+def run_onnx_encoder(onnx_artifact: bytes, texts: list[str]) -> np.ndarray:
+    with NamedTemporaryFile(suffix=".onnx", delete=False) as artifact_file:
+        artifact_file.write(onnx_artifact)
+        artifact_path = artifact_file.name
+
+    try:
+        session = ort.InferenceSession(artifact_path, providers=["CPUExecutionProvider"])
+        return encode_with_session(session, get_tokenizer(), texts)
+    finally:
+        Path(artifact_path).unlink(missing_ok=True)
 
 
 def run_onnx_adapter(onnx_artifact: bytes, vectors: np.ndarray) -> np.ndarray:

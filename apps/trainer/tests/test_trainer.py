@@ -156,9 +156,30 @@ async def test_pipeline_uses_peft_backend_when_configured():
         patch(
             "continuum_trainer.pipeline._run_corpus_adapter_training", new_callable=AsyncMock
         ) as mock_demo_training,
+        patch(
+            "continuum_trainer.pipeline.load_training_examples", new_callable=AsyncMock
+        ) as mock_examples,
+        patch(
+            "continuum_trainer.pipeline._download_model_object", new_callable=AsyncMock
+        ) as mock_download,
+        patch(
+            "continuum_trainer.pipeline.evaluate_encoder_model", new_callable=AsyncMock
+        ) as mock_encoder_eval,
+        patch(
+            "continuum_trainer.pipeline._export_peft_artifact", new_callable=AsyncMock
+        ) as mock_export,
+        patch(
+            "continuum_trainer.pipeline.activate_model_version", new_callable=AsyncMock
+        ) as mock_activate,
+        patch(
+            "continuum_trainer.pipeline.reembed_corpus_with_encoder", new_callable=AsyncMock
+        ) as mock_reembed,
         patch("continuum_trainer.pipeline.settings") as mock_settings,
     ):
         mock_settings.trainer_backend = "peft"
+        mock_examples.return_value = [{"source": "pc_hardware", "text": "a"}] * 8
+        mock_download.return_value = b"onnx-bytes"
+        mock_export.return_value = ("s3://models/manifest.json", "a" * 64, 128)
 
         mock_db = MagicMock()
         mock_db.connect = AsyncMock()
@@ -184,10 +205,25 @@ async def test_pipeline_uses_peft_backend_when_configured():
         mock_peft.return_value.telemetry.loss_history = [{"step": 1, "loss": 0.25}]
         mock_peft.return_value.artifacts.domain_tag = "medical_records"
         mock_peft.return_value.artifacts.onnx_uri = "s3://continuum-models/model.onnx"
+        mock_peft.return_value.artifacts.onnx_sha256 = "b" * 64
+        mock_peft.return_value.artifacts.onnx_bytes = 4096
+        mock_peft.return_value.artifacts.adapter_config_uri = "s3://continuum-models/adapter.json"
+
+        # A candidate that clears the gate: activated, and the corpus re-indexed with it.
+        mock_encoder_eval.return_value = (
+            True,
+            {"mrr": 0.91, "quality": 0.9},
+            {"mrr": 0.86, "quality": 0.8},
+            0.125,
+        )
 
         await _async_run_training_pipeline("model-id", "job-id")
 
         mock_demo_training.assert_not_called()
+        mock_encoder_eval.assert_awaited_once()
+        mock_activate.assert_awaited_once()
+        # Activation is an index migration: stored vectors came from the previous model.
+        mock_reembed.assert_awaited_once()
         mock_peft.assert_awaited_once_with(
             mock_db,
             model_id="model-id",
@@ -247,3 +283,68 @@ async def test_training_event_payload_contains_models_and_jobs(monkeypatch):
     assert payload["models"][0]["version"] == "2026.07.26-demo"
     assert payload["models"][0]["metrics"]["mrr"] == 0.72
     assert payload["jobs"][0]["lossHistory"][0]["loss"] == 0.5
+
+
+@pytest.mark.asyncio
+async def test_rejected_encoder_does_not_reindex_the_corpus():
+    """A rejected candidate must not touch stored vectors.
+
+    Re-embedding for a model that was never activated would leave the index encoded by a
+    model nothing is serving, which is worse than the mismatch it was meant to prevent.
+    """
+    with (
+        patch("continuum_trainer.pipeline.Prisma") as mock_prisma_cls,
+        patch(
+            "continuum_trainer.pipeline.run_peft_training_from_db", new_callable=AsyncMock
+        ) as mock_peft,
+        patch(
+            "continuum_trainer.pipeline.load_training_examples", new_callable=AsyncMock
+        ) as mock_examples,
+        patch("continuum_trainer.pipeline._download_model_object", new_callable=AsyncMock),
+        patch(
+            "continuum_trainer.pipeline.evaluate_encoder_model", new_callable=AsyncMock
+        ) as mock_encoder_eval,
+        patch(
+            "continuum_trainer.pipeline._export_peft_artifact", new_callable=AsyncMock
+        ) as mock_export,
+        patch(
+            "continuum_trainer.pipeline.activate_model_version", new_callable=AsyncMock
+        ) as mock_activate,
+        patch(
+            "continuum_trainer.pipeline.reembed_corpus_with_encoder", new_callable=AsyncMock
+        ) as mock_reembed,
+        patch("continuum_trainer.pipeline.settings") as mock_settings,
+    ):
+        mock_settings.trainer_backend = "peft"
+        mock_examples.return_value = [{"source": "pc_hardware", "text": "a"}] * 8
+        mock_export.return_value = ("s3://models/manifest.json", "a" * 64, 128)
+
+        mock_db = MagicMock()
+        mock_db.connect = AsyncMock()
+        mock_db.disconnect = AsyncMock()
+        mock_model = MagicMock()
+        mock_model.id = "model-id"
+        mock_model.version = "2026.07.29-peft"
+        mock_model.baseModel = "sentence-transformers/all-MiniLM-L6-v2"
+        mock_db.modelversion.find_unique = AsyncMock(return_value=mock_model)
+        mock_db.modelversion.update = AsyncMock()
+        mock_db.trainingjob.find_unique = AsyncMock(return_value=None)
+        mock_db.trainingjob.update = AsyncMock()
+        mock_prisma_cls.return_value = mock_db
+
+        mock_peft.return_value = MagicMock()
+        mock_peft.return_value.telemetry.sample_count = 50
+        mock_peft.return_value.telemetry.loss_history = []
+        mock_peft.return_value.artifacts.domain_tag = "mac_hardware"
+        mock_peft.return_value.artifacts.onnx_uri = "s3://continuum-models/model.onnx"
+        mock_peft.return_value.artifacts.onnx_sha256 = "b" * 64
+        mock_peft.return_value.artifacts.onnx_bytes = 4096
+        mock_peft.return_value.artifacts.adapter_config_uri = "s3://m/adapter.json"
+
+        # Below the gate.
+        mock_encoder_eval.return_value = (False, {"mrr": 0.86}, {"mrr": 0.86}, 0.004)
+
+        await _async_run_training_pipeline("model-id", None)
+
+        mock_activate.assert_not_awaited()
+        mock_reembed.assert_not_awaited()

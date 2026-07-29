@@ -42,6 +42,53 @@ def build_demo_artifact_manifest(
     return manifest
 
 
+def build_peft_artifact_manifest(
+    *,
+    version: str,
+    base_model: str,
+    embedding_dim: int,
+    domain_tag: str,
+    metrics: dict[str, float],
+    baseline_metrics: dict[str, float],
+    improvement_pct: float,
+    onnx_uri: str,
+    onnx_sha256: str,
+    onnx_bytes: int,
+    adapter_config_uri: str,
+    sample_count: int,
+) -> dict[str, Any]:
+    """Manifest for a LoRA-adapted encoder.
+
+    `kind: encoder` is what tells the serving engine this artifact replaces the base model
+    rather than post-multiplying its output. Without it the engine would default to the
+    projection contract and feed float vectors into a graph expecting token ids.
+    """
+    return {
+        "artifact_format": "continuum.peft.embedding-manifest.v1",
+        "version": version,
+        "base_model": base_model,
+        "embedding_dim": embedding_dim,
+        "embedding_engine": "continuum.peft-lora-encoder",
+        "adaptation": {
+            "kind": "lora",
+            "lora_rank": 8,
+            "lora_alpha": 16,
+            "domain_tag": domain_tag,
+            "sample_count": sample_count,
+            "adapter_config_uri": adapter_config_uri,
+        },
+        "metrics": metrics,
+        "baseline_metrics": baseline_metrics,
+        "improvement_pct": improvement_pct,
+        "onnx": {
+            "uri": onnx_uri,
+            "sha256": onnx_sha256,
+            "bytes": onnx_bytes,
+            "kind": "encoder",
+        },
+    }
+
+
 def encode_manifest(manifest: dict[str, Any]) -> bytes:
     return json.dumps(manifest, sort_keys=True, separators=(",", ":")).encode("utf-8")
 

@@ -462,6 +462,8 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile.python
+      args:
+        INSTALL_EXTRAS: peft
     container_name: continuum-trainer-api
     restart: unless-stopped
     command:
@@ -509,6 +511,8 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile.python
+      args:
+        INSTALL_EXTRAS: peft
     container_name: continuum-trainer-worker
     restart: unless-stopped
     command:

@@ -1,18 +1,25 @@
 import asyncio
 from datetime import UTC, datetime
 from io import BytesIO
+from typing import Any
 
 import numpy as np
 import onnx
 import structlog
-from continuum_shared.artifacts import build_demo_artifact_manifest, encode_manifest, sha256_hex
+from continuum_shared.artifacts import (
+    build_demo_artifact_manifest,
+    build_peft_artifact_manifest,
+    encode_manifest,
+    parse_s3_uri,
+    sha256_hex,
+)
 from continuum_shared.config import settings
-from continuum_shared.embeddings import embed_texts
+from continuum_shared.embeddings import embed_texts, vector_literal
 from continuum_shared.prisma import Json, Prisma
 from continuum_shared.prisma.enums import ModelStatus, TrainingJobStatus
 from minio import Minio
 
-from continuum_trainer.eval import evaluate_model
+from continuum_trainer.eval import evaluate_encoder_model, evaluate_model, run_onnx_encoder
 from continuum_trainer.peft_engine import run_peft_training_from_db
 
 logger = structlog.get_logger()
@@ -52,6 +59,47 @@ async def _async_run_training_pipeline(model_id: str, training_job_id: str | Non
                 base_model=model_version.baseModel,
                 drift_window_id=drift_window_id,
             )
+            # The adapted encoder is scored against the base model on the same held-out
+            # documents, so the comparison isolates what the adapter changed. Previously
+            # this branch returned here, leaving every PEFT model at PENDING_EVAL: trained,
+            # never measured, never served.
+            examples = await load_training_examples(db)
+            onnx_artifact = await _download_model_object(peft_result.artifacts.onnx_uri)
+            passed, metrics, baseline_metrics, improvement = await evaluate_encoder_model(
+                model_version.version, onnx_artifact, examples
+            )
+
+            artifact_uri, artifact_sha256, artifact_bytes = await _export_peft_artifact(
+                version=model_version.version,
+                base_model=model_version.baseModel,
+                artifacts=peft_result.artifacts,
+                telemetry=peft_result.telemetry,
+                metrics=metrics,
+                baseline_metrics=baseline_metrics,
+                improvement_pct=improvement,
+            )
+
+            await db.modelversion.update(
+                where={"id": model_id},
+                data={
+                    "status": ModelStatus.PASSED if passed else ModelStatus.REJECTED,
+                    "artifactUri": artifact_uri,
+                    "artifactSha256": artifact_sha256,
+                    "artifactBytes": artifact_bytes,
+                    "loraRank": 8,
+                    "metrics": Json(metrics),
+                    "baselineMetrics": Json(baseline_metrics),
+                    "improvementPct": improvement,
+                },
+            )
+
+            if passed:
+                await activate_model_version(db, model_id)
+                reembedded = await reembed_corpus_with_encoder(
+                    db, model_id=model_id, onnx_artifact=onnx_artifact
+                )
+                logger.info("Corpus re-embedded for activated encoder", documents=reembedded)
+
             if training_job_id:
                 await db.trainingjob.update(
                     where={"id": training_job_id},
@@ -68,6 +116,10 @@ async def _async_run_training_pipeline(model_id: str, training_job_id: str | Non
                 version=model_version.version,
                 domain=peft_result.artifacts.domain_tag,
                 onnx_uri=peft_result.artifacts.onnx_uri,
+                baseline_mrr=baseline_metrics["mrr"],
+                candidate_mrr=metrics["mrr"],
+                improvement_pct=improvement,
+                activated=passed,
             )
             return
 
@@ -322,6 +374,126 @@ def build_training_triplets(
             if len(triplets) >= limit:
                 return triplets
     return triplets
+
+
+async def reembed_corpus_with_encoder(
+    db: Prisma,
+    *,
+    model_id: str,
+    onnx_artifact: bytes,
+    batch_size: int = 200,
+) -> int:
+    """Recompute stored vectors with a newly activated encoder.
+
+    Activating an adapted encoder is an index migration, not just a routing change. Every
+    stored vector was produced by the previous model, and cosine distance between vectors
+    from two different encoders is meaningless — retrieval would silently degrade and the
+    drift detector would read the discontinuity as drift that never happened.
+
+    Runs here rather than in the embedding worker because the trainer already holds the
+    artifact it just evaluated, so the worker needs no model-loading path of its own.
+    """
+    rows = await db.query_raw("SELECT id, text FROM documents ORDER BY created_at")
+    if not rows:
+        return 0
+
+    reembedded = 0
+    for start in range(0, len(rows), batch_size):
+        chunk = rows[start : start + batch_size]
+        vectors = run_onnx_encoder(onnx_artifact, [str(row["text"]) for row in chunk])
+        for row, vector in zip(chunk, vectors, strict=True):
+            await db.execute_raw(
+                """
+                INSERT INTO embeddings (id, document_id, model_version_id, vector, dimension,
+                                        created_at)
+                VALUES (gen_random_uuid(), $1::uuid, $2::uuid, $3::vector, $4, NOW())
+                ON CONFLICT (document_id) DO UPDATE
+                SET vector = EXCLUDED.vector,
+                    model_version_id = EXCLUDED.model_version_id,
+                    dimension = EXCLUDED.dimension,
+                    created_at = NOW()
+                """,
+                str(row["id"]),
+                model_id,
+                vector_literal([float(value) for value in vector]),
+                settings.embedding_dim,
+            )
+        reembedded += len(chunk)
+        logger.info("Re-embedded corpus batch", done=reembedded, total=len(rows))
+
+    return reembedded
+
+
+def _models_client() -> Minio:
+    endpoint = str(settings.s3_endpoint).replace("http://", "").replace("https://", "").rstrip("/")
+    return Minio(
+        endpoint=endpoint,
+        access_key=settings.s3_access_key_id,
+        secret_key=settings.s3_secret_access_key,
+        secure=str(settings.s3_endpoint).startswith("https://"),
+    )
+
+
+async def _download_model_object(uri: str) -> bytes:
+    bucket, object_name = parse_s3_uri(uri)
+    response = _models_client().get_object(bucket, object_name)
+    try:
+        return bytes(response.read())
+    finally:
+        response.close()
+        response.release_conn()
+
+
+async def _export_peft_artifact(
+    *,
+    version: str,
+    base_model: str,
+    artifacts: Any,
+    telemetry: Any,
+    metrics: dict[str, float],
+    baseline_metrics: dict[str, float],
+    improvement_pct: float,
+) -> tuple[str, str, int]:
+    """Publish the manifest the serving engine loads for a LoRA-adapted encoder.
+
+    The ONNX graph itself was already uploaded by the training step; this records where it
+    lives and, critically, that it is an encoder rather than a projection.
+    """
+    manifest = build_peft_artifact_manifest(
+        version=version,
+        base_model=base_model,
+        embedding_dim=settings.embedding_dim,
+        domain_tag=artifacts.domain_tag,
+        metrics=metrics,
+        baseline_metrics=baseline_metrics,
+        improvement_pct=improvement_pct,
+        onnx_uri=artifacts.onnx_uri,
+        onnx_sha256=artifacts.onnx_sha256,
+        onnx_bytes=artifacts.onnx_bytes,
+        adapter_config_uri=artifacts.adapter_config_uri,
+        sample_count=telemetry.sample_count,
+    )
+
+    payload = encode_manifest(manifest)
+    payload_sha256 = sha256_hex(payload)
+    object_name = f"{version}/model-manifest.json"
+    client = _models_client()
+    if not client.bucket_exists(settings.s3_bucket_models):
+        client.make_bucket(settings.s3_bucket_models)
+    client.put_object(
+        bucket_name=settings.s3_bucket_models,
+        object_name=object_name,
+        data=BytesIO(payload),
+        length=len(payload),
+        content_type="application/json",
+        metadata={"sha256": payload_sha256},
+    )
+
+    return (
+        f"s3://{settings.s3_bucket_models}/{object_name}",
+        payload_sha256,
+        len(payload),
+    )
 
 
 async def _export_trained_artifact(

@@ -9,7 +9,7 @@ import onnxruntime as ort
 import structlog
 from continuum_shared.artifacts import decode_manifest, parse_s3_uri, sha256_hex
 from continuum_shared.config import settings
-from continuum_shared.embeddings import embed_texts
+from continuum_shared.embeddings import embed_texts, encode_with_session, get_tokenizer
 from continuum_shared.prisma import Prisma
 from continuum_shared.prisma.enums import ModelStatus
 from minio import Minio
@@ -28,6 +28,10 @@ class ModelEngine:
         self.artifact_manifest: dict[str, Any] | None = None
         self.onnx_input_name = "input"
         self.onnx_output_name = "embeddings"
+        # Two shapes of adapted model reach serving. "projection" post-multiplies the base
+        # vectors by a learned matrix. "encoder" is a LoRA-adapted MiniLM: it consumes
+        # tokens, not vectors, so the base model is replaced rather than post-processed.
+        self.model_kind: str = "projection"
         self.dimension: int = 384
         self._lock = asyncio.Lock()
         self.db = Prisma()
@@ -73,8 +77,9 @@ class ModelEngine:
             session = None
             input_name = "input"
             output_name = "embeddings"
+            kind = "projection"
             if manifest and manifest.get("onnx"):
-                session, input_name, output_name = await self._load_onnx_session(manifest)
+                session, input_name, output_name, kind = await self._load_onnx_session(manifest)
 
             async with self._lock:
                 self.current_version = active_model.version
@@ -82,8 +87,9 @@ class ModelEngine:
                 self.session = session
                 self.onnx_input_name = input_name
                 self.onnx_output_name = output_name
+                self.model_kind = kind
                 self.rollback_policy.note_activation(previous_version, active_model.version)
-                logger.info("Hot-swap complete", version=self.current_version)
+                logger.info("Hot-swap complete", version=self.current_version, model_kind=kind)
         except Exception as e:
             logger.error("Failed to load new model", error=str(e), version=active_model.version)
 
@@ -171,17 +177,24 @@ class ModelEngine:
             session = self.session
             input_name = self.onnx_input_name
             output_name = self.onnx_output_name
+            model_kind = self.model_kind
 
         if not version:
             raise RuntimeError("No active model is loaded.")
 
-        embeddings = embed_texts(texts, self.dimension)
         if model_version == "baseline":
-            return embeddings, "baseline", self.dimension
+            return embed_texts(texts, self.dimension), "baseline", self.dimension
 
         if model_version not in {"auto", version}:
             raise RuntimeError(f"Requested model '{model_version}' is not active.")
 
+        if session and model_kind == "encoder":
+            # The adapted model *is* the embedding model, so the base encoder is bypassed
+            # entirely rather than having its output post-processed.
+            vectors = encode_with_session(session, get_tokenizer(), texts)
+            return [[float(value) for value in row] for row in vectors], version, self.dimension
+
+        embeddings = embed_texts(texts, self.dimension)
         if session:
             input_array = np.array(embeddings, dtype=np.float32)
             output = session.run([output_name], {input_name: input_array})[0]
@@ -236,7 +249,7 @@ class ModelEngine:
 
     async def _load_onnx_session(
         self, manifest: dict[str, Any]
-    ) -> tuple[ort.InferenceSession, str, str]:
+    ) -> tuple[ort.InferenceSession, str, str, str]:
         onnx_metadata = manifest.get("onnx")
         if not isinstance(onnx_metadata, dict):
             raise ValueError("Model manifest does not contain ONNX metadata.")
@@ -245,6 +258,13 @@ class ModelEngine:
         onnx_sha256 = onnx_metadata.get("sha256")
         if not isinstance(onnx_uri, str) or not isinstance(onnx_sha256, str):
             raise ValueError("Model manifest ONNX metadata is incomplete.")
+
+        # Checked before the artifact is fetched: an unservable manifest should not cost a
+        # download. Absent metadata means a legacy projection artifact, which is what the
+        # demo adapter produces; only PEFT exports declare themselves as encoders.
+        kind = str(onnx_metadata.get("kind", "projection"))
+        if kind not in {"projection", "encoder"}:
+            raise ValueError(f"Unknown ONNX model kind {kind!r} in manifest")
 
         data = await self._download_s3_object(onnx_uri)
         actual_sha256 = sha256_hex(data)
@@ -267,6 +287,7 @@ class ModelEngine:
             session,
             str(onnx_metadata.get("input_name", "input")),
             str(onnx_metadata.get("output_name", "embeddings")),
+            kind,
         )
 
     async def _download_s3_object(self, uri: str) -> bytes:

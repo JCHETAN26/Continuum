@@ -24,7 +24,15 @@ COPY . /app
 # --all-packages installs every workspace member. A bare `uv sync` installs only the
 # root project, which leaves continuum_ingest, continuum_drift, and friends missing
 # from the venv even though their dependencies are present.
-RUN uv sync --all-packages
+# Only the trainer needs torch, transformers and peft, which add gigabytes. Passed as a
+# build arg so the five services that do inference through onnxruntime stay lean and share
+# one image, while the trainer gets its own.
+ARG INSTALL_EXTRAS=""
+RUN if [ -n "$INSTALL_EXTRAS" ]; then \
+      uv sync --all-packages --extra "$INSTALL_EXTRAS"; \
+    else \
+      uv sync --all-packages; \
+    fi
 # Bake the embedding weights into the image. Downloading at startup would put the Hub on
 # the critical path of every container start, and would let replicas drift onto different
 # revisions of the model, which the drift detector cannot distinguish from real drift.
