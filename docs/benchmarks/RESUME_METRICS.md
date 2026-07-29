@@ -4,8 +4,9 @@ Every number here was produced by a CI run on a machine nobody could tamper with
 one links to the run that emitted it. Nothing is estimated, and nothing is carried over
 from an earlier design of the system.
 
-Source run: [`30426014715`](https://github.com/JCHETAN26/Continuum/actions/runs/30426014715)
-· commit `993265c` · model version `2026.07.29-4a4f48eb`
+Source runs: [`30426014715`](https://github.com/JCHETAN26/Continuum/actions/runs/30426014715)
+and [`30429103002`](https://github.com/JCHETAN26/Continuum/actions/runs/30429103002)
+· commits `993265c` and `dcb8c18`
 
 ## Domain adaptation
 
@@ -13,17 +14,29 @@ A drift alert triggered a LoRA adaptation of `sentence-transformers/all-MiniLM-L
 the drifted window, followed by an ONNX export and an evaluation against the base model on
 the same held-out documents.
 
-| metric            | baseline | candidate | change  |
-| ----------------- | -------- | --------- | ------- |
-| MRR               | 0.877744 | 0.882762  | +0.57%  |
-| Recall@5          | 0.9725   | 0.9800    | +0.77%  |
-| Mean margin       | 0.026163 | 0.022054  | −15.71% |
-| Composite quality | 0.841996 | 0.846449  | +0.53%  |
+Two independent runs of the identical scenario:
 
-**The candidate was rejected.** Composite improvement of 0.53% fell below the 10%
-activation gate, so the pipeline kept serving the baseline. That is the intended outcome:
-the system measured a candidate, found the gain too small to justify a model swap, and
-declined to ship it.
+| metric            | run 1 baseline | run 1 candidate | run 1   | run 2 baseline | run 2 candidate | run 2   |
+| ----------------- | -------------- | --------------- | ------- | -------------- | --------------- | ------- |
+| MRR               | 0.877744       | 0.882762        | +0.57%  | 0.897203       | 0.902210        | +0.56%  |
+| Recall@5          | 0.9725         | 0.9800          | +0.77%  | 0.9825         | 0.9800          | −0.25%  |
+| Mean margin       | 0.026163       | 0.022054        | −15.71% | 0.019118       | 0.022821        | +19.37% |
+| Composite quality | 0.841996       | 0.846449        | +0.53%  | 0.856116       | 0.859148        | +0.35%  |
+
+**The headline result is the MRR gain: +0.57% and +0.56%.** That is the one figure that
+reproduces. Recall@5 and mean margin change sign between runs, so neither supports a claim
+in either direction — they are reported here rather than omitted precisely because a table
+showing only the favourable run would be dishonest.
+
+Absolute values move between runs because the evaluation set is drawn from the most
+recently embedded documents, and which documents those are depends on the order embedding
+completes in. The relative gain is stable across that variation, which is what makes it
+worth quoting.
+
+**The candidate was rejected in both runs**, at 0.53% and 0.35% against a 10% activation
+gate, so the pipeline kept serving the baseline. That is the intended outcome: the system
+measured a candidate, found the gain too small to justify a model swap, and declined to
+ship it.
 
 ## Adapter
 
