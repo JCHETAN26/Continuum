@@ -53,7 +53,7 @@ x-app-env: &app-env
   DRIFT_TRIGGER_COOLDOWN_HOURS: 6
   DRIFT_TRIGGER_MAX_DAILY_TRAINS: 3
   ACTIVATION_MIN_IMPROVEMENT: 0.10
-  TRAINER_BACKEND: demo_adapter
+  TRAINER_BACKEND: peft
   RETRAIN_COOLDOWN_MINUTES: 10
   TRAINING_RETRY_BASE_SECONDS: 1.0
   OTEL_SERVICE_NAME: continuum
@@ -76,7 +76,9 @@ x-worker-limits: &worker-limits
   mem_limit: 768m
 
 x-trainer-limits: &trainer-limits
-  cpus: '2.00'
+  # Raised from 2.00: LoRA training is the longest stage in the pipeline and the other
+  # services are effectively idle while it runs. cpus is a ceiling, not a reservation.
+  cpus: '3.50'
   mem_limit: 3g
 
 services:

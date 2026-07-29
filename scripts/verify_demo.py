@@ -84,9 +84,19 @@ async def check_training_job(client: httpx.AsyncClient) -> DemoCheckResult:
     response = await client.get(f"{TRAINER_API}/v1/training/jobs")
     response.raise_for_status()
     jobs = response.json()
-    completed = [
-        job for job in jobs if job["status"] in {"SUCCEEDED", "FAILED"} and job["sampleCount"]
-    ]
+    # A job that exhausted its retries is terminal: nothing will change by waiting, so
+    # report it immediately. Requiring sampleCount here meant a hard failure never matched
+    # (a failed run records none) and the check burned its entire budget before saying so.
+    terminal_failures = [job for job in jobs if job["status"] == "FAILED"]
+    if terminal_failures:
+        failed = terminal_failures[0]
+        return DemoCheckResult(
+            "training job",
+            False,
+            f"job={failed['id']} FAILED: {failed.get('error') or 'no error recorded'}",
+        )
+
+    completed = [job for job in jobs if job["status"] == "SUCCEEDED" and job["sampleCount"]]
     if completed:
         latest = completed[0]
         # SUCCEEDED means the pipeline ran to completion. Whether the candidate earned

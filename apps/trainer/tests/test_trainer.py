@@ -99,7 +99,13 @@ async def test_pipeline_execution():
         patch(
             "continuum_trainer.pipeline._export_trained_artifact", new_callable=AsyncMock
         ) as mock_export,
+        # Pinned rather than inherited from the environment. This test covers the demo
+        # projection path specifically, and picked up whichever backend .env happened to
+        # configure — so flipping the default silently routed it into the PEFT branch.
+        patch("continuum_trainer.pipeline.settings") as mock_settings,
     ):
+        mock_settings.trainer_backend = "demo_adapter"
+        mock_settings.embedding_dim = 384
         mock_db = MagicMock()
         mock_db.connect = AsyncMock()
         mock_db.disconnect = AsyncMock()
