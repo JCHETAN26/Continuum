@@ -211,6 +211,26 @@ jobs:
       - name: Run E2E Smoke
         run: pnpm e2e:smoke
 
+      # Measured against the stack the smoke test just exercised, so the numbers reflect
+      # the same images and resource limits rather than a bespoke benchmark environment.
+      - name: Measure Serving Latency
+        run: |
+          uv run bench/latency.py --output bench-results/latency.json | tee latency.txt
+          {
+            echo "### Serving latency (p50/p95/p99)"
+            echo '```'
+            cat latency.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload Latency Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: latency-results
+          path: bench-results/latency.json
+          if-no-files-found: warn
+
       # Always, not just on failure. A passing run is exactly when the measured
       # baseline-vs-candidate comparison is worth keeping, and gating this on failure meant
       # the one number the demo exists to produce was discarded on every green run.

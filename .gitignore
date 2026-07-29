@@ -42,6 +42,9 @@ packages/shared/generated/
 models/
 .hf-cache/
 
+# Benchmark output
+bench-results/
+
 # Local infra state
 infra/.data/
 
