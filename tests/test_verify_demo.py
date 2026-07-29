@@ -25,12 +25,12 @@ def client_for_routes(routes: dict[str, object]) -> httpx.AsyncClient:
 @pytest.mark.asyncio
 async def test_document_flow_requires_expected_counts():
     async with client_for_routes(
-        {"/v1/drift/summary": {"documentCount": 1500, "embeddingCount": 1499}}
+        {"/v1/drift/summary": {"documentCount": 1200, "embeddingCount": 1199}}
     ) as client:
         result = await verify_demo.check_document_flow(client)
 
     assert result.passed is False
-    assert "1499 embeddings" in result.detail
+    assert "1199/1200 embeddings" in result.detail
 
 
 @pytest.mark.asyncio
@@ -80,22 +80,75 @@ async def test_model_registry_accepts_passed_or_active_model():
     assert "demo-version" in result.detail
 
 
-@pytest.mark.asyncio
-async def test_retrieval_quality_improvement_requires_active_model_with_gain():
-    async def handler(request: httpx.Request) -> httpx.Response:
+def quality_handler(*, served: str, models: list[dict], improvement: float | None):
+    def handler(request: httpx.Request) -> httpx.Response:
         if request.url.path == "/v1/embed":
             requested = request.headers["x-model"]
-            served_by = "baseline" if requested == "baseline" else "demo-version"
+            served_by = "baseline" if requested == "baseline" else served
             return httpx.Response(200, json={"model_version_used": served_by, "dimension": 384})
-        if request.url.path == "/v1/models/demo-version":
-            return httpx.Response(200, json={"version": "demo-version", "improvementPct": 0.008})
+        if request.url.path == "/v1/models":
+            return httpx.Response(200, json=models)
+        if request.url.path == f"/v1/models/{served}":
+            return httpx.Response(200, json={"version": served, "improvementPct": improvement})
         return httpx.Response(404)
+
+    return handler
+
+
+@pytest.mark.asyncio
+async def test_promoted_model_must_serve_traffic_and_beat_the_gate():
+    handler = quality_handler(
+        served="demo-version",
+        models=[{"version": "demo-version", "status": "ACTIVE"}],
+        improvement=0.42,
+    )
 
     async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
         result = await verify_demo.check_retrieval_quality_improvement(client)
 
     assert result.passed is True
     assert "demo-version" in result.detail
+
+
+@pytest.mark.asyncio
+async def test_promoted_model_failing_the_gate_is_not_accepted():
+    handler = quality_handler(
+        served="demo-version",
+        models=[{"version": "demo-version", "status": "ACTIVE"}],
+        improvement=0.008,
+    )
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        result = await verify_demo.check_retrieval_quality_improvement(client)
+
+    assert result.passed is False
+
+
+@pytest.mark.asyncio
+async def test_serving_the_baseline_is_correct_when_nothing_was_promoted():
+    """The honest outcome when the base model already has no headroom left."""
+    handler = quality_handler(served="baseline", models=[], improvement=None)
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        result = await verify_demo.check_retrieval_quality_improvement(client)
+
+    assert result.passed is True
+    assert "gate" in result.detail
+
+
+@pytest.mark.asyncio
+async def test_promotion_that_never_reached_serving_is_a_failure():
+    handler = quality_handler(
+        served="baseline",
+        models=[{"version": "demo-version", "status": "ACTIVE"}],
+        improvement=0.42,
+    )
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        result = await verify_demo.check_retrieval_quality_improvement(client)
+
+    assert result.passed is False
+    assert "served by" in result.detail
 
 
 @pytest.mark.asyncio
@@ -109,3 +162,22 @@ async def test_wait_for_times_out_with_last_detail():
 
     assert result.passed is False
     assert "still waiting" in result.detail
+
+
+def test_expected_document_count_tracks_the_seed_script():
+    """These drifted apart once: the baseline dropped to 700 when the corpus changed and
+    this check kept asserting 1500, failing a run where every document had been embedded."""
+    import importlib.util
+    import sys
+    from pathlib import Path
+
+    seed_path = Path(__file__).resolve().parents[1] / "scripts" / "seed.py"
+    spec = importlib.util.spec_from_file_location("continuum_seed_for_counts", seed_path)
+    assert spec and spec.loader
+    seed_module = importlib.util.module_from_spec(spec)
+    sys.modules["continuum_seed_for_counts"] = seed_module
+    spec.loader.exec_module(seed_module)
+
+    assert verify_demo.EXPECTED_DOCUMENTS == (
+        seed_module.DEFAULT_BASELINE_DOCUMENTS + seed_module.DEFAULT_DRIFT_DOCUMENTS
+    )

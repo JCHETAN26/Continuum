@@ -131,6 +131,42 @@ rolling windows against the baseline corpus for entity movement, topic movement,
 vocabulary shift, stores results in `linguistic_windows`, publishes `linguistic-drift-alerts`,
 and streams live dashboard updates from `http://localhost:8004/v1/linguistic/events`.
 
+## Seed Corpus
+
+`uv run scripts/seed.py` ingests real documents, not generated text: 700 posts from
+`comp.sys.ibm.pc.hardware` as the baseline, then 500 from `comp.sys.mac.hardware` as the
+drifted window, drawn from the
+[20 Newsgroups](https://huggingface.co/datasets/SetFit/20_newsgroups) dataset. Every document
+is distinct — the corpus is deduplicated and walked rather than sampled with replacement.
+
+The pair was chosen by measurement. A domain shift only demonstrates adaptation if the base
+model has somewhere left to improve, and MiniLM already separates unrelated subjects almost
+perfectly:
+
+| candidate pair                             | drift separation | baseline MRR         |
+| ------------------------------------------ | ---------------- | -------------------- |
+| `comp.*` vs `sci.med`                      | 0.9156           | 0.9833 — no headroom |
+| `sci.med` vs `sci.electronics`             | 0.8886           | 0.9670 — no headroom |
+| `rec.sport.baseball` vs `rec.sport.hockey` | 0.3457           | 0.9352 — usable      |
+| **`pc.hardware` vs `mac.hardware`**        | **0.1760**       | **0.8591 — chosen**  |
+
+A live run against `comp.* vs sci.med` measured baseline MRR at 0.9993, so no adapter could
+register an improvement and the pipeline correctly rejected the candidate. Two flavours of
+hardware support discussion share vocabulary and structure, which leaves real headroom.
+
+Because that drift is subtler, `DRIFT_THRESHOLD` sits in a narrow band. Measured:
+
+| window                                         | drift score |
+| ---------------------------------------------- | ----------- |
+| within-domain (PC vs PC, false-positive floor) | 0.0629      |
+| 50% Mac                                        | 0.0789      |
+| 75% Mac                                        | 0.1184      |
+| 100% Mac                                       | 0.1728      |
+| `DRIFT_THRESHOLD`                              | 0.08        |
+
+0.08 clears the noise floor and trips on a drift-dominated window. Lowering it below ~0.065
+would alert on a stable distribution.
+
 ## Embeddings
 
 Documents are embedded with `sentence-transformers/all-MiniLM-L6-v2`, run through ONNX Runtime
