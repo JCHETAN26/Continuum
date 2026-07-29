@@ -111,18 +111,20 @@ See [DEMO.md](DEMO.md) for a detailed walkthrough.
 
 ### Trainer Backends
 
-The local quickstart defaults to `TRAINER_BACKEND=demo_adapter`, which keeps the laptop
-demo fast and serving-compatible. For production LoRA training, set:
+`TRAINER_BACKEND` defaults to `peft`: a drift alert trains
+`sentence-transformers/all-MiniLM-L6-v2` with a LoRA adapter under a symmetric in-batch
+contrastive objective, merges the adapter, exports ONNX through Optimum, and uploads the
+artifacts to MinIO. Torch is installed only into the trainer image, through the
+`INSTALL_EXTRAS` build arg, so the services that infer through ONNX Runtime stay lean.
 
-```bash
-uv sync --package continuum-trainer --extra peft
-TRAINER_BACKEND=peft
-```
+The candidate is then scored against the base model on the same held-out documents and
+promoted only if it clears `ACTIVATION_MIN_IMPROVEMENT`. Activation re-embeds the corpus:
+vectors from two different encoders are not comparable, so an adapted model that served
+against an index built by its predecessor would degrade retrieval and register as drift
+that never happened.
 
-The PEFT backend trains `sentence-transformers/all-MiniLM-L6-v2` with LoRA in-batch
-contrastive loss, exports ONNX through Optimum, uploads adapter/ONNX artifacts to MinIO,
-and marks the model version as `PENDING_EVAL` with `domain_tag`, `onnx_path`, and
-`eval_mrr` registry fields.
+`TRAINER_BACKEND=demo_adapter` selects the original deterministic projection instead. It
+trains nothing, and exists for a fast laptop demo.
 
 ### Linguistic Drift
 
