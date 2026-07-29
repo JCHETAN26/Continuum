@@ -38,7 +38,11 @@ class PeftTrainingConfig(BaseModel):
     batch_size: int = 16
     learning_rate: float = 2e-4
     temperature: float = 0.05
-    max_length: int = 256
+    # Sequences are padded to exactly this length, so it is a direct multiplier on
+    # training cost rather than a ceiling. Corpus documents run 72-83 words at the median
+    # (~110 tokens), so 256 spent more than half of every batch on padding that the
+    # attention mask then discards. Serving still embeds at MAX_SEQUENCE_LENGTH.
+    max_length: int = 128
     output_dir: str | None = None
 
 

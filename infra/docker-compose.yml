@@ -76,7 +76,9 @@ x-worker-limits: &worker-limits
   mem_limit: 768m
 
 x-trainer-limits: &trainer-limits
-  cpus: '2.00'
+  # Raised from 2.00: LoRA training is the longest stage in the pipeline and the other
+  # services are effectively idle while it runs. cpus is a ceiling, not a reservation.
+  cpus: '3.50'
   mem_limit: 3g
 
 services:
