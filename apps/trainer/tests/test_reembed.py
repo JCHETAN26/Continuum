@@ -113,3 +113,21 @@ async def test_evaluation_set_is_drawn_per_source():
     assert "PARTITION BY d.source" in statement
     assert captured[0][1] == (250,)
     assert {example["source"] for example in examples} == {"pc_hardware", "mac_hardware"}
+
+
+def test_demo_backend_reports_no_loss_trajectory():
+    """The demo adapter solves in closed form, so it has no optimisation steps.
+
+    It used to emit a descending curve by walking a hardcoded margin schedule
+    ([0.8, 0.6, 0.4, 0.25, 0.15]) against a model that never changed between "steps". The
+    curve fell because the constants fell, and the dashboard rendered it as training
+    telemetry for a backend that trains nothing.
+    """
+    import inspect
+
+    from continuum_trainer import pipeline
+
+    source = inspect.getsource(pipeline)
+    assert "estimate_loss_history" not in source
+    # The margin schedule that manufactured the curve must not come back either.
+    assert "0.25, 0.15" not in source
