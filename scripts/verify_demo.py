@@ -25,6 +25,14 @@ SERVER_API = "http://localhost:8002"
 API_KEY = "continuum-secret-key"
 
 
+def _format_metric(value) -> str:
+    return "n/a" if value is None else f"{float(value):.4f}"
+
+
+def _format_percent(value) -> str:
+    return "n/a" if value is None else f"{float(value):+.2%}"
+
+
 @dataclass(frozen=True)
 class DemoCheckResult:
     name: str
@@ -128,6 +136,33 @@ async def check_model_registry(client: httpx.AsyncClient) -> DemoCheckResult:
     improvement = model.get("improvementPct")
     metric = "n/a" if improvement is None else f"{float(improvement):+.1%}"
 
+    # Report the candidate that was actually judged, not whichever model happens to be
+    # ACTIVE. When nothing clears the gate the baseline stays active with no metrics of
+    # its own, so the run printed "improvement=n/a" and the measured comparison, which is
+    # the entire point of the exercise, appeared nowhere in the output.
+    judged = next(
+        (
+            candidate
+            for candidate in models
+            if candidate["version"] != "baseline"
+            and candidate["status"] in {"ACTIVE", "PASSED", "REJECTED"}
+        ),
+        None,
+    )
+    verdict = ""
+    if judged:
+        candidate_metrics = judged.get("metrics") or {}
+        baseline_of_record = judged.get("baselineMetrics") or {}
+        candidate_mrr = candidate_metrics.get("mrr")
+        baseline_mrr = baseline_of_record.get("mrr")
+        judged_improvement = judged.get("improvementPct")
+        verdict = (
+            f" | candidate={judged['version']} status={judged['status']} "
+            f"baseline_mrr={_format_metric(baseline_mrr)} "
+            f"candidate_mrr={_format_metric(candidate_mrr)} "
+            f"improvement={_format_percent(judged_improvement)}"
+        )
+
     # Assert the decision matches the evidence, in both directions. A base model that is
     # already strong on the drifted domain has no headroom left, so REJECTED is the
     # correct result and the registry must not promote anyway.
@@ -142,7 +177,7 @@ async def check_model_registry(client: httpx.AsyncClient) -> DemoCheckResult:
         "model registry",
         decided and consistent,
         f"version={model['version']}, status={model['status']}, improvement={metric}, "
-        f"gate={ACTIVATION_MIN_IMPROVEMENT:+.0%}, decision_consistent={consistent}",
+        f"gate={ACTIVATION_MIN_IMPROVEMENT:+.0%}, decision_consistent={consistent}{verdict}",
     )
 
 

@@ -207,3 +207,32 @@ def test_expected_document_count_tracks_the_seed_script():
     assert verify_demo.EXPECTED_DOCUMENTS == (
         seed_module.DEFAULT_BASELINE_DOCUMENTS + seed_module.DEFAULT_DRIFT_DOCUMENTS
     )
+
+
+@pytest.mark.asyncio
+async def test_registry_check_reports_the_judged_candidate_not_the_active_model():
+    """The measured comparison is the point of the run and must appear in the output.
+
+    When nothing clears the gate the baseline stays ACTIVE carrying no metrics, so the
+    check printed improvement=n/a and the numbers were only recoverable from container
+    logs that a passing run discarded.
+    """
+    models = [
+        {"version": "baseline", "status": "ACTIVE"},
+        {
+            "version": "2026.07.29-abc",
+            "status": "REJECTED",
+            "improvementPct": 0.031,
+            "metrics": {"mrr": 0.8871},
+            "baselineMetrics": {"mrr": 0.8604},
+        },
+    ]
+    async with client_for_routes({"/v1/models": models}) as client:
+        result = await verify_demo.check_model_registry(client)
+
+    assert "baseline_mrr=0.8604" in result.detail
+    assert "candidate_mrr=0.8871" in result.detail
+    assert "improvement=+3.10%" in result.detail
+    assert "status=REJECTED" in result.detail
+    # Rejected below the gate is a consistent decision, so the check still passes.
+    assert result.passed is True
