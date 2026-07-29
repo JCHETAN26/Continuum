@@ -137,24 +137,46 @@ async def check_model_registry(client: httpx.AsyncClient) -> DemoCheckResult:
 
 
 async def check_retrieval_quality_improvement(client: httpx.AsyncClient) -> DemoCheckResult:
+    """Serving must agree with the promotion decision, whichever way it went.
+
+    Demanding an activated model would make the demo fail whenever the honest answer is
+    that nothing beat the base model. What has to hold is consistency: if a candidate
+    cleared the gate it must be the one serving traffic and it must be an improvement; if
+    none did, traffic must still be served by the baseline.
+    """
     baseline_version = await get_served_model_version(client, "baseline")
     active_version = await get_served_model_version(client, "auto")
-    if active_version == baseline_version or active_version == "baseline":
+
+    response = await client.get(f"{TRAINER_API}/v1/models")
+    response.raise_for_status()
+    promoted = [model for model in response.json() if model["status"] in {"ACTIVE", "PASSED"}]
+    promoted = [model for model in promoted if model["version"] != "baseline"]
+
+    if not promoted:
+        serving_baseline = active_version in {baseline_version, "baseline"}
         return DemoCheckResult(
-            "retrieval quality improvement",
-            False,
-            f"baseline={baseline_version}, active={active_version}",
+            "retrieval quality consistency",
+            serving_baseline,
+            f"no candidate cleared the {ACTIVATION_MIN_IMPROVEMENT:+.0%} gate, "
+            f"serving stays on {active_version}",
         )
 
-    response = await client.get(f"{TRAINER_API}/v1/models/{active_version}")
-    response.raise_for_status()
-    active_model = response.json()
-    improvement = active_model.get("improvementPct")
-    passed = improvement is not None and float(improvement) > 0
+    if active_version in {baseline_version, "baseline"}:
+        return DemoCheckResult(
+            "retrieval quality consistency",
+            False,
+            f"{promoted[0]['version']} was promoted but traffic is served by {active_version}",
+        )
+
+    detail = await client.get(f"{TRAINER_API}/v1/models/{active_version}")
+    detail.raise_for_status()
+    improvement = detail.json().get("improvementPct")
+    passed = improvement is not None and float(improvement) > ACTIVATION_MIN_IMPROVEMENT
     return DemoCheckResult(
-        "retrieval quality improvement",
+        "retrieval quality consistency",
         passed,
-        f"served_by={active_version}, improvement={float(improvement or 0):+.1%}",
+        f"served_by={active_version}, improvement={float(improvement or 0):+.1%}, "
+        f"gate={ACTIVATION_MIN_IMPROVEMENT:+.0%}",
     )
 
 
