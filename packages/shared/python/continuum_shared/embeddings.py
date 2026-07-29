@@ -34,24 +34,35 @@ _lock = threading.Lock()
 _runtime: _EmbeddingRuntime | None = None
 
 
+def encode_with_session(session: Any, tokenizer: Any, texts: list[str]) -> np.ndarray:
+    """Run texts through any MiniLM-shaped ONNX encoder and pool the result.
+
+    Shared so the serving engine can run a LoRA-adapted encoder through exactly the
+    tokenisation and pooling the baseline vectors were produced with. An adapter trained
+    under one pooling strategy and served under another yields vectors that are silently
+    incomparable with the centroids drift is measured against.
+    """
+    encoded = tokenizer.encode_batch(texts)
+    input_ids = np.array([item.ids for item in encoded], dtype=np.int64)
+    attention_mask = np.array([item.attention_mask for item in encoded], dtype=np.int64)
+    outputs = session.run(
+        ["last_hidden_state"],
+        {
+            "input_ids": input_ids,
+            "attention_mask": attention_mask,
+            "token_type_ids": np.zeros_like(input_ids),
+        },
+    )[0]
+    return mean_pool_and_normalize(outputs, attention_mask)
+
+
 class _EmbeddingRuntime:
     def __init__(self, session: Any, tokenizer: Any) -> None:
         self.session = session
         self.tokenizer = tokenizer
 
     def encode(self, texts: list[str]) -> np.ndarray:
-        encoded = self.tokenizer.encode_batch(texts)
-        input_ids = np.array([item.ids for item in encoded], dtype=np.int64)
-        attention_mask = np.array([item.attention_mask for item in encoded], dtype=np.int64)
-        outputs = self.session.run(
-            ["last_hidden_state"],
-            {
-                "input_ids": input_ids,
-                "attention_mask": attention_mask,
-                "token_type_ids": np.zeros_like(input_ids),
-            },
-        )[0]
-        return mean_pool_and_normalize(outputs, attention_mask)
+        return encode_with_session(self.session, self.tokenizer, texts)
 
 
 def mean_pool_and_normalize(token_states: np.ndarray, attention_mask: np.ndarray) -> np.ndarray:
@@ -126,6 +137,11 @@ def embed_texts(texts: list[str], dimension: int = EMBEDDING_DIMENSION) -> list[
 
 def embed_text(text: str, dimension: int = EMBEDDING_DIMENSION) -> list[float]:
     return embed_texts([text], dimension)[0]
+
+
+def get_tokenizer() -> Any:
+    """The adapted encoder shares the base model's vocabulary; LoRA does not change it."""
+    return get_runtime().tokenizer
 
 
 def vector_literal(vector: list[float]) -> str:
