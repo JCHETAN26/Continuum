@@ -236,3 +236,28 @@ async def test_registry_check_reports_the_judged_candidate_not_the_active_model(
     assert "status=REJECTED" in result.detail
     # Rejected below the gate is a consistent decision, so the check still passes.
     assert result.passed is True
+
+
+@pytest.mark.asyncio
+async def test_all_zero_metrics_are_not_accepted_as_a_decision():
+    """Zeros are the scorer's degenerate return, meaning evaluation never ran.
+
+    Retrieval is scored against same-source neighbours, so an evaluation set drawn from a
+    single domain has no negatives and every metric comes back 0.0. That surfaced as a
+    candidate REJECTED at +0.00% improvement, which the check happily called consistent.
+    """
+    models = [
+        {"version": "baseline", "status": "ACTIVE"},
+        {
+            "version": "2026.07.29-ccc",
+            "status": "REJECTED",
+            "improvementPct": 0.0,
+            "metrics": {"mrr": 0.0},
+            "baselineMetrics": {"mrr": 0.0},
+        },
+    ]
+    async with client_for_routes({"/v1/models": models}) as client:
+        result = await verify_demo.check_model_registry(client)
+
+    assert result.passed is False
+    assert "evaluated=False" in result.detail

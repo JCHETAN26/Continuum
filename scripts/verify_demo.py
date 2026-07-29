@@ -150,17 +150,24 @@ async def check_model_registry(client: httpx.AsyncClient) -> DemoCheckResult:
         None,
     )
     verdict = ""
+    evaluated = True
     if judged:
         candidate_metrics = judged.get("metrics") or {}
         baseline_of_record = judged.get("baselineMetrics") or {}
         candidate_mrr = candidate_metrics.get("mrr")
         baseline_mrr = baseline_of_record.get("mrr")
         judged_improvement = judged.get("improvementPct")
+        # All-zero metrics are the scorer's degenerate return, not a measurement. Without
+        # this, an evaluation that never ran reads as a candidate that simply failed to
+        # improve, and the run goes green having measured nothing. Metrics that are absent
+        # entirely say nothing either way and are not treated as a failure.
+        recorded = [value for value in (candidate_mrr, baseline_mrr) if value is not None]
+        evaluated = not recorded or any(float(value) > 0.0 for value in recorded)
         verdict = (
             f" | candidate={judged['version']} status={judged['status']} "
             f"baseline_mrr={_format_metric(baseline_mrr)} "
             f"candidate_mrr={_format_metric(candidate_mrr)} "
-            f"improvement={_format_percent(judged_improvement)}"
+            f"improvement={_format_percent(judged_improvement)} evaluated={evaluated}"
         )
 
     # Assert the decision matches the evidence, in both directions. A base model that is
@@ -175,7 +182,7 @@ async def check_model_registry(client: httpx.AsyncClient) -> DemoCheckResult:
 
     return DemoCheckResult(
         "model registry",
-        decided and consistent,
+        decided and consistent and evaluated,
         f"version={model['version']}, status={model['status']}, improvement={metric}, "
         f"gate={ACTIVATION_MIN_IMPROVEMENT:+.0%}, decision_consistent={consistent}{verdict}",
     )
