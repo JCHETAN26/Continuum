@@ -239,7 +239,7 @@ async def _run_corpus_adapter_training(db: Prisma) -> tuple[dict, bytes, list[di
         return (
             {
                 "sample_count": len(examples),
-                "loss_history": [{"step": 0, "loss": 0.0}],
+                "loss_history": [],
             },
             export_adapter_to_onnx(model, settings.embedding_dim),
             examples,
@@ -248,7 +248,12 @@ async def _run_corpus_adapter_training(db: Prisma) -> tuple[dict, bytes, list[di
     return (
         {
             "sample_count": len(triplets) * 3,
-            "loss_history": estimate_loss_history(model, triplets),
+            # No trajectory: train_adapter_from_examples solves in closed form from the
+            # between-source variance, so there are no optimisation steps to report. This
+            # previously emitted a descending curve produced by walking a hardcoded margin
+            # schedule against an unchanging model, which rendered on the dashboard as
+            # training telemetry despite nothing having been trained.
+            "loss_history": [],
         },
         export_adapter_to_onnx(model, settings.embedding_dim),
         examples,
@@ -277,25 +282,6 @@ def train_adapter_from_examples(examples: list[dict], dimension: int) -> Embeddi
     diagonal = 1.0 + (between_source_variance / max_variance)
     weights = np.diag(diagonal.astype(np.float32))
     return EmbeddingAdapter(dimension, weights)
-
-
-def estimate_loss_history(
-    model: EmbeddingAdapter, triplets: list[tuple[list[float], ...]]
-) -> list[dict[str, float]]:
-    losses = []
-    transformed = transform_vectors(
-        model,
-        np.array([vector for triplet in triplets for vector in triplet], dtype=np.float32),
-    )
-    for step, margin in enumerate([0.8, 0.6, 0.4, 0.25, 0.15], start=1):
-        anchors = transformed[0::3]
-        positives = transformed[1::3]
-        negatives = transformed[2::3]
-        positive_distance = 1 - np.sum(anchors * positives, axis=1)
-        negative_distance = 1 - np.sum(anchors * negatives, axis=1)
-        loss = np.maximum(0.0, margin + positive_distance - negative_distance).mean()
-        losses.append({"step": step * 5, "loss": round(float(loss), 6)})
-    return losses
 
 
 def transform_vectors(model: EmbeddingAdapter, vectors: np.ndarray) -> np.ndarray:

@@ -100,47 +100,56 @@ export default function TrainingPage() {
         <Card className="bg-card/50 backdrop-blur-sm border-border/50 shadow-sm overflow-hidden">
           <CardHeader>
             <CardTitle>Training Loss</CardTitle>
-            <CardDescription>Recorded by the local training worker.</CardDescription>
+            <CardDescription>Per-step loss recorded during LoRA training.</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="h-[250px] w-full mt-4">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={lossData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    stroke="hsl(var(--border))"
-                    vertical={false}
-                  />
-                  <XAxis
-                    dataKey="step"
-                    stroke="hsl(var(--muted-foreground))"
-                    fontSize={12}
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <YAxis
-                    domain={[0, 2]}
-                    stroke="hsl(var(--muted-foreground))"
-                    fontSize={12}
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: 'hsl(var(--card))',
-                      borderColor: 'hsl(var(--border))',
-                      borderRadius: '8px',
-                    }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="loss"
-                    stroke="hsl(var(--primary))"
-                    strokeWidth={3}
-                    dot={false}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+              {lossData.length === 0 ? (
+                <div className="flex h-full items-center justify-center text-center text-sm text-muted-foreground">
+                  {/* An empty chart is the honest state for a backend that solves in closed
+                      form. Previously a synthetic descending curve was drawn here. */}
+                  No loss trajectory for this job. The demo adapter solves in closed form and
+                  performs no optimisation steps; run the PEFT backend to record real training loss.
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={lossData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      stroke="hsl(var(--border))"
+                      vertical={false}
+                    />
+                    <XAxis
+                      dataKey="step"
+                      stroke="hsl(var(--muted-foreground))"
+                      fontSize={12}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <YAxis
+                      domain={[0, 2]}
+                      stroke="hsl(var(--muted-foreground))"
+                      fontSize={12}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: 'hsl(var(--card))',
+                        borderColor: 'hsl(var(--border))',
+                        borderRadius: '8px',
+                      }}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="loss"
+                      stroke="hsl(var(--primary))"
+                      strokeWidth={3}
+                      dot={false}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              )}
             </div>
           </CardContent>
         </Card>
