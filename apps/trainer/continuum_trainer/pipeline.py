@@ -14,12 +14,12 @@ from continuum_shared.artifacts import (
     sha256_hex,
 )
 from continuum_shared.config import settings
-from continuum_shared.embeddings import embed_texts, vector_literal
+from continuum_shared.embeddings import embed_texts
 from continuum_shared.prisma import Json, Prisma
 from continuum_shared.prisma.enums import ModelStatus, TrainingJobStatus
 from minio import Minio
 
-from continuum_trainer.eval import evaluate_encoder_model, evaluate_model, run_onnx_encoder
+from continuum_trainer.eval import evaluate_encoder_model, evaluate_model
 from continuum_trainer.peft_engine import run_peft_training_from_db
 
 logger = structlog.get_logger()
@@ -94,11 +94,12 @@ async def _async_run_training_pipeline(model_id: str, training_job_id: str | Non
             )
 
             if passed:
+                # Activation is all that is needed to trigger re-indexing. The embedding
+                # worker claims documents whose vector was produced by a different model
+                # version, so the corpus is re-encoded there: resumable across restarts,
+                # and spread over however many worker replicas are running. Doing it here
+                # blocked the training job for the length of a full re-index.
                 await activate_model_version(db, model_id)
-                reembedded = await reembed_corpus_with_encoder(
-                    db, model_id=model_id, onnx_artifact=onnx_artifact
-                )
-                logger.info("Corpus re-embedded for activated encoder", documents=reembedded)
 
             if training_job_id:
                 await db.trainingjob.update(
@@ -377,54 +378,6 @@ def build_training_triplets(
             if len(triplets) >= limit:
                 return triplets
     return triplets
-
-
-async def reembed_corpus_with_encoder(
-    db: Prisma,
-    *,
-    model_id: str,
-    onnx_artifact: bytes,
-    batch_size: int = 200,
-) -> int:
-    """Recompute stored vectors with a newly activated encoder.
-
-    Activating an adapted encoder is an index migration, not just a routing change. Every
-    stored vector was produced by the previous model, and cosine distance between vectors
-    from two different encoders is meaningless — retrieval would silently degrade and the
-    drift detector would read the discontinuity as drift that never happened.
-
-    Runs here rather than in the embedding worker because the trainer already holds the
-    artifact it just evaluated, so the worker needs no model-loading path of its own.
-    """
-    rows = await db.query_raw("SELECT id, text FROM documents ORDER BY created_at")
-    if not rows:
-        return 0
-
-    reembedded = 0
-    for start in range(0, len(rows), batch_size):
-        chunk = rows[start : start + batch_size]
-        vectors = run_onnx_encoder(onnx_artifact, [str(row["text"]) for row in chunk])
-        for row, vector in zip(chunk, vectors, strict=True):
-            await db.execute_raw(
-                """
-                INSERT INTO embeddings (id, document_id, model_version_id, vector, dimension,
-                                        created_at)
-                VALUES (gen_random_uuid(), $1::uuid, $2::uuid, $3::vector, $4, NOW())
-                ON CONFLICT (document_id) DO UPDATE
-                SET vector = EXCLUDED.vector,
-                    model_version_id = EXCLUDED.model_version_id,
-                    dimension = EXCLUDED.dimension,
-                    created_at = NOW()
-                """,
-                str(row["id"]),
-                model_id,
-                vector_literal([float(value) for value in vector]),
-                settings.embedding_dim,
-            )
-        reembedded += len(chunk)
-        logger.info("Re-embedded corpus batch", done=reembedded, total=len(rows))
-
-    return reembedded
 
 
 def _models_client() -> Minio:

@@ -131,10 +131,16 @@ artifacts to MinIO. Torch is installed only into the trainer image, through the
 `INSTALL_EXTRAS` build arg, so the services that infer through ONNX Runtime stay lean.
 
 The candidate is then scored against the base model on the same held-out documents and
-promoted only if it clears `ACTIVATION_MIN_IMPROVEMENT`. Activation re-embeds the corpus:
-vectors from two different encoders are not comparable, so an adapted model that served
-against an index built by its predecessor would degrade retrieval and register as drift
-that never happened.
+promoted only if it clears `ACTIVATION_MIN_IMPROVEMENT`. Activation re-indexes the corpus:
+vectors from two different encoders are not comparable, so an adapted model serving against
+an index built by its predecessor would degrade retrieval and register as drift that never
+happened.
+
+The re-encoding is done by the embedding worker, which claims documents whose stored vector
+carries a model version other than the active one. Activation is the only signal needed —
+the mismatch is the work queue. That makes re-indexing resumable across restarts and spread
+over however many worker replicas are running, rather than blocking the training job for the
+length of a full pass.
 
 `TRAINER_BACKEND=demo_adapter` selects the original deterministic projection instead. It
 trains nothing, and exists for a fast laptop demo.
