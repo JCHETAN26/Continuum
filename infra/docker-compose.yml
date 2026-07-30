@@ -71,6 +71,12 @@ x-api-limits: &api-limits
   cpus: '0.50'
   mem_limit: 512m
 
+# Serving is the only interactive path in the system and it is CPU bound: at the 0.50 CPU
+# of x-api-limits it measured 7.5 to 14.2 seconds for a batch of 32, against a 50 ms target.
+x-serving-limits: &serving-limits
+  cpus: '2.00'
+  mem_limit: 1g
+
 x-worker-limits: &worker-limits
   cpus: '0.75'
   mem_limit: 768m
@@ -550,7 +556,7 @@ services:
       start_period: 10s
 
   server:
-    <<: *api-limits
+    <<: *serving-limits
     build:
       context: ..
       dockerfile: docker/Dockerfile.python

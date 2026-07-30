@@ -125,7 +125,11 @@ def get_runtime() -> _EmbeddingRuntime:
 
         onnx_path, tokenizer_path = resolve_model_files()
         tokenizer = Tokenizer.from_file(str(tokenizer_path))
-        tokenizer.enable_padding()
+        # Pad to the longest sequence in each batch rather than to MAX_SEQUENCE_LENGTH.
+        # Corpus documents run about 110 tokens, so padding every batch to 256 spent more
+        # than half of each forward pass on positions the attention mask then discards.
+        # Pooling is masked, so shorter padding cannot change a vector.
+        tokenizer.enable_padding(direction="right", pad_to_multiple_of=8)
         tokenizer.enable_truncation(max_length=MAX_SEQUENCE_LENGTH)
         session = ort.InferenceSession(
             str(onnx_path),

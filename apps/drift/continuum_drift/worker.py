@@ -28,27 +28,31 @@ def get_kafka_producer():
 async def compute_centroid(
     db: Prisma, start_time: datetime, end_time: datetime
 ) -> tuple[np.ndarray, int] | None:
-    # Fetch embeddings in time window
-    # Because Prisma can't read `vector(384)` directly into a model, we use raw SQL.
+    # AVG() is computed by pgvector inside Postgres and returns one row. Selecting every
+    # vector and averaging in Python instead made memory grow with the window: each vector
+    # arrived as text, roughly 5 KB per document once formatted, and was then parsed into a
+    # float array. A window covering a million documents would have needed gigabytes to
+    # produce a single 384-element result.
     query = """
-        SELECT vector::text as vec_str
+        SELECT AVG(vector)::text AS centroid, COUNT(*)::int AS document_count
         FROM embeddings
         WHERE created_at >= $1::timestamptz AND created_at < $2::timestamptz
     """
     rows = await db.query_raw(query, start_time, end_time)
 
-    if not rows:
+    if not rows or not rows[0]["centroid"]:
         return None
 
-    vectors = []
-    for row in rows:
-        # Postgres vector::text looks like '[0.1, 0.2, ...]'
-        v_str = row["vec_str"].strip("[]")
-        vectors.append(np.array([float(x) for x in v_str.split(",")]))
+    document_count = int(rows[0]["document_count"])
+    if document_count == 0:
+        return None
 
-    vectors = np.array(vectors)
-    centroid = np.mean(vectors, axis=0)
-    return centroid, len(vectors)
+    # Postgres renders vector as '[0.1,0.2,...]'.
+    centroid = np.array(
+        [float(value) for value in rows[0]["centroid"].strip("[]").split(",")],
+        dtype=np.float64,
+    )
+    return centroid, document_count
 
 
 async def get_or_create_baseline(db: Prisma) -> tuple[str, np.ndarray]:
