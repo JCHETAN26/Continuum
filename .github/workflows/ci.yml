@@ -223,12 +223,25 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
+      # Independent of the gate the trainer applies to itself: its own scorer counts any
+      # same-domain document as relevant, which makes the task nearly free. This asks the
+      # model to find one specific post out of every candidate.
+      - name: Run Retrieval Benchmark
+        run: |
+          uv run eval/benchmark.py --output bench-results/retrieval.json | tee retrieval.txt
+          {
+            echo "### Retrieval benchmark (100 held-out queries)"
+            echo '```'
+            cat retrieval.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Upload Latency Results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: latency-results
-          path: bench-results/latency.json
+          name: benchmark-results
+          path: bench-results/
           if-no-files-found: warn
 
       # Always, not just on failure. A passing run is exactly when the measured
