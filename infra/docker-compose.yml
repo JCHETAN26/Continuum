@@ -323,12 +323,14 @@ services:
       retries: 20
       start_period: 10s
 
+  # No container_name: docker compose refuses to scale a service with a fixed name, and
+  # this one is safe to run several of. It consumes document-stream as a Kafka consumer
+  # group over three partitions, so the broker assigns each partition to one member.
   ingest-worker:
     <<: *worker-limits
     build:
       context: ..
       dockerfile: docker/Dockerfile.python
-    container_name: continuum-ingest-worker
     restart: unless-stopped
     command:
       ['uv', 'run', '--package', 'continuum-ingest', 'python', '-m', 'continuum_ingest.worker.main']
@@ -362,12 +364,14 @@ services:
       retries: 20
       start_period: 10s
 
+  # No container_name, for the same reason. This is the throughput bottleneck in the
+  # pipeline, and its polling query claims rows with FOR UPDATE SKIP LOCKED, so replicas
+  # take disjoint batches without coordinating.
   embedding:
     <<: *worker-limits
     build:
       context: ..
       dockerfile: docker/Dockerfile.python
-    container_name: continuum-embedding
     restart: unless-stopped
     command:
       ['uv', 'run', '--package', 'continuum-embedding', 'python', '-m', 'continuum_embedding.main']
