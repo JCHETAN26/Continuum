@@ -104,3 +104,37 @@ Adaptation is unsupervised: positives come from dropout views of the same docume
 MRR and recall rose, so the adapter sharpened the top of the ranking while pulling the
 domains slightly closer overall. That is a real limitation of the objective, not a defect
 in the run.
+
+## Serving latency
+
+Measured against the compose stack in CI, at the same images and resource limits the demo
+runs under, using documents from the ingested corpus. Percentiles are nearest-rank over 50
+requests per batch size, warm-up excluded.
+
+Source run: [`30495237125`](https://github.com/JCHETAN26/Continuum/actions/runs/30495237125)
+· commit `35b57de`
+
+| batch | p50        | p95        | p99        | per document (p50) |
+| ----- | ---------- | ---------- | ---------- | ------------------ |
+| 1     | 201.9 ms   | 497.8 ms   | 503.3 ms   | 201.9 ms           |
+| 8     | 2403.4 ms  | 3194.7 ms  | 3296.4 ms  | 300.4 ms           |
+| 32    | 10895.9 ms | 11821.6 ms | 12097.2 ms | 340.5 ms           |
+
+**The spec target of p99 under 50 ms at batch 32 is missed by a factor of 242.** It is
+recorded here as measured rather than adjusted to fit, because the target was written
+before anything had been measured.
+
+Two causes, both configuration rather than model:
+
+- The serving container runs under `x-api-limits`, which caps it at **0.50 CPU**. That is
+  transformer inference on half a core, and it dominates everything else.
+- Every request pads to `MAX_SEQUENCE_LENGTH` of 256 tokens while corpus documents run
+  about 110, so more than half of each forward pass is padding that the attention mask then
+  discards.
+
+Per-document cost rises from 201.9 ms at batch 1 to 340.5 ms at batch 32. Batching normally
+lowers per-item cost; that it rises here is the signature of CPU starvation, where the work
+cannot spread across cores because there are none to spread across.
+
+Raising the serving CPU limit and switching to dynamic padding are the obvious next steps.
+Neither has been done, so neither is claimed.
