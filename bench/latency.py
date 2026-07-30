@@ -44,10 +44,14 @@ class LatencyReport:
     max_ms: float
 
     def render(self) -> str:
+        # At small sample counts the nearest-rank p99 collapses onto the slowest request:
+        # ceil(0.99 * 50) is 50. Flagging it keeps the output from presenting the maximum
+        # as a percentile it cannot support.
+        p99_note = "" if self.requests >= 100 else "  (p99==max at this n)"
         return (
             f"batch={self.batch_size:<3} n={self.requests:<4} "
             f"p50={self.p50_ms:8.2f}ms  p95={self.p95_ms:8.2f}ms  "
-            f"p99={self.p99_ms:8.2f}ms  mean={self.mean_ms:8.2f}ms"
+            f"p99={self.p99_ms:8.2f}ms  max={self.max_ms:8.2f}ms{p99_note}"
         )
 
 
