@@ -12,10 +12,14 @@ with patch("continuum_drift.worker.Prisma"):
 
 @pytest.mark.asyncio
 async def test_compute_centroid():
+    """Postgres returns one already-averaged row; the worker only parses it.
+
+    The averaging moved into the database, so the window no longer arrives here as one
+    text blob per document. tests/integration/test_centroid_avg.py checks against a real
+    pgvector that AVG() agrees with the mean this used to compute in Python.
+    """
     mock_db = MagicMock()
-    mock_db.query_raw = AsyncMock(
-        return_value=[{"vec_str": "[1.0, 2.0, 3.0]"}, {"vec_str": "[3.0, 2.0, 1.0]"}]
-    )
+    mock_db.query_raw = AsyncMock(return_value=[{"centroid": "[2.0,2.0,2.0]", "document_count": 2}])
 
     start = datetime.now(UTC)
     end = start + timedelta(minutes=5)
@@ -26,6 +30,20 @@ async def test_compute_centroid():
     centroid, count = result
     assert count == 2
     assert np.allclose(centroid, np.array([2.0, 2.0, 2.0]))
+    # One row regardless of window size, rather than one per document.
+    statement = " ".join(mock_db.query_raw.call_args.args[0].split())
+    assert "AVG(vector)" in statement
+
+
+@pytest.mark.asyncio
+async def test_compute_centroid_returns_none_for_an_empty_window():
+    """AVG over no rows is NULL, and a null centroid is not the origin."""
+    mock_db = MagicMock()
+    mock_db.query_raw = AsyncMock(return_value=[{"centroid": None, "document_count": 0}])
+
+    result = await compute_centroid(mock_db, datetime.now(UTC), datetime.now(UTC))
+
+    assert result is None
 
 
 @pytest.mark.asyncio
