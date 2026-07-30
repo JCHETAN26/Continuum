@@ -23,6 +23,7 @@
     "test:py": "uv run pytest",
     "test:integration": "RUN_DOCKER_INTEGRATION=1 RUN_THROTTLE_INTEGRATION=1 RUN_LINGUISTIC_INTEGRATION=1 uv run pytest -m integration tests/integration",
     "e2e:smoke": "bash scripts/e2e-smoke.sh",
+    "bench:latency": "uv run bench/latency.py",
     "demo:verify": "uv run scripts/verify_demo.py",
     "stack:health": "uv run scripts/check_stack_health.py",
     "ops:migrate": "uv run alembic -c packages/shared/alembic.ini upgrade head",

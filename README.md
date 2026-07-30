@@ -169,6 +169,19 @@ Because that drift is subtler, `DRIFT_THRESHOLD` sits in a narrow band. Measured
 0.08 clears the noise floor and trips on a drift-dominated window. Lowering it below ~0.065
 would alert on a stable distribution.
 
+## Serving Latency
+
+`pnpm bench:latency` measures p50/p95/p99 against a running stack at batch sizes 1, 8 and
+32, using documents from the same corpus the demo ingests. Payload length matters: latency
+on a transformer scales with sequence length, so measuring with short synthetic strings
+understates it substantially.
+
+CI runs it after the E2E smoke against the same images and resource limits, publishes the
+table to the job summary, and uploads the raw JSON as an artifact.
+
+Percentiles are nearest-rank rather than interpolated, so every figure is a latency some
+request actually took.
+
 ## Embeddings
 
 Documents are embedded with `sentence-transformers/all-MiniLM-L6-v2`, run through ONNX Runtime
