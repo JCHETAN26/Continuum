@@ -76,6 +76,19 @@ The serving engine tracks request outcomes per model version. If the active mode
 `ROLLBACK_MIN_REQUESTS`, it archives the failing version, restores the previous active model,
 and records a rollback event.
 
+## Running it in a Codespace
+
+`.devcontainer/` configures a Codespace with Docker-in-Docker and the ports the stack
+publishes. It requests **8 CPUs and 32 GB**: the app services alone declare 9.2 GB of
+memory limits and 8 CPUs, the infrastructure containers are unbounded on top of that, and
+serving is CPU-bound even at rest.
+
+Create the Codespace, wait for setup, then follow the quickstart below. Port 3000 forwards
+automatically once the dashboard is healthy.
+
+Codespaces bill by core-hour while running, storage while stopped, and nothing once
+deleted, so stop or delete it when finished.
+
 ## Quickstart (E2E Demo)
 
 Boot up the entire infrastructure and microservices with Docker Compose:
