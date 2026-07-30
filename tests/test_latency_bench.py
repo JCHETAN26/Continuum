@@ -71,3 +71,21 @@ def test_report_renders_every_percentile():
     rendered = report.render()
     assert "batch=32" in rendered
     assert "p50=" in rendered and "p95=" in rendered and "p99=" in rendered
+    # 50 samples cannot support a p99: ceil(0.99 * 50) is rank 50, the slowest request.
+    assert "(p99==max at this n)" in rendered
+
+
+def test_render_omits_the_p99_caveat_once_the_sample_is_large_enough():
+    report = latency.LatencyReport(
+        endpoint="http://localhost:8002/v1/embed",
+        batch_size=32,
+        requests=200,
+        p50_ms=101.5,
+        p95_ms=180.2,
+        p99_ms=240.9,
+        mean_ms=115.0,
+        min_ms=90.0,
+        max_ms=250.0,
+    )
+
+    assert "(p99==max at this n)" not in report.render()
