@@ -165,3 +165,39 @@ def test_python_and_node_images_run_as_non_root():
 
     assert "USER continuum" in python_dockerfile
     assert "USER node" in node_dockerfile
+
+
+SCALABLE_SERVICES = ["embedding", "ingest-worker"]
+
+# Scaling these would be wrong rather than merely useless: the one-shots must run exactly
+# once for service_completed_successfully to mean anything, and a second retention worker
+# would duplicate the deletions the first is already making.
+SINGLETON_SERVICES = ["redpanda-init", "minio-init", "migrations", "retention-worker"]
+
+
+def test_scalable_workers_have_no_fixed_container_name():
+    """docker compose refuses to scale a service that declares container_name."""
+    services = load_compose()["services"]
+
+    for service_name in SCALABLE_SERVICES:
+        assert "container_name" not in services[service_name], (
+            f"{service_name} cannot be scaled while it declares a container_name"
+        )
+
+
+def test_scalable_workers_publish_no_ports():
+    """A published host port collides on the second replica."""
+    services = load_compose()["services"]
+
+    for service_name in SCALABLE_SERVICES:
+        assert not services[service_name].get("ports"), (
+            f"{service_name} cannot be scaled while it publishes a host port"
+        )
+
+
+def test_singleton_services_keep_their_fixed_names():
+    """Naming them is what stops a careless --scale from running them more than once."""
+    services = load_compose()["services"]
+
+    for service_name in SINGLETON_SERVICES:
+        assert services[service_name].get("container_name"), f"{service_name} must not be scalable"

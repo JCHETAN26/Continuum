@@ -182,6 +182,24 @@ Because that drift is subtler, `DRIFT_THRESHOLD` sits in a narrow band. Measured
 0.08 clears the noise floor and trips on a drift-dominated window. Lowering it below ~0.065
 would alert on a stable distribution.
 
+## Scaling the workers
+
+`embedding` and `ingest-worker` declare no `container_name` and publish no ports, so they
+can be run with replicas:
+
+```bash
+docker compose --env-file .env -f infra/docker-compose.yml up -d --scale embedding=3
+```
+
+Both are safe to replicate. The embedding worker claims rows with
+`FOR UPDATE ... SKIP LOCKED`, so replicas take disjoint batches without coordinating, and
+the ingest worker is a Kafka consumer group over three partitions, so the broker assigns
+each partition to one member.
+
+Everything else keeps a fixed name deliberately. `redpanda-init`, `minio-init` and
+`migrations` must run exactly once for `service_completed_successfully` to mean anything,
+and a second `retention-worker` would duplicate the deletions the first is making.
+
 ## Serving Latency
 
 `pnpm bench:latency` measures p50/p95/p99 against a running stack at batch sizes 1, 8 and
