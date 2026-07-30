@@ -205,8 +205,8 @@ A LoRA adaptation of `all-MiniLM-L6-v2` over the drifted window improves retriev
 Composite improvement stayed below the 10% activation gate in both, so the pipeline kept
 serving the baseline rather than shipping a marginal model.
 
-Serving latency is measured in CI: median 101–299 ms at batch 1 and 7.5–14.0 s at batch 32
-across three runs, against a spec target of p99 under 50 ms. The serving container is capped
+Serving latency is measured in CI: median 101–299 ms at batch 1 and 7.5–14.2 s at batch 32
+across five runs, against a spec target of p99 under 50 ms. The serving container is capped
 at 0.50 CPU and every request pads to 256 tokens, which accounts for it; both are recorded
 rather than tuned away.
 

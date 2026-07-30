@@ -111,19 +111,20 @@ Measured against the compose stack in CI, at the same images and resource limits
 runs under, using documents from the ingested corpus. Nearest-rank percentiles over 50
 requests per batch size, warm-up excluded.
 
-Three runs: [`30495237125`](https://github.com/JCHETAN26/Continuum/actions/runs/30495237125),
-[`30507024722`](https://github.com/JCHETAN26/Continuum/actions/runs/30507024722),
-[`30517029865`](https://github.com/JCHETAN26/Continuum/actions/runs/30517029865)
+Five runs, between
+[`30495237125`](https://github.com/JCHETAN26/Continuum/actions/runs/30495237125) and
+[`30524795102`](https://github.com/JCHETAN26/Continuum/actions/runs/30524795102).
 
 | batch | p50 range       | p95 range       | slowest observed |
 | ----- | --------------- | --------------- | ---------------- |
-| 1     | 101 – 299 ms    | 200 – 498 ms    | 592 ms           |
-| 8     | 1410 – 3304 ms  | 2377 – 3996 ms  | 4203 ms          |
-| 32    | 7504 – 13998 ms | 8195 – 15300 ms | 15799 ms         |
+| 1     | 101 – 299 ms    | 200 – 604 ms    | 697 ms           |
+| 8     | 1410 – 3307 ms  | 2377 – 4098 ms  | 4203 ms          |
+| 32    | 7504 – 14208 ms | 8195 – 15300 ms | 15799 ms         |
 
-**Run-to-run spread reaches 3x at batch 1 and 1.9x at batch 32.** These are shared CI
+**Run-to-run spread reaches 3.0x at batch 1 and 1.9x at batch 32.** These are shared CI
 runners with no isolation, so the figures support an order-of-magnitude claim and nothing
-finer. Any single run quoted alone would misrepresent them.
+finer. Any single run quoted alone would misrepresent them, and the ranges above were
+widened twice as further runs landed outside earlier versions of this table.
 
 ### p99 is not reported, because 50 samples cannot support one
 
@@ -134,8 +135,8 @@ tail figure. The benchmark prints the same caveat when run under a hundred sampl
 
 ### The spec target is missed by two orders of magnitude
 
-The target is p99 under 50 ms at batch 32. Median latency across the three runs was 7.5 s,
-10.9 s and 14.0 s, so the gap is 150x to 280x. That conclusion is the one thing the
+The target is p99 under 50 ms at batch 32. Median latency across the five runs ranged from
+7.5 s to 14.2 s, so the gap is 150x to 284x. That conclusion is the one thing the
 measurements agree on, and it holds under the most generous reading of the spread.
 
 Two causes, both configuration rather than model:
@@ -145,8 +146,8 @@ Two causes, both configuration rather than model:
 - Every request pads to `MAX_SEQUENCE_LENGTH` of 256 tokens while corpus documents run
   about 110, so most of each forward pass is padding that the attention mask then discards.
 
-Per-document cost rises with batch size in every run: 202 to 340 ms, 299 to 437 ms, and 101
-to 235 ms. Batching normally lowers per-item cost; that it rises is the signature of CPU
+Per-document cost rises with batch size in every run, for example 202 to 340 ms, 299 to
+437 ms, and 101 to 235 ms. Batching normally lowers per-item cost; that it rises is the signature of CPU
 starvation, where the work cannot spread across cores because there are none to spread
 across.
 
