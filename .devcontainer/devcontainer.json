@@ -1,0 +1,41 @@
+{
+  "name": "Continuum",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04",
+
+  // The demo is a Compose stack of eighteen containers, so the workspace needs a working
+  // Docker daemon rather than just the CLI.
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {},
+    "ghcr.io/devcontainers/features/node:1": { "version": "22" },
+    "ghcr.io/devcontainers/features/python:1": { "version": "3.12" }
+  },
+
+  // App services alone declare 9.2 GB of memory limits and 8 CPUs, and the infrastructure
+  // containers are unbounded on top of that. Smaller machines will start the stack and
+  // then thrash: serving is already CPU-bound at 0.50 CPU.
+  "hostRequirements": {
+    "cpus": 8,
+    "memory": "32gb",
+    "storage": "64gb"
+  },
+
+  "forwardPorts": [3000, 8000, 8001, 8002, 8003, 8004, 8080, 9001],
+  "portsAttributes": {
+    "3000": { "label": "Dashboard", "onAutoForward": "openBrowser" },
+    "8000": { "label": "Ingest API" },
+    "8001": { "label": "Drift API" },
+    "8002": { "label": "Serving API" },
+    "8003": { "label": "Trainer API" },
+    "8004": { "label": "Linguistic Drift API" },
+    "8080": { "label": "Redpanda Console" },
+    "9001": { "label": "MinIO Console" }
+  },
+
+  "postCreateCommand": "bash .devcontainer/setup.sh",
+
+  "customizations": {
+    "vscode": {
+      "extensions": ["ms-python.python", "charliermarsh.ruff", "esbenp.prettier-vscode"]
+    }
+  }
+}
