@@ -111,33 +111,32 @@ Measured against the compose stack in CI, at the same images and resource limits
 runs under, using documents from the ingested corpus. Nearest-rank percentiles over 50
 requests per batch size, warm-up excluded.
 
-Two independent runs,
-[`30495237125`](https://github.com/JCHETAN26/Continuum/actions/runs/30495237125) and
-[`30507024722`](https://github.com/JCHETAN26/Continuum/actions/runs/30507024722):
+Three runs: [`30495237125`](https://github.com/JCHETAN26/Continuum/actions/runs/30495237125),
+[`30507024722`](https://github.com/JCHETAN26/Continuum/actions/runs/30507024722),
+[`30517029865`](https://github.com/JCHETAN26/Continuum/actions/runs/30517029865)
 
-| batch | p50 run 1  | p50 run 2  | p95 run 1  | p95 run 2  | max run 1  | max run 2  |
-| ----- | ---------- | ---------- | ---------- | ---------- | ---------- | ---------- |
-| 1     | 201.9 ms   | 298.9 ms   | 497.8 ms   | 498.3 ms   | 503.3 ms   | 591.8 ms   |
-| 8     | 2403.4 ms  | 3303.8 ms  | 3194.7 ms  | 3995.6 ms  | 3296.4 ms  | 4202.8 ms  |
-| 32    | 10895.9 ms | 13997.7 ms | 11821.6 ms | 15299.7 ms | 12097.2 ms | 15798.9 ms |
+| batch | p50 range       | p95 range       | slowest observed |
+| ----- | --------------- | --------------- | ---------------- |
+| 1     | 101 – 299 ms    | 200 – 498 ms    | 592 ms           |
+| 8     | 1410 – 3304 ms  | 2377 – 3996 ms  | 4203 ms          |
+| 32    | 7504 – 13998 ms | 8195 – 15300 ms | 15799 ms         |
 
-The two runs differ by 18% to 31%, which is what a shared CI runner gives. The figures are
-an order-of-magnitude statement, not a precise benchmark.
+**Run-to-run spread reaches 3x at batch 1 and 1.9x at batch 32.** These are shared CI
+runners with no isolation, so the figures support an order-of-magnitude claim and nothing
+finer. Any single run quoted alone would misrepresent them.
 
 ### p99 is not reported, because 50 samples cannot support one
 
 At 50 samples the nearest-rank p99 is rank `ceil(0.99 * 50) = 50`, which is the slowest
-request observed. Reporting that as a 99th percentile would dress up the maximum as
-something it is not, so the maximum is labelled as the maximum and p95 (rank 48) is the
-tail figure. A genuine p99 needs at least a few hundred samples, and at 11 to 14 seconds
-per request at batch 32 that costs more CI time than the number is worth here.
+request observed. Reporting that as a 99th percentile would dress the maximum up as
+something it is not, so the slowest request is labelled as such and p95 (rank 48) is the
+tail figure. The benchmark prints the same caveat when run under a hundred samples.
 
 ### The spec target is missed by two orders of magnitude
 
-The target is p99 under 50 ms at batch 32. The slowest request measured was 12.1 s in one
-run and 15.8 s in the other, so even read generously against p50 the gap is roughly 220x to
-280x. It is recorded as measured rather than adjusted to fit: the target was written before
-anything had been measured.
+The target is p99 under 50 ms at batch 32. Median latency across the three runs was 7.5 s,
+10.9 s and 14.0 s, so the gap is 150x to 280x. That conclusion is the one thing the
+measurements agree on, and it holds under the most generous reading of the spread.
 
 Two causes, both configuration rather than model:
 
@@ -146,10 +145,10 @@ Two causes, both configuration rather than model:
 - Every request pads to `MAX_SEQUENCE_LENGTH` of 256 tokens while corpus documents run
   about 110, so most of each forward pass is padding that the attention mask then discards.
 
-Per-document cost rises from 201.9 ms at batch 1 to 340.5 ms at batch 32 in the first run,
-and 298.9 ms to 437.4 ms in the second. Batching normally lowers per-item cost; that it
-rises is the signature of CPU starvation, where the work cannot spread across cores because
-there are none to spread across.
+Per-document cost rises with batch size in every run: 202 to 340 ms, 299 to 437 ms, and 101
+to 235 ms. Batching normally lowers per-item cost; that it rises is the signature of CPU
+starvation, where the work cannot spread across cores because there are none to spread
+across.
 
 Raising the serving CPU limit and switching to dynamic padding are the obvious next steps.
 Neither has been done, so neither is claimed.
