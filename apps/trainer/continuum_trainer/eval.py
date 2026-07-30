@@ -1,5 +1,6 @@
 from pathlib import Path
 from tempfile import NamedTemporaryFile
+from typing import Any
 
 import numpy as np
 import onnxruntime as ort
@@ -13,7 +14,7 @@ MAX_EVALUATION_EXAMPLES = 400
 
 
 async def evaluate_model(
-    version: str, onnx_artifact: bytes, examples: list[dict]
+    version: str, onnx_artifact: bytes, examples: list[dict[str, Any]]
 ) -> tuple[bool, dict[str, float], dict[str, float], float]:
     """
     Evaluate the trained adapter against baseline embeddings with retrieval metrics.
@@ -50,7 +51,7 @@ async def evaluate_model(
 
 
 async def evaluate_encoder_model(
-    version: str, onnx_artifact: bytes, examples: list[dict]
+    version: str, onnx_artifact: bytes, examples: list[dict[str, Any]]
 ) -> tuple[bool, dict[str, float], dict[str, float], float]:
     """Score a LoRA-adapted encoder against the base model on the same documents.
 
@@ -102,7 +103,7 @@ def run_onnx_encoder(onnx_artifact: bytes, texts: list[str]) -> np.ndarray:
 
     try:
         session = ort.InferenceSession(artifact_path, providers=["CPUExecutionProvider"])
-        return encode_with_session(session, get_tokenizer(), texts)
+        return np.asarray(encode_with_session(session, get_tokenizer(), texts), dtype=np.float32)
     finally:
         Path(artifact_path).unlink(missing_ok=True)
 
@@ -115,12 +116,12 @@ def run_onnx_adapter(onnx_artifact: bytes, vectors: np.ndarray) -> np.ndarray:
     try:
         session = ort.InferenceSession(artifact_path, providers=["CPUExecutionProvider"])
         output = session.run(["embeddings"], {"input": vectors.astype(np.float32)})[0]
-        return output.astype(np.float32)
+        return np.asarray(output, dtype=np.float32)
     finally:
         Path(artifact_path).unlink(missing_ok=True)
 
 
-def score_retrieval(examples: list[dict], vectors: np.ndarray) -> dict[str, float]:
+def score_retrieval(examples: list[dict[str, Any]], vectors: np.ndarray) -> dict[str, float]:
     normalized = normalize_rows(vectors)
     scores = normalized @ normalized.T
 
@@ -171,4 +172,4 @@ def score_retrieval(examples: list[dict], vectors: np.ndarray) -> dict[str, floa
 def normalize_rows(vectors: np.ndarray) -> np.ndarray:
     norms = np.linalg.norm(vectors, axis=1, keepdims=True)
     norms[norms == 0] = 1.0
-    return vectors / norms
+    return np.asarray(vectors / norms, dtype=np.float32)

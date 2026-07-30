@@ -267,6 +267,18 @@ rather than tuned away.
 Full figures, method, and the CI run that produced them:
 [docs/benchmarks/RESUME_METRICS.md](docs/benchmarks/RESUME_METRICS.md).
 
+## Type checking
+
+`pnpm type-check:py` runs mypy in strict mode over the shared package and the modules that
+decide what gets served: retrieval scoring, the promotion gate, the rollback policy and the
+embedding worker. Those are clean.
+
+The other 33 modules are not covered yet. Enabling everything reports 134 errors, 92 of them
+missing annotations and the untyped calls that follow from them; the remainder is friction
+at the Prisma and protobuf boundaries, where generated code carries no types. None of the
+134 is a runtime defect. The scope is listed explicitly in `pyproject.toml` rather than
+being implied, so what is and is not checked stays visible.
+
 ## Validation
 
 The default checks do not require Docker:

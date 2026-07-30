@@ -33,12 +33,28 @@ ignore = ["N815"]
 python_version = "3.12"
 strict = true
 plugins = ["pydantic.mypy"]
+# The whole shared package, plus the modules that decide what gets served: retrieval
+# scoring, the promotion gate, the rollback policy and the embedding worker. Everything
+# here type-checks clean under strict.
+#
+# The remaining 33 modules are not listed yet. Enabling all 44 reports 134 errors, of which
+# 92 are missing annotations and their knock-on untyped calls; the rest is friction at the
+# Prisma and protobuf boundaries, where generated code carries no types and a dict has to
+# be passed where a TypedDict is declared. Adding the next five modules costs roughly 45
+# fixes. None of the 134 is a runtime defect, which is worth knowing before spending that.
 files = [
+    "apps/drift/continuum_drift/throttle.py",
+    "apps/embedding/continuum_embedding/main.py",
+    "apps/server/continuum_server/rollback.py",
+    "apps/trainer/continuum_trainer/eval.py",
+    "packages/shared/python/continuum_shared/__init__.py",
     "packages/shared/python/continuum_shared/artifacts.py",
     "packages/shared/python/continuum_shared/active_model.py",
     "packages/shared/python/continuum_shared/config.py",
     "packages/shared/python/continuum_shared/db_url.py",
     "packages/shared/python/continuum_shared/embeddings.py",
+    "packages/shared/python/continuum_shared/observability.py",
+    "packages/shared/python/continuum_shared/security.py",
 ]
 
 # Neither package ships type stubs or a py.typed marker. Both are used behind narrow,
