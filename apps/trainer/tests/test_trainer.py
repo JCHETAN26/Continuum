@@ -177,9 +177,6 @@ async def test_pipeline_uses_peft_backend_when_configured():
         patch(
             "continuum_trainer.pipeline.activate_model_version", new_callable=AsyncMock
         ) as mock_activate,
-        patch(
-            "continuum_trainer.pipeline.reembed_corpus_with_encoder", new_callable=AsyncMock
-        ) as mock_reembed,
         patch("continuum_trainer.pipeline.settings") as mock_settings,
     ):
         mock_settings.trainer_backend = "peft"
@@ -227,9 +224,9 @@ async def test_pipeline_uses_peft_backend_when_configured():
 
         mock_demo_training.assert_not_called()
         mock_encoder_eval.assert_awaited_once()
+        # Activation is all the pipeline does; the embedding worker notices the version
+        # change and re-encodes the corpus.
         mock_activate.assert_awaited_once()
-        # Activation is an index migration: stored vectors came from the previous model.
-        mock_reembed.assert_awaited_once()
         mock_peft.assert_awaited_once_with(
             mock_db,
             model_id="model-id",
@@ -316,9 +313,6 @@ async def test_rejected_encoder_does_not_reindex_the_corpus():
         patch(
             "continuum_trainer.pipeline.activate_model_version", new_callable=AsyncMock
         ) as mock_activate,
-        patch(
-            "continuum_trainer.pipeline.reembed_corpus_with_encoder", new_callable=AsyncMock
-        ) as mock_reembed,
         patch("continuum_trainer.pipeline.settings") as mock_settings,
     ):
         mock_settings.trainer_backend = "peft"
@@ -353,4 +347,3 @@ async def test_rejected_encoder_does_not_reindex_the_corpus():
         await _async_run_training_pipeline("model-id", None)
 
         mock_activate.assert_not_awaited()
-        mock_reembed.assert_not_awaited()
