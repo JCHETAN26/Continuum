@@ -113,7 +113,7 @@ pnpm stack:health
 3. Watch the Dashboard as the drift score spikes, the training job triggers, and the new model version is produced!
 4. Inspect retrieval quality for the active model on the new domain:
    ```bash
-   uv run eval/benchmark.py
+   pnpm bench:retrieval
    ```
 5. Or verify the full demo narrative end-to-end:
    ```bash
@@ -199,6 +199,23 @@ each partition to one member.
 Everything else keeps a fixed name deliberately. `redpanda-init`, `minio-init` and
 `migrations` must run exactly once for `service_completed_successfully` to mean anything,
 and a second `retention-worker` would duplicate the deletions the first is making.
+
+## Retrieval Benchmark
+
+`pnpm bench:retrieval` scores 100 held-out queries, 50 per domain, against the serving API.
+Each query is the opening fifteen words of a post; the document is the rest of that post,
+and it is the only relevant result among all 100 candidates. The split keeps the query out
+of its own document, so a hit means the model matched meaning rather than finding a copy of
+the query string.
+
+This is deliberately harder than the gate the trainer applies to itself, which counts any
+document from the same newsgroup as relevant. Half the candidates qualify under that rule,
+which is why it reports MRR around 0.88 — a number that says more about the task than the
+model. Finding one specific post among a hundred is something a retrieval model can be
+wrong about.
+
+CI runs it after the latency benchmark and publishes per-domain MRR, recall@1 and recall@5
+to the job summary.
 
 ## Serving Latency
 

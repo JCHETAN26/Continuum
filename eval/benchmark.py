@@ -1,97 +1,186 @@
+"""Retrieval benchmark over held-out documents.
+
+Independent of the evaluation the trainer runs on itself. The trainer scores a candidate
+with the same code that decides whether to promote it, which is fine for a gate but is not
+evidence anyone outside the pipeline should take at face value.
+
+Method. Each query is the opening sentence of a held-out post; the document is the rest of
+that post, and it is the only relevant result among every candidate. So the task is: given
+an opening, find the post it came from, among hundreds of posts about the same subject.
+
+That matters. Scoring relevance as "any document from the same newsgroup" makes the task
+almost free, because half the candidates qualify — the trainer's own gate scores that way
+and reports MRR around 0.88 as a result. One relevant document out of several hundred is a
+task a retrieval model can actually be wrong about.
+"""
+
+from __future__ import annotations
+
+import argparse
 import asyncio
+import json
+import statistics
+import sys
+from dataclasses import asdict, dataclass
+from pathlib import Path
 
 import httpx
 import numpy as np
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+
+from corpus import BASELINE_CATEGORIES, DRIFT_CATEGORIES, load_documents  # noqa: E402
+
 SERVER_URL = "http://localhost:8002/v1/embed"
 API_KEY = "continuum-secret-key"
 
-EVAL_QUERIES = [
-    "medicine for high blood pressure",
-    "lung issue symptoms",
-    "heart scan procedure",
-]
-
-EVAL_DOCUMENTS = [
-    "Administering 50mg of Losartan for hypertension management.",
-    "Patient presented with severe acute respiratory distress syndrome.",
-    "Performing an echocardiogram to assess cardiac function.",
-    "The Kubernetes cluster needs a rolling restart after the node pool update.",
-    "Investigating a memory leak in the Node.js backend worker.",
-]
+QUERIES_PER_DOMAIN = 50
+QUERY_WORDS = 15
+MIN_DOCUMENT_WORDS = 40
+EVAL_SEED = 909
 
 
-def cosine_similarity(v1: list[float], v2: list[float]) -> float:
-    v1_array = np.array(v1)
-    v2_array = np.array(v2)
-    return float(np.dot(v1_array, v2_array) / (np.linalg.norm(v1_array) * np.linalg.norm(v2_array)))
+@dataclass(frozen=True)
+class DomainResult:
+    domain: str
+    queries: int
+    candidates: int
+    mrr: float
+    recall_at_1: float
+    recall_at_5: float
+
+    def render(self) -> str:
+        return (
+            f"{self.domain:<14} queries={self.queries:<4} candidates={self.candidates:<5} "
+            f"MRR={self.mrr:.4f}  R@1={self.recall_at_1:.4f}  R@5={self.recall_at_5:.4f}"
+        )
 
 
-async def get_embeddings(
-    client: httpx.AsyncClient, texts: list[str], model: str
-) -> list[list[float]]:
-    headers = {"x-api-key": API_KEY, "x-model": model}
-    response = await client.post(SERVER_URL, json={"texts": texts}, headers=headers, timeout=20.0)
-    response.raise_for_status()
-    body = response.json()
-    print(f"  served_by={body['model_version_used']} dimension={body['dimension']}")
-    return body["embeddings"]
+def split_query_and_document(text: str) -> tuple[str, str] | None:
+    """Opening words become the query; the remainder becomes the document.
+
+    Splitting keeps the query out of its own document, so a hit means the model matched
+    meaning rather than finding a literal copy of the query string.
+    """
+    words = text.split()
+    if len(words) < QUERY_WORDS + MIN_DOCUMENT_WORDS:
+        return None
+    return " ".join(words[:QUERY_WORDS]), " ".join(words[QUERY_WORDS:])
 
 
-async def evaluate(client: httpx.AsyncClient, model: str) -> float:
-    print(f"\nEvaluating model: {model}")
-    query_embeddings = await get_embeddings(client, EVAL_QUERIES, model)
-    doc_embeddings = await get_embeddings(client, EVAL_DOCUMENTS, model)
-
-    mrr, ranks, best_indices, scores_by_query = score_retrieval(query_embeddings, doc_embeddings)
-
-    for query_index, rank in enumerate(ranks):
-        scores = scores_by_query[query_index]
-        best_index = best_indices[query_index]
-        print(f"  query='{EVAL_QUERIES[query_index]}'")
-        print(f"    best='{EVAL_DOCUMENTS[best_index]}' score={scores[best_index]:.3f}")
-        print(f"    target_rank={rank}")
-
-    print(f"  MRR={mrr:.3f}")
-    return mrr
+def build_pairs(categories: frozenset[str], limit: int) -> list[tuple[str, str]]:
+    pairs = []
+    for text in load_documents(categories, limit * 3, EVAL_SEED):
+        split = split_query_and_document(text)
+        if split:
+            pairs.append(split)
+        if len(pairs) == limit:
+            break
+    return pairs
 
 
-def score_retrieval(
-    query_embeddings: list[list[float]], doc_embeddings: list[list[float]]
-) -> tuple[float, list[int], list[int], list[list[float]]]:
-    mrr = 0.0
+async def embed(client: httpx.AsyncClient, texts: list[str], model: str) -> np.ndarray:
+    vectors: list[list[float]] = []
+    # The serving container is CPU bound, so a single large request is slower than several
+    # moderate ones and risks the request timeout.
+    for start in range(0, len(texts), 32):
+        response = await client.post(
+            SERVER_URL,
+            json={"texts": texts[start : start + 32]},
+            headers={"x-api-key": API_KEY, "x-model": model},
+            timeout=120.0,
+        )
+        response.raise_for_status()
+        vectors.extend(response.json()["embeddings"])
+
+    array = np.array(vectors, dtype=np.float32)
+    norms = np.linalg.norm(array, axis=1, keepdims=True)
+    return array / np.clip(norms, 1e-12, None)
+
+
+def score(query_vectors: np.ndarray, doc_vectors: np.ndarray, gold: list[int]) -> tuple:
+    """Rank every candidate for each query and locate the one correct document."""
+    similarities = query_vectors @ doc_vectors.T
     ranks = []
-    best_indices = []
-    scores_by_query = []
-    for query_index, query_embedding in enumerate(query_embeddings):
-        scores = [
-            cosine_similarity(query_embedding, document_embedding)
-            for document_embedding in doc_embeddings
-        ]
-        sorted_indices = np.argsort(scores)[::-1]
-        rank = int(np.where(sorted_indices == query_index)[0][0] + 1)
-        mrr += 1.0 / rank
-        ranks.append(rank)
-        best_indices.append(int(sorted_indices[0]))
-        scores_by_query.append(scores)
+    for index, correct in enumerate(gold):
+        order = np.argsort(similarities[index])[::-1]
+        ranks.append(int(np.where(order == correct)[0][0]) + 1)
 
-    mrr /= len(query_embeddings)
-    return mrr, ranks, best_indices, scores_by_query
+    reciprocal = [1.0 / rank for rank in ranks]
+    return (
+        statistics.fmean(reciprocal),
+        statistics.fmean([1.0 if rank == 1 else 0.0 for rank in ranks]),
+        statistics.fmean([1.0 if rank <= 5 else 0.0 for rank in ranks]),
+    )
 
 
-async def main():
-    print("Running Continuum Benchmark")
+async def evaluate(client: httpx.AsyncClient, model: str) -> list[DomainResult]:
+    domains = {
+        "pc_hardware": build_pairs(BASELINE_CATEGORIES, QUERIES_PER_DOMAIN),
+        "mac_hardware": build_pairs(DRIFT_CATEGORIES, QUERIES_PER_DOMAIN),
+    }
+
+    # Every document from both domains is a candidate, so a query has to beat the other
+    # domain's posts as well as its own neighbours.
+    documents = [document for pairs in domains.values() for _, document in pairs]
+    doc_vectors = await embed(client, documents, model)
+
+    results = []
+    offset = 0
+    for domain, pairs in domains.items():
+        queries = [query for query, _ in pairs]
+        query_vectors = await embed(client, queries, model)
+        gold = list(range(offset, offset + len(pairs)))
+        mrr, recall_1, recall_5 = score(query_vectors, doc_vectors, gold)
+        results.append(
+            DomainResult(
+                domain=domain,
+                queries=len(pairs),
+                candidates=len(documents),
+                mrr=round(mrr, 6),
+                recall_at_1=round(recall_1, 6),
+                recall_at_5=round(recall_5, 6),
+            )
+        )
+        offset += len(pairs)
+
+    return results
+
+
+async def run(model: str, output: Path | None) -> int:
     async with httpx.AsyncClient() as client:
-        baseline_mrr = await evaluate(client, "baseline")
-        active_mrr = await evaluate(client, "auto")
+        results = await evaluate(client, model)
 
-    delta = active_mrr - baseline_mrr
-    relative = delta / max(baseline_mrr, 1e-9)
-    print("\nSummary")
-    print(f"  baseline_mrr={baseline_mrr:.3f}")
-    print(f"  active_mrr={active_mrr:.3f}")
-    print(f"  delta={delta:+.3f} relative={relative:+.1%}")
+    print(f"model={model}")
+    for result in results:
+        print("  " + result.render())
+
+    overall = statistics.fmean([result.mrr for result in results])
+    print(f"  {'overall':<14} MRR={overall:.4f}")
+
+    if output:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "model": model,
+            "overall_mrr": round(overall, 6),
+            "domains": [asdict(result) for result in results],
+        }
+        output.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+        print(f"wrote {output}")
+    return 0
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--model", default="auto", help="auto, baseline, or a version")
+    parser.add_argument("--output", type=Path)
+    return parser.parse_args()
+
+
+def main() -> None:
+    args = parse_args()
+    raise SystemExit(asyncio.run(run(args.model, args.output)))
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
