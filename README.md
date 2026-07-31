@@ -267,10 +267,14 @@ the baseline centroids.
 
 ## Measured Results
 
-A LoRA adaptation of `all-MiniLM-L6-v2` over the drifted window improves retrieval MRR by
-0.77% to 0.96% across two CI runs, tuning 337,920 parameters — 1.47% of the model.
-Composite improvement stayed below the 10% activation gate in both, so the pipeline kept
-serving the baseline rather than shipping a marginal model.
+An independent benchmark over 100 held-out queries shows retrieval on the drifted domain is
+28% worse than on the baseline domain: MRR 0.434 against 0.605. That is drift appearing as a
+measurable loss of quality rather than only as a moving centroid.
+
+A LoRA adaptation of `all-MiniLM-L6-v2` over that window tunes 337,920 parameters, 1.47% of
+the model, and does not reliably help: three runs measured +0.96%, +0.77% and −0.21%. All
+three fell below the 10% activation gate, so the pipeline kept serving the baseline rather
+than shipping a marginal model.
 
 Serving latency is measured in CI: median 101–299 ms at batch 1 and 7.5–14.2 s at batch 32
 across five runs, against a spec target of p99 under 50 ms. The serving container is capped

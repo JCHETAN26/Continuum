@@ -8,48 +8,53 @@ Source runs: [`30436026193`](https://github.com/JCHETAN26/Continuum/actions/runs
 and [`30437089093`](https://github.com/JCHETAN26/Continuum/actions/runs/30437089093)
 · commit `9b111df`
 
+## Retrieval quality, measured independently
+
+`eval/benchmark.py` scores 100 held-out queries against the serving API. Each query is the
+opening fifteen words of a post, the document is the rest of that post, and it is the only
+relevant result among all 100 candidates. The query is removed from its own document, so a
+hit means the model matched meaning rather than finding a copy of the query string.
+
+Run [`30589884101`](https://github.com/JCHETAN26/Continuum/actions/runs/30589884101):
+
+| domain         | queries | candidates | MRR    | recall@1 | recall@5 |
+| -------------- | ------- | ---------- | ------ | -------- | -------- |
+| `pc_hardware`  | 50      | 100        | 0.6051 | 0.50     | 0.70     |
+| `mac_hardware` | 50      | 100        | 0.4340 | 0.30     | 0.58     |
+| overall        | 100     | 100        | 0.5196 |          |          |
+
+**Retrieval on the drifted domain is 28% worse than on the baseline domain**, 0.434 against
+0.605. That is the premise of the project appearing in a measurement: drift is not only a
+centroid moving, it is a measurable loss of retrieval quality on the shifted distribution.
+It is also the one number here produced by code that shares nothing with the pipeline it
+measures.
+
+Note the gap between this and the trainer's own figure below. The trainer's gate counts any
+document from the same newsgroup as relevant, so half the candidates qualify and it reports
+MRR near 0.88. That number describes how easy the task is, not how good the model is.
+
 ## Domain adaptation
 
 A drift alert triggers a LoRA adaptation of `sentence-transformers/all-MiniLM-L6-v2` over
 the drifted window, followed by an ONNX export and an evaluation against the base model on
 the same held-out documents.
 
-| run | baseline MRR | candidate MRR | gain   |
+Three runs of the identical scenario:
+
+| run | baseline MRR | candidate MRR | change |
 | --- | ------------ | ------------- | ------ |
 | 1   | 0.877859     | 0.886278      | +0.96% |
 | 2   | 0.897169     | 0.904057      | +0.77% |
+| 3   | 0.881547     | 0.879679      | −0.21% |
 
-**Adaptation improves retrieval MRR by 0.77% to 0.96%**, mean +0.86%, across two runs of
-the identical scenario.
+**The adapter does not reliably improve retrieval.** Two runs gained under a percent and the
+third lost a fifth of one. An earlier version of this document reported the first two as a
+range and called it reproducible; the third run contradicted that, and a claim resting on
+two samples was not worth making in the first place.
 
-Full metrics from both runs:
-
-| metric            | run 1 baseline | run 1 candidate | run 1  | run 2 baseline | run 2 candidate | run 2   |
-| ----------------- | -------------- | --------------- | ------ | -------------- | --------------- | ------- |
-| MRR               | 0.877859       | 0.886278        | +0.96% | 0.897169       | 0.904057        | +0.77%  |
-| Recall@5          | 0.9825         | 0.9850          | +0.25% | 0.9925         | 0.9875          | −0.50%  |
-| Mean margin       | 0.019936       | 0.021402        | +7.35% | 0.018803       | 0.023058        | +22.63% |
-| Composite quality | 0.843603       | 0.849686        | +0.72% | 0.858070       | 0.861866        | +0.44%  |
-
-MRR is the only metric that moves consistently. Recall@5 rises in one run and falls in the
-other, and mean margin swings by very different amounts, so neither supports a claim in
-either direction. They are shown rather than omitted because a table carrying only the
-favourable column would misrepresent what was measured.
-
-**The candidate was rejected in both runs**, at 0.72% and 0.44% composite improvement
-against a 10% activation gate, so the pipeline kept serving the baseline. That is the
-intended outcome: the system measured a candidate, found the gain too small to justify
-swapping the model an index was built with, and declined to ship it.
-
-### Two earlier measurements are excluded
-
-Runs recorded before commit `9b111df` showed +0.57% and +0.56%. They are not comparable
-and are not averaged in. The evaluation set was drawn from the most recently embedded
-documents overall, and because drifted documents are ingested last they are embedded last,
-so that set could be skewed toward a single domain. Retrieval here is scored against
-same-source neighbours, so a single-domain set has no negatives at all: one run under that
-selection returned baseline and candidate MRR of exactly 0.0000. The set is now drawn per
-source, and only runs under that selection are reported.
+**The candidate was rejected in all three runs**, against a 10% activation gate. That is the
+system working: it measured a candidate, found no gain worth a model swap, and kept serving
+the baseline. The rejection is a more solid result than the gains are.
 
 ## Adapter
 
