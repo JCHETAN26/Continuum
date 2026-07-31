@@ -233,8 +233,16 @@ which is why it reports MRR around 0.88 — a number that says more about the ta
 model. Finding one specific post among a hundred is something a retrieval model can be
 wrong about.
 
-CI runs it after the latency benchmark and publishes per-domain MRR, recall@1 and recall@5
-to the job summary.
+CI runs it after the latency benchmark and publishes per-domain MRR, recall@1, recall@5 and
+NDCG@10 to the job summary.
+
+NDCG is graded rather than binary. With one relevant document per query it would be a
+monotone transform of the rank and would carry exactly the information MRR already does.
+Grading a same-domain document above an unrelated one makes it a separate signal: whether a
+model that misses the exact document still keeps the right domain near the top. A model
+losing its grip on a drifted domain should lose that coherence, not only its exact-match
+precision. The gate reports it but does not promote on it, so adding the metric cannot
+change which models ship.
 
 ## Serving Latency
 

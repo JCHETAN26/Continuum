@@ -30,6 +30,7 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
 from continuum_shared.pairs import split_query_and_document  # noqa: E402
+from continuum_shared.retrieval_metrics import score_ranking  # noqa: E402
 from corpus import BASELINE_CATEGORIES, DRIFT_CATEGORIES, load_documents  # noqa: E402
 
 SERVER_URL = "http://localhost:8002/v1/embed"
@@ -47,11 +48,13 @@ class DomainResult:
     mrr: float
     recall_at_1: float
     recall_at_5: float
+    ndcg_at_10: float
 
     def render(self) -> str:
         return (
             f"{self.domain:<14} queries={self.queries:<4} candidates={self.candidates:<5} "
-            f"MRR={self.mrr:.4f}  R@1={self.recall_at_1:.4f}  R@5={self.recall_at_5:.4f}"
+            f"MRR={self.mrr:.4f}  R@1={self.recall_at_1:.4f}  R@5={self.recall_at_5:.4f}  "
+            f"NDCG@10={self.ndcg_at_10:.4f}"
         )
 
 
@@ -85,22 +88,6 @@ async def embed(client: httpx.AsyncClient, texts: list[str], model: str) -> np.n
     return array / np.clip(norms, 1e-12, None)
 
 
-def score(query_vectors: np.ndarray, doc_vectors: np.ndarray, gold: list[int]) -> tuple:
-    """Rank every candidate for each query and locate the one correct document."""
-    similarities = query_vectors @ doc_vectors.T
-    ranks = []
-    for index, correct in enumerate(gold):
-        order = np.argsort(similarities[index])[::-1]
-        ranks.append(int(np.where(order == correct)[0][0]) + 1)
-
-    reciprocal = [1.0 / rank for rank in ranks]
-    return (
-        statistics.fmean(reciprocal),
-        statistics.fmean([1.0 if rank == 1 else 0.0 for rank in ranks]),
-        statistics.fmean([1.0 if rank <= 5 else 0.0 for rank in ranks]),
-    )
-
-
 async def evaluate(client: httpx.AsyncClient, model: str) -> list[DomainResult]:
     domains = {
         "pc_hardware": build_pairs(BASELINE_CATEGORIES, QUERIES_PER_DOMAIN),
@@ -112,21 +99,31 @@ async def evaluate(client: httpx.AsyncClient, model: str) -> list[DomainResult]:
     documents = [document for pairs in domains.values() for _, document in pairs]
     doc_vectors = await embed(client, documents, model)
 
+    # Every candidate is labelled with the domain it came from, so NDCG can grade a
+    # same-domain miss above a cross-domain one.
+    sources = [domain for domain, pairs in domains.items() for _ in pairs]
+
     results = []
     offset = 0
     for domain, pairs in domains.items():
         queries = [query for query, _ in pairs]
         query_vectors = await embed(client, queries, model)
-        gold = list(range(offset, offset + len(pairs)))
-        mrr, recall_1, recall_5 = score(query_vectors, doc_vectors, gold)
+        # score_ranking expects query i to match document i, so the slice of candidates is
+        # rotated to put this domain's documents first.
+        order = list(range(offset, offset + len(pairs))) + [
+            index for index in range(len(documents)) if not offset <= index < offset + len(pairs)
+        ]
+        similarities = query_vectors @ doc_vectors[order].T
+        metrics = score_ranking(similarities, [sources[index] for index in order])
         results.append(
             DomainResult(
                 domain=domain,
                 queries=len(pairs),
                 candidates=len(documents),
-                mrr=round(mrr, 6),
-                recall_at_1=round(recall_1, 6),
-                recall_at_5=round(recall_5, 6),
+                mrr=metrics["mrr"],
+                recall_at_1=metrics["recall_at_1"],
+                recall_at_5=metrics["recall_at_5"],
+                ndcg_at_10=metrics["ndcg_at_10"],
             )
         )
         offset += len(pairs)
@@ -143,7 +140,8 @@ async def run(model: str, output: Path | None) -> int:
         print("  " + result.render())
 
     overall = statistics.fmean([result.mrr for result in results])
-    print(f"  {'overall':<14} MRR={overall:.4f}")
+    overall_ndcg = statistics.fmean([result.ndcg_at_10 for result in results])
+    print(f"  {'overall':<14} MRR={overall:.4f}  NDCG@10={overall_ndcg:.4f}")
 
     if output:
         output.parent.mkdir(parents=True, exist_ok=True)
