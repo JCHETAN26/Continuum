@@ -41,11 +41,11 @@ unavailable at drift time — is still respected.
 The task is much harder, and that is the point. Base-model MRR fell from about 0.88 to
 between 0.41 and 0.48, which leaves room for an adapter to register.
 
-Measured gains became legible. Four runs improved MRR by +0.62%, +0.87%, +9.86% and +8.29%,
-and ordered by training-set size the gain is monotonic up to the two large runs: below
-roughly 400 in-window examples the adapter barely moves, above it the gain is eight to ten
-percent. The earlier reading — an adapter that helps unpredictably — was an artifact of a
-gate that could not resolve the difference.
+Measured gains became legible. Across five runs the three that trained on 124 to 250
+examples moved MRR by between −0.49% and +0.87%, while the two that trained on 400 and 450
+gained +9.86% and +8.29%. Part of the earlier reading — an adapter that helps unpredictably
+— was an artifact of a gate that could not resolve the difference, and part of it is that
+the drift window captures different amounts of data on each run.
 
 The query is removed from its own document, so a hit means the model matched meaning rather
 than finding a copy of the query string.

@@ -44,6 +44,9 @@ class PeftTrainingConfig(BaseModel):
     # (~110 tokens), so 256 spent more than half of every batch on padding that the
     # attention mask then discards. Serving still embeds at MAX_SEQUENCE_LENGTH.
     max_length: int = 128
+    # Mine one hard negative per pair and score it alongside the in-batch negatives. Off
+    # is the previous behaviour, kept so the two can be compared on the same corpus.
+    use_hard_negatives: bool = True
     output_dir: str | None = None
 
 
@@ -94,7 +97,58 @@ def load_peft_dependencies() -> PeftDependencies:
     )
 
 
-def build_contrastive_dataset(training_texts: Sequence[TrainingText], datasets_module: Any) -> Any:
+def mine_hard_negatives(
+    queries: Sequence[str],
+    documents: Sequence[str],
+    encode: Callable[[list[str]], Any] | None = None,
+) -> list[int]:
+    """For each query, the index of a document the base model already ranks too highly.
+
+    In-batch negatives are whatever else the sampler happened to draw, and on a corpus of
+    two hardware newsgroups most of them are easy: the model separates them without
+    learning anything transferable. A negative mined from the base model's own confusions
+    is a document it currently ranks near the right answer, which is the error the adapter
+    exists to correct.
+
+    Candidates scoring at least as high as the true positive are skipped. Newsgroup posts
+    quote each other, so the nearest neighbour is sometimes a genuine match rather than a
+    negative, and training against those teaches the model to separate documents that
+    belong together. This filter is a heuristic and cannot catch every false negative.
+    """
+    if encode is None:
+        from continuum_shared.embeddings import embed_texts
+
+        encode = embed_texts
+
+    query_vectors = _normalize(np.asarray(encode(list(queries)), dtype=np.float32))
+    document_vectors = _normalize(np.asarray(encode(list(documents)), dtype=np.float32))
+    similarities = query_vectors @ document_vectors.T
+
+    positives = np.diagonal(similarities).copy()
+    candidates = similarities.copy()
+    np.fill_diagonal(candidates, -np.inf)
+    # Anything the base model likes at least as much as the real answer is more likely a
+    # missed positive than a hard negative.
+    filtered = np.where(candidates >= positives[:, None], -np.inf, candidates)
+
+    chosen: list[int] = []
+    for row in range(similarities.shape[0]):
+        source = filtered[row] if np.isfinite(filtered[row]).any() else candidates[row]
+        chosen.append(int(np.argmax(source)))
+    return chosen
+
+
+def _normalize(vectors: np.ndarray) -> np.ndarray:
+    norms = np.linalg.norm(vectors, axis=1, keepdims=True)
+    norms[norms == 0] = 1.0
+    return np.asarray(vectors / norms, dtype=np.float32)
+
+
+def build_contrastive_dataset(
+    training_texts: Sequence[TrainingText],
+    datasets_module: Any,
+    use_hard_negatives: bool = False,
+) -> Any:
     """Build (query, document) positives from the drifted window.
 
     Dropout views of one text were the previous positives. They carry no information about
@@ -113,12 +167,20 @@ def build_contrastive_dataset(training_texts: Sequence[TrainingText], datasets_m
             f"query and a body; {len(training_texts)} texts yielded {len(pairs)} pairs."
         )
 
-    return datasets_module.Dataset.from_dict(
-        {
-            "query": [query for query, _ in pairs],
-            "document": [document for _, document in pairs],
-        }
-    )
+    queries = [query for query, _ in pairs]
+    documents = [document for _, document in pairs]
+    columns: dict[str, list[str]] = {"query": queries, "document": documents}
+
+    if use_hard_negatives:
+        chosen = mine_hard_negatives(queries, documents)
+        columns["negative"] = [documents[index] for index in chosen]
+        logger.info(
+            "Mined hard negatives",
+            pairs=len(pairs),
+            distinct_negatives=len(set(chosen)),
+        )
+
+    return datasets_module.Dataset.from_dict(columns)
 
 
 def infer_domain_tag(training_texts: Sequence[TrainingText]) -> str:
@@ -144,19 +206,29 @@ def in_batch_contrastive_loss(
     view_b: Any,
     temperature: float,
     torch_module: Any,
+    hard_negatives: Any | None = None,
 ) -> Any:
-    """Symmetric InfoNCE over two dropout views of the same batch.
+    """Symmetric InfoNCE over the query side and the document side of a batch.
 
     Row i of the similarity matrix pairs view A of document i against view B of every
     document, so the positive on the diagonal is a similarity the model has to actually
     maximise. Comparing a batch against itself instead puts self-similarity on the
     diagonal, which is 1.0 for any L2-normalised embedding: the target is satisfied
     before training starts and the only remaining gradient pushes every document apart.
+
+    Mined negatives, when supplied, extend the candidate set to 2B columns while the
+    targets stay on the diagonal. The backward direction still scores documents against
+    queries only: a mined negative has no query of its own, so it cannot be a target.
     """
-    logits = view_a @ view_b.T / temperature
-    targets = torch_module.arange(logits.shape[0], device=logits.device)
-    forward = torch_module.nn.functional.cross_entropy(logits, targets)
-    backward = torch_module.nn.functional.cross_entropy(logits.T, targets)
+    targets = torch_module.arange(view_a.shape[0], device=view_a.device)
+    positives = view_a @ view_b.T / temperature
+
+    candidates = positives
+    if hard_negatives is not None:
+        candidates = torch_module.cat([positives, view_a @ hard_negatives.T / temperature], dim=1)
+
+    forward = torch_module.nn.functional.cross_entropy(candidates, targets)
+    backward = torch_module.nn.functional.cross_entropy(positives.T, targets)
     return (forward + backward) / 2
 
 
@@ -182,7 +254,18 @@ def build_in_batch_trainer_class(deps: PeftDependencies) -> type:
             )
             queries = mean_pool_and_normalize(query_outputs, query_mask, deps.torch)
             documents = mean_pool_and_normalize(document_outputs, document_mask, deps.torch)
-            loss = in_batch_contrastive_loss(queries, documents, self.args.temperature, deps.torch)
+
+            negatives = None
+            if "negative_input_ids" in inputs:
+                negative_mask = inputs["negative_attention_mask"]
+                negative_outputs = model(
+                    input_ids=inputs["negative_input_ids"], attention_mask=negative_mask
+                )
+                negatives = mean_pool_and_normalize(negative_outputs, negative_mask, deps.torch)
+
+            loss = in_batch_contrastive_loss(
+                queries, documents, self.args.temperature, deps.torch, negatives
+            )
             if labels is not None:
                 inputs["labels"] = labels
             return (loss, query_outputs) if return_outputs else loss
@@ -204,6 +287,8 @@ def build_lora_config(config: PeftTrainingConfig, peft_module: Any) -> Any:
 def tokenize_dataset(dataset: Any, tokenizer: Any, max_length: int) -> Any:
     """Tokenise both sides of each pair into separately named columns."""
 
+    has_negatives = "negative" in dataset.column_names
+
     def tokenize(batch: dict[str, list[str]]) -> dict[str, Any]:
         queries = tokenizer(
             batch["query"], padding="max_length", truncation=True, max_length=max_length
@@ -211,14 +296,22 @@ def tokenize_dataset(dataset: Any, tokenizer: Any, max_length: int) -> Any:
         documents = tokenizer(
             batch["document"], padding="max_length", truncation=True, max_length=max_length
         )
-        return {
+        encoded = {
             "query_input_ids": queries["input_ids"],
             "query_attention_mask": queries["attention_mask"],
             "document_input_ids": documents["input_ids"],
             "document_attention_mask": documents["attention_mask"],
         }
+        if has_negatives:
+            negatives = tokenizer(
+                batch["negative"], padding="max_length", truncation=True, max_length=max_length
+            )
+            encoded["negative_input_ids"] = negatives["input_ids"]
+            encoded["negative_attention_mask"] = negatives["attention_mask"]
+        return encoded
 
-    return dataset.map(tokenize, batched=True, remove_columns=["query", "document"])
+    columns = ["query", "document", "negative"] if has_negatives else ["query", "document"]
+    return dataset.map(tokenize, batched=True, remove_columns=columns)
 
 
 def train_peft_model(
@@ -231,7 +324,7 @@ def train_peft_model(
     deps = deps or load_peft_dependencies()
     exporter = exporter or export_onnx_with_optimum
     validator = validator or validate_onnx_export
-    dataset = build_contrastive_dataset(training_texts, deps.datasets)
+    dataset = build_contrastive_dataset(training_texts, deps.datasets, config.use_hard_negatives)
     domain_tag = infer_domain_tag(training_texts)
 
     output_root = Path(config.output_dir) if config.output_dir else None
