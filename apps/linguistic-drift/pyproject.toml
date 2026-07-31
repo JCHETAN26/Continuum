@@ -15,9 +15,17 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Named entity recognition. Light enough to install into the service image.
 nlp = [
-    "bertopic>=0.16.4",
     "spacy>=3.7.5",
+]
+
+# Topic modelling. Kept separate because bertopic depends on sentence-transformers and so
+# pulls torch, umap-learn, hdbscan, numba and pandas: 38 packages, into a service that
+# otherwise needs none of them. See the note in analyzer.py on why the keyword backend is
+# the default for windows of this size.
+topics = [
+    "bertopic>=0.16.4",
 ]
 
 [build-system]

@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import Protocol
 
 import numpy as np
+import structlog
 from scipy.spatial.distance import jensenshannon
 from scipy.stats import wasserstein_distance
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -19,6 +20,8 @@ from continuum_linguistic_drift.schemas import (
     LinguisticDriftReport,
     TopicShare,
 )
+
+logger = structlog.get_logger()
 
 TOKEN_RE = re.compile(r"[A-Za-z][A-Za-z0-9_-]{2,}")
 ENTITY_RE = re.compile(r"\b(?:[A-Z][A-Za-z0-9_-]{2,})(?:\s+(?:[A-Z][A-Za-z0-9_-]{2,}))*\b")
@@ -41,15 +44,26 @@ class LinguisticProfile:
 
 
 class EntityExtractor:
+    """spaCy NER, with a regex fallback that announces itself.
+
+    The fallback matches capitalised words, which is not entity recognition: it cannot
+    distinguish a person from a product from a sentence-initial word, and it assigns every
+    match the same label. Reports built on it are weaker than reports built on spaCy, and
+    the two used to be indistinguishable downstream because the fallback was selected by a
+    bare `except Exception: return None` and never mentioned again.
+    """
+
     def __init__(self, model_name: str = "en_core_web_sm"):
         self.model_name = model_name
         self._nlp = None
         self._loaded = False
+        self.backend = "unloaded"
 
     def extract(self, documents: list[str]) -> Counter[str]:
         if not self._loaded:
             self._nlp = self._load_spacy()
             self._loaded = True
+            self.backend = "spacy" if self._nlp is not None else "regex"
 
         counts: Counter[str] = Counter()
         if self._nlp is not None:
@@ -69,15 +83,39 @@ class EntityExtractor:
     def _load_spacy(self):
         try:
             import spacy
+        except ImportError:
+            logger.warning(
+                "spacy is not installed, entity extraction will use a capitalised-word "
+                "regex instead of named entity recognition",
+                install="uv sync --package continuum-linguistic-drift --extra nlp",
+            )
+            return None
 
+        try:
             return spacy.load(self.model_name)
-        except Exception:
+        except OSError:
+            logger.warning(
+                "spacy is installed but its model is missing, falling back to a "
+                "capitalised-word regex",
+                model=self.model_name,
+                install=f"python -m spacy download {self.model_name}",
+            )
             return None
 
 
 class TopicModeler:
+    """BERTopic when it is installed, otherwise TF-IDF keyword grouping.
+
+    Keyword grouping is the default rather than a failure mode. BERTopic depends on
+    sentence-transformers and so pulls torch, umap-learn, hdbscan, numba and pandas into a
+    service that needs none of them, and on windows of a few hundred short posts its
+    clusters are unstable enough that the topic distribution moves between runs on
+    identical input. Install the `topics` extra to use it.
+    """
+
     def __init__(self, min_topic_size: int = 5):
         self.min_topic_size = min_topic_size
+        self.backend = "unloaded"
 
     def distribution(self, documents: list[str]) -> dict[str, float]:
         if not documents:
@@ -87,19 +125,24 @@ class TopicModeler:
         if backend is not None and len(documents) >= self.min_topic_size:
             try:
                 topics, _ = backend.fit_transform(documents)
+                self.backend = "bertopic"
                 return self._bertopic_distribution(backend, topics)
-            except Exception:
-                pass
+            except Exception as error:
+                logger.warning(
+                    "bertopic failed on this window, using keyword grouping",
+                    error=str(error),
+                    documents=len(documents),
+                )
 
+        self.backend = "keyword"
         return self._keyword_distribution(documents)
 
     def _load_bertopic(self) -> TopicBackend | None:
         try:
             from bertopic import BERTopic
-
-            return BERTopic(min_topic_size=self.min_topic_size, calculate_probabilities=False)
-        except Exception:
+        except ImportError:
             return None
+        return BERTopic(min_topic_size=self.min_topic_size, calculate_probabilities=False)
 
     def _bertopic_distribution(self, backend: TopicBackend, topics: list[int]) -> dict[str, float]:
         counts = Counter(topic for topic in topics if topic != -1)
