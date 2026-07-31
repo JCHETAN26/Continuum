@@ -34,17 +34,24 @@ python_version = "3.12"
 strict = true
 plugins = ["pydantic.mypy"]
 # The whole shared package, plus the modules that decide what gets served: retrieval
-# scoring, the promotion gate, the rollback policy and the embedding worker. Everything
-# here type-checks clean under strict.
+# scoring, the promotion gate, the rollback policy, the embedding worker and the linguistic
+# window resolver. Everything here type-checks clean under strict.
 #
-# The remaining 33 modules are not listed yet. Enabling all 44 reports 134 errors, of which
+# Adding the linguistic worker paid for itself immediately: strict mode caught that
+# DocumentForAnalysis.occurred_at is optional, so deriving window bounds from it could
+# evaluate None + timedelta. The column is NOT NULL and no run had hit it, which is exactly
+# why it survived review and the tests.
+#
+# The remaining 29 modules are not listed yet. Enabling all 44 reports 134 errors, of which
 # 92 are missing annotations and their knock-on untyped calls; the rest is friction at the
 # Prisma and protobuf boundaries, where generated code carries no types and a dict has to
-# be passed where a TypedDict is declared. Adding the next five modules costs roughly 45
-# fixes. None of the 134 is a runtime defect, which is worth knowing before spending that.
+# be passed where a TypedDict is declared. The next candidates are the drift and analyzer
+# workers at 7 and 10 errors each. None of the 134 is a runtime defect.
 files = [
     "apps/drift/continuum_drift/throttle.py",
     "apps/embedding/continuum_embedding/main.py",
+    "apps/linguistic-drift/continuum_linguistic_drift/schemas.py",
+    "apps/linguistic-drift/continuum_linguistic_drift/worker.py",
     "apps/server/continuum_server/rollback.py",
     "apps/trainer/continuum_trainer/eval.py",
     "packages/shared/python/continuum_shared/__init__.py",
@@ -54,6 +61,8 @@ files = [
     "packages/shared/python/continuum_shared/db_url.py",
     "packages/shared/python/continuum_shared/embeddings.py",
     "packages/shared/python/continuum_shared/observability.py",
+    "packages/shared/python/continuum_shared/pairs.py",
+    "packages/shared/python/continuum_shared/retrieval_metrics.py",
     "packages/shared/python/continuum_shared/security.py",
 ]
 

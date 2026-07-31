@@ -2,7 +2,13 @@
 
 ## Status
 
-Accepted
+Superseded by [ADR-006](006-supervised-pairs-over-dropout-views.md).
+
+The in-batch contrastive objective and its symmetric InfoNCE loss are still what the
+trainer uses. What changed is where the two views come from: dropout views of the same
+document were replaced by (query, document) pairs. The analysis below, including the
+degenerate-diagonal failure that motivated two views in the first place, still holds and is
+why this record is kept rather than rewritten.
 
 ## Context
 

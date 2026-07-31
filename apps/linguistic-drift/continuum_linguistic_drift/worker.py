@@ -35,7 +35,7 @@ class AnalysisWindow:
     event_time: bool
 
 
-def get_kafka_producer():
+def get_kafka_producer() -> Producer:
     conf = {
         "bootstrap.servers": settings.kafka_brokers,
         "client.id": f"{settings.kafka_client_id}-linguistic-drift-worker",
@@ -161,10 +161,16 @@ async def resolve_analysis_window(
         return None
 
     # Bounds describe the documents actually analysed, so the stored row stays truthful and
-    # its (window_start, window_end) key is stable while the stream is idle.
+    # its (window_start, window_end) key is stable while the stream is idle. The column is
+    # NOT NULL, but the model allows a missing timestamp for documents handed straight to
+    # the analyser, and min/max on the values that exist beats indexing into the ordering.
+    moments = [document.occurred_at for document in window if document.occurred_at is not None]
+    if not moments:
+        return None
+
     return AnalysisWindow(
-        window_start=window[-1].occurred_at,
-        window_end=window[0].occurred_at + timedelta(seconds=1),
+        window_start=min(moments),
+        window_end=max(moments) + timedelta(seconds=1),
         baseline=baseline,
         window=window,
         event_time=True,
@@ -275,7 +281,7 @@ async def link_to_training_job(
     if not rows:
         return None
 
-    training_job_id = rows[0]["id"]
+    training_job_id = str(rows[0]["id"])
     await db.execute_raw(
         """
         INSERT INTO training_linguistic_signals (
@@ -359,7 +365,7 @@ async def process_linguistic_window(
     return window_id
 
 
-async def run_linguistic_drift_worker():
+async def run_linguistic_drift_worker() -> None:
     db = Prisma()
     await db.connect()
     producer = get_kafka_producer()
