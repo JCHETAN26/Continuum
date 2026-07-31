@@ -22,6 +22,7 @@ from seed import DEFAULT_BASELINE_DOCUMENTS, DEFAULT_DRIFT_DOCUMENTS  # noqa: E4
 
 EXPECTED_DOCUMENTS = DEFAULT_BASELINE_DOCUMENTS + DEFAULT_DRIFT_DOCUMENTS
 SERVER_API = "http://localhost:8002"
+LINGUISTIC_API = "http://localhost:8004"
 API_KEY = "continuum-secret-key"
 
 
@@ -232,6 +233,37 @@ async def check_retrieval_quality_improvement(client: httpx.AsyncClient) -> Demo
     )
 
 
+async def check_linguistic_analysis(client: httpx.AsyncClient) -> DemoCheckResult:
+    """A linguistic window must actually have been analysed over documents.
+
+    The service can start, load spaCy and report itself healthy while every window it
+    evaluates turns out to be empty, in which case entity extraction never runs. That state
+    was invisible: nothing downstream distinguished "no drift found" from "nothing was
+    looked at", so the demo could pass with the linguistic signal entirely inert.
+    """
+    response = await client.get(f"{LINGUISTIC_API}/v1/linguistic/status")
+    response.raise_for_status()
+    windows = response.json()
+
+    analysed = [window for window in windows if int(window["documentCount"]) > 0]
+    if not analysed:
+        return DemoCheckResult(
+            "linguistic analysis",
+            False,
+            f"{len(windows)} windows recorded, none over a non-empty document set",
+        )
+
+    latest = analysed[0]
+    entities = len(latest.get("newEntities") or [])
+    terms = len(latest.get("emergingTerms") or [])
+    return DemoCheckResult(
+        "linguistic analysis",
+        True,
+        f"documents={latest['documentCount']}, composite={float(latest['compositeScore']):.3f}, "
+        f"new_entities={entities}, emerging_terms={terms}",
+    )
+
+
 async def get_served_model_version(client: httpx.AsyncClient, model: str) -> str:
     response = await client.post(
         f"{SERVER_API}/v1/embed",
@@ -248,6 +280,7 @@ async def run(timeout_seconds: float, interval_seconds: float) -> int:
         check_drift_spike,
         check_training_job,
         check_model_registry,
+        check_linguistic_analysis,
         check_retrieval_quality_improvement,
     ]
 
