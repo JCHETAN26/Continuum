@@ -17,6 +17,7 @@ from continuum_trainer.peft_engine import (
     infer_domain_tag,
     load_drifted_training_texts,
     mark_model_pending_eval,
+    mine_hard_negatives,
     train_peft_model,
     upload_peft_artifacts,
     validate_onnx_export,
@@ -29,10 +30,17 @@ class FakeDataset:
         self.mapped = False
         self.formatted = False
 
+    @property
+    def column_names(self) -> list[str]:
+        return list(self.payload)
+
     def map(self, fn, batched: bool, remove_columns: list[str]):
         assert batched is True
-        # Both sides of the pair are tokenised and the raw text columns are dropped.
-        assert remove_columns == ["query", "document"]
+        # Every raw text column is tokenised and then dropped, including the mined
+        # negative when hard negatives are on.
+        assert remove_columns == [
+            column for column in ("query", "document", "negative") if column in self.payload
+        ]
         tokenized = fn(self.payload)
         remaining = {k: v for k, v in self.payload.items() if k not in remove_columns}
         mapped = FakeDataset(remaining)
@@ -186,6 +194,10 @@ class NumpyTorchStub:
     @staticmethod
     def arange(count: int, device=None):
         return np.arange(count)
+
+    @staticmethod
+    def cat(matrices, dim: int):
+        return np.concatenate(matrices, axis=dim)
 
     # Names mirror the torch API the loss calls into, so they intentionally break CapWords.
     class nn:  # noqa: N801
@@ -495,3 +507,123 @@ async def test_sparse_window_falls_back_to_recent_documents():
     assert len(texts) == 6
     assert len(calls) == 2
     assert "ORDER BY ingested_at DESC" in " ".join(calls[1].split())
+
+
+def encoder_from(table: dict[str, list[float]]):
+    """Deterministic stand-in for the base encoder, so mining is exercised without ONNX."""
+
+    def encode(texts: list[str]) -> np.ndarray:
+        return np.array([table[text] for text in texts], dtype=np.float32)
+
+    return encode
+
+
+def test_mine_hard_negatives_picks_the_nearest_wrong_document():
+    queries = ["q0", "q1", "q2"]
+    documents = ["d0", "d1", "d2"]
+    encode = encoder_from(
+        {
+            "q0": [1.0, 0.0],
+            "q1": [0.0, 1.0],
+            "q2": [1.0, 1.0],
+            # d0 is q0's positive. d2 sits close to q0 without matching it, d1 is orthogonal.
+            "d0": [1.0, 0.0],
+            "d1": [0.0, 1.0],
+            "d2": [0.9, 0.4],
+        }
+    )
+
+    chosen = mine_hard_negatives(queries, documents, encode)
+
+    assert chosen[0] == 2
+
+
+def test_mine_hard_negatives_skips_probable_false_negatives():
+    """Newsgroup posts quote each other, so the nearest neighbour is sometimes a match.
+
+    Training against a document that genuinely answers the query teaches the model to
+    separate things that belong together, which is worse than an easy negative.
+    """
+    queries = ["q0", "q1", "q2"]
+    documents = ["d0", "d1", "d2"]
+    encode = encoder_from(
+        {
+            "q0": [1.0, 0.0],
+            "q1": [0.0, 1.0],
+            "q2": [1.0, 1.0],
+            # d0 is q0's positive at 0.8. d1 matches q0 perfectly, which makes it a missed
+            # positive rather than a negative. d2 is the hardest genuine negative left.
+            "d0": [0.8, 0.6],
+            "d1": [1.0, 0.0],
+            "d2": [0.5, 0.866],
+        }
+    )
+
+    chosen = mine_hard_negatives(queries, documents, encode)
+
+    # Without the filter this would be d1, the document scoring above the true positive.
+    assert chosen[0] == 2
+
+
+def test_mine_hard_negatives_falls_back_when_everything_is_filtered():
+    """A negative is still required for the batch, so the filter cannot return nothing."""
+    queries = ["q0", "q1"]
+    documents = ["d0", "d1"]
+    encode = encoder_from(
+        {
+            "q0": [1.0, 0.0],
+            "q1": [0.0, 1.0],
+            "d0": [0.7, 0.7],
+            "d1": [1.0, 0.0],
+        }
+    )
+
+    chosen = mine_hard_negatives(queries, documents, encode)
+
+    assert chosen[0] == 1
+    assert len(chosen) == 2
+
+
+def test_hard_negatives_make_the_objective_harder():
+    """A mined negative belongs in the denominator, so the loss must rise when one is added."""
+    rng = np.random.default_rng(3)
+    queries = unit_rows(rng.normal(size=(8, 16)))
+    documents = unit_rows(queries + 0.05 * rng.normal(size=(8, 16)))
+    # Distractors sitting almost on top of the queries: the hardest possible negatives.
+    negatives = unit_rows(queries + 0.01 * rng.normal(size=(8, 16)))
+
+    without = in_batch_contrastive_loss(queries, documents, 0.05, NumpyTorchStub)
+    with_negatives = in_batch_contrastive_loss(queries, documents, 0.05, NumpyTorchStub, negatives)
+
+    assert with_negatives > without
+
+
+def test_dataset_carries_a_mined_negative_per_pair(monkeypatch):
+    monkeypatch.setattr(
+        "continuum_trainer.peft_engine.mine_hard_negatives",
+        lambda queries, documents: list(reversed(range(len(documents)))),
+    )
+    texts = [
+        TrainingText(
+            text=" ".join(f"word{index}" for index in range(80)), source="s", domain_tag="d"
+        )
+        for _ in range(3)
+    ]
+
+    dataset = build_contrastive_dataset(texts, FakeDatasetsModule, use_hard_negatives=True)
+
+    assert "negative" in dataset.payload
+    assert len(dataset.payload["negative"]) == len(dataset.payload["query"])
+
+
+def test_dataset_omits_negatives_when_disabled():
+    texts = [
+        TrainingText(
+            text=" ".join(f"word{index}" for index in range(80)), source="s", domain_tag="d"
+        )
+        for _ in range(3)
+    ]
+
+    dataset = build_contrastive_dataset(texts, FakeDatasetsModule, use_hard_negatives=False)
+
+    assert "negative" not in dataset.payload

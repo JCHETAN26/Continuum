@@ -37,27 +37,31 @@ the drifted window, followed by an ONNX export and an evaluation against the bas
 Each query must retrieve its own document out of every candidate, which is the same task
 the adapter trains on, so the gate and the objective agree.
 
-Four runs of the identical scenario:
+Five runs of the identical scenario:
 
 | run                                                                              | training samples | baseline MRR | candidate MRR | change |
 | -------------------------------------------------------------------------------- | ---------------- | ------------ | ------------- | ------ |
 | [`30605700975`](https://github.com/JCHETAN26/Continuum/actions/runs/30605700975) | 124              | 0.4756       | 0.4801        | +0.62% |
+| [`30659803585`](https://github.com/JCHETAN26/Continuum/actions/runs/30659803585) | 230              | 0.4455       | 0.4439        | −0.49% |
 | [`30658311041`](https://github.com/JCHETAN26/Continuum/actions/runs/30658311041) | 250              | 0.4429       | 0.4458        | +0.87% |
 | [`30607125415`](https://github.com/JCHETAN26/Continuum/actions/runs/30607125415) | 400              | 0.4113       | 0.4474        | +9.86% |
 | [`30654126895`](https://github.com/JCHETAN26/Continuum/actions/runs/30654126895) | 450              | 0.4146       | 0.4487        | +8.29% |
 
-**The gain tracks how much drifted data the training window captured.** Ordered by sample
-count, the improvement is monotonic up to the two large runs: below roughly 400 in-window
-examples the adapter barely moves retrieval, above it the gain is eight to ten percent.
+**Gains appear only in the runs that captured 400 or more examples.** The three runs under
+250 examples land between −0.49% and +0.87%, which is noise around zero in both directions;
+the two larger runs gain eight to ten percent.
 
-Three of these runs were originally read as an unreliable adapter producing scattered
-results. They are not scattered against sample count, and the window size varies between
-runs because it depends on which documents happened to land inside the drift window. Four
-points cannot establish a threshold, and nothing here rules out other differences between
-runs; the mechanism — more contrastive pairs, better adapter — is at least the ordinary
-one.
+An earlier version of this table had four runs and called the relationship monotonic. The
+fifth run, at 230 examples, scored below the run at 124 and broke that ordering. What
+survives is the separation between the two clusters, not a smooth trend, and five points
+cannot locate where between 250 and 400 the behaviour changes.
 
-**The candidate was rejected in all four runs**, against a 10% activation gate. Even the
+The window size varies between runs because it depends on which documents happened to land
+inside the drift window, which is why these results first read as an unreliable adapter.
+Nothing here rules out other differences between runs; the mechanism — more contrastive
+pairs, better adapter — is at least the ordinary one.
+
+**The candidate was rejected in all five runs**, against a 10% activation gate. Even the
 best run fell 0.14 points short. That is the system working: it measured a candidate, found
 no gain worth a model swap, and kept serving the baseline.
 

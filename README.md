@@ -290,10 +290,10 @@ An independent benchmark over 100 held-out queries shows retrieval on the drifte
 measurable loss of quality rather than only as a moving centroid.
 
 A LoRA adaptation of `all-MiniLM-L6-v2` over that window tunes 337,920 parameters, 1.47% of
-the model. Across four runs the gain tracked how much drifted data the training window
-captured: +0.62% and +0.87% from 124 and 250 examples, +9.86% and +8.29% from 400 and 450.
-All four fell below the 10% activation gate, so the pipeline kept serving the baseline
-rather than shipping a model it could not justify.
+the model. Across five runs the gain appeared only where the training window captured
+enough data: −0.49%, +0.62% and +0.87% from 124 to 250 examples, against +9.86% and +8.29%
+from 400 and 450. All five fell below the 10% activation gate, so the pipeline kept serving
+the baseline rather than shipping a model it could not justify.
 
 Serving latency is measured in CI: median 27–71 ms at batch 1 and 1.6–3.4 s at batch 32
 across three runs, against a spec target of p99 under 50 ms at batch 32. Raising the
