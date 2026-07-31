@@ -7,7 +7,8 @@ import onnxruntime as ort
 import structlog
 from continuum_shared.config import settings
 from continuum_shared.embeddings import embed_texts, encode_with_session, get_tokenizer
-from continuum_shared.pairs import build_pairs
+from continuum_shared.pairs import split_query_and_document
+from continuum_shared.retrieval_metrics import score_ranking
 
 logger = structlog.get_logger()
 
@@ -67,15 +68,28 @@ async def evaluate_encoder_model(
 
     It is also the task the adapter now trains on, so the gate and the objective agree.
     """
-    pairs = build_pairs([str(example["text"]) for example in examples])
+    splits = [
+        (split, str(example["source"]))
+        for example in examples
+        if (split := split_query_and_document(str(example["text"]))) is not None
+    ]
+    pairs = [split for split, _ in splits]
+    sources = [source for _, source in splits]
     if len(pairs) < MIN_EVALUATION_PAIRS:
-        empty = {"mrr": 0.0, "recall_at_1": 0.0, "recall_at_5": 0.0, "quality": 0.0}
+        empty = {
+            "mrr": 0.0,
+            "recall_at_1": 0.0,
+            "recall_at_5": 0.0,
+            "ndcg_at_10": 0.0,
+            "quality": 0.0,
+        }
         logger.warning(
             "Too few documents long enough to evaluate on", version=version, pairs=len(pairs)
         )
         return False, empty, empty.copy(), 0.0
 
     pairs = pairs[:MAX_EVALUATION_PAIRS]
+    sources = sources[:MAX_EVALUATION_PAIRS]
     queries = [query for query, _ in pairs]
     documents = [document for _, document in pairs]
 
@@ -84,10 +98,12 @@ async def evaluate_encoder_model(
     baseline = score_pair_retrieval(
         np.array(embed_texts(queries), dtype=np.float32),
         np.array(embed_texts(documents), dtype=np.float32),
+        sources,
     )
     candidate = score_pair_retrieval(
         run_onnx_encoder(onnx_artifact, queries),
         run_onnx_encoder(onnx_artifact, documents),
+        sources,
     )
 
     improvement = (candidate["quality"] - baseline["quality"]) / max(baseline["quality"], 1e-6)
@@ -100,6 +116,8 @@ async def evaluate_encoder_model(
         candidate=candidate,
         baseline_mrr=baseline["mrr"],
         candidate_mrr=candidate["mrr"],
+        baseline_ndcg=baseline["ndcg_at_10"],
+        candidate_ndcg=candidate["ndcg_at_10"],
         improvement=f"{improvement * 100:.2f}%",
         gate=f"{settings.activation_min_improvement * 100:.2f}%",
         passed=passed,
@@ -107,30 +125,17 @@ async def evaluate_encoder_model(
     return passed, candidate, baseline, improvement
 
 
-def score_pair_retrieval(queries: np.ndarray, documents: np.ndarray) -> dict[str, float]:
+def score_pair_retrieval(
+    queries: np.ndarray, documents: np.ndarray, sources: list[str]
+) -> dict[str, float]:
     """Rank every document for each query; exactly one is correct."""
-    queries = normalize_rows(queries)
-    documents = normalize_rows(documents)
-    similarities = queries @ documents.T
-
-    reciprocal, hits_at_1, hits_at_5 = [], [], []
-    for index in range(len(queries)):
-        order = np.argsort(similarities[index])[::-1]
-        rank = int(np.where(order == index)[0][0]) + 1
-        reciprocal.append(1.0 / rank)
-        hits_at_1.append(1.0 if rank == 1 else 0.0)
-        hits_at_5.append(1.0 if rank <= 5 else 0.0)
-
-    mrr = float(np.mean(reciprocal))
-    recall_at_1 = float(np.mean(hits_at_1))
-    recall_at_5 = float(np.mean(hits_at_5))
-    return {
-        "mrr": round(mrr, 6),
-        "recall_at_1": round(recall_at_1, 6),
-        "recall_at_5": round(recall_at_5, 6),
-        # Weighted toward MRR, which is the metric the gate exists to protect.
-        "quality": round((0.7 * mrr) + (0.3 * recall_at_5), 6),
-    }
+    similarities = normalize_rows(queries) @ normalize_rows(documents).T
+    metrics = score_ranking(similarities, sources)
+    # Weighted toward MRR, which is the metric the gate exists to protect. NDCG is
+    # reported but deliberately kept out of the promotion decision for now, so adding it
+    # cannot change which models ship.
+    metrics["quality"] = round((0.7 * metrics["mrr"]) + (0.3 * metrics["recall_at_5"]), 6)
+    return metrics
 
 
 def run_onnx_encoder(onnx_artifact: bytes, texts: list[str]) -> np.ndarray:
