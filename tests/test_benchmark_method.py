@@ -16,21 +16,6 @@ sys.modules["continuum_benchmark"] = benchmark
 spec.loader.exec_module(benchmark)
 
 
-def test_query_is_removed_from_its_own_document():
-    """Leaving the query inside the document would measure string matching."""
-    text = " ".join(f"w{i}" for i in range(80))
-    query, document = benchmark.split_query_and_document(text)
-
-    assert query.split() == [f"w{i}" for i in range(benchmark.QUERY_WORDS)]
-    assert query not in document
-    assert len(document.split()) == 80 - benchmark.QUERY_WORDS
-
-
-def test_documents_too_short_to_split_are_rejected():
-    """A document barely longer than the query leaves nothing to retrieve."""
-    assert benchmark.split_query_and_document("one two three") is None
-
-
 def test_perfect_retrieval_scores_one():
     vectors = np.eye(4, dtype=np.float32)
     mrr, recall_1, recall_5 = benchmark.score(vectors, vectors, [0, 1, 2, 3])

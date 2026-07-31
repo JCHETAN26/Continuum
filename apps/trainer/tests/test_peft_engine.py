@@ -31,9 +31,11 @@ class FakeDataset:
 
     def map(self, fn, batched: bool, remove_columns: list[str]):
         assert batched is True
-        assert remove_columns == ["text"]
+        # Both sides of the pair are tokenised and the raw text columns are dropped.
+        assert remove_columns == ["query", "document"]
         tokenized = fn(self.payload)
-        mapped = FakeDataset({"text": self.payload["text"]})
+        remaining = {k: v for k, v in self.payload.items() if k not in remove_columns}
+        mapped = FakeDataset(remaining)
         mapped.payload.update(tokenized)
         mapped.mapped = True
         return mapped
@@ -321,9 +323,20 @@ def test_build_lora_config_matches_phase_one_contract():
 
 
 def test_train_peft_model_orchestrates_tiny_model_export(tmp_path: Path):
+    # Long enough to split into a query and a body; training pairs the opening of a post
+    # against its own remainder, so a two-word fixture yields no pairs at all.
+    body = " ".join(f"detail{index}" for index in range(60))
     texts = [
-        TrainingText(text="patient respiratory distress", source="medical", domain_tag="medical"),
-        TrainingText(text="losartan hypertension", source="medical", domain_tag="medical"),
+        TrainingText(
+            text=f"scsi termination problem on the quadra {body}",
+            source="medical",
+            domain_tag="medical",
+        ),
+        TrainingText(
+            text=f"isa card irq conflict after the upgrade {body}",
+            source="medical",
+            domain_tag="medical",
+        ),
     ]
 
     def fake_exporter(model_dir: Path, output_dir: Path, task: str) -> None:

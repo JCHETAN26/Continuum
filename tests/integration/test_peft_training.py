@@ -45,9 +45,13 @@ async def test_peft_training_registers_onnx_artifact(tmp_path: Path):
         "psychiatry depression ssri cognitive therapy",
         "endocrinology insulin thyroid glucose metabolic",
     ]
+    # Training pairs the opening of a document against its own body, so each document has
+    # to be long enough to split: QUERY_WORDS + MIN_DOCUMENT_WORDS. The nine-word fixtures
+    # this replaces yielded no pairs at all.
+    body = " ".join(f"supporting detail {index}" for index in range(20))
     texts = [
         TrainingText(
-            text=f"{topics[index % len(topics)]} case report number {index}",
+            text=f"{topics[index % len(topics)]} case report number {index}. {body}",
             source="medical_records",
             domain_tag="medical_records",
         )
