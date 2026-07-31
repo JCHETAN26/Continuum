@@ -54,6 +54,9 @@ The construction assumes a post's opening is representative of the rest of it. T
 for newsgroup posts and would not hold for documents with boilerplate headers, so a
 different corpus may need a different split.
 
-All four runs were still rejected by the 10% activation gate. The gate is doing its job,
-but the adapter has not yet earned a promotion, and hard-negative batching is the obvious
-next thing to try.
+All five runs were still rejected by the 10% activation gate. The gate is doing its job, but
+the adapter has not yet earned a promotion.
+
+Mined hard negatives were the obvious next thing to try and now ship, in
+[ADR-007](007-mined-hard-negatives.md). Three runs did not establish that they beat in-batch
+negatives alone, and all three were rejected too: eight runs, eight rejections.
