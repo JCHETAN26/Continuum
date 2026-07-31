@@ -290,14 +290,16 @@ An independent benchmark over 100 held-out queries shows retrieval on the drifte
 measurable loss of quality rather than only as a moving centroid.
 
 A LoRA adaptation of `all-MiniLM-L6-v2` over that window tunes 337,920 parameters, 1.47% of
-the model, and does not reliably help: three runs measured +0.96%, +0.77% and −0.21%. All
-three fell below the 10% activation gate, so the pipeline kept serving the baseline rather
-than shipping a marginal model.
+the model. Across four runs the gain tracked how much drifted data the training window
+captured: +0.62% and +0.87% from 124 and 250 examples, +9.86% and +8.29% from 400 and 450.
+All four fell below the 10% activation gate, so the pipeline kept serving the baseline
+rather than shipping a model it could not justify.
 
-Serving latency is measured in CI: median 101–299 ms at batch 1 and 7.5–14.2 s at batch 32
-across five runs, against a spec target of p99 under 50 ms. The serving container is capped
-at 0.50 CPU and every request pads to 256 tokens, which accounts for it; both are recorded
-rather than tuned away.
+Serving latency is measured in CI: median 27–71 ms at batch 1 and 1.6–3.4 s at batch 32
+across three runs, against a spec target of p99 under 50 ms at batch 32. Raising the
+serving container from 0.50 to 2.00 CPU and replacing fixed 256-token padding with dynamic
+padding cut batch-32 latency about 3x; the remaining gap is throughput under batching, and
+it is recorded rather than tuned away.
 
 Full figures, method, and the CI run that produced them:
 [docs/benchmarks/RESUME_METRICS.md](docs/benchmarks/RESUME_METRICS.md).
