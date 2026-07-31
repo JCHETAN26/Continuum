@@ -261,3 +261,52 @@ async def test_all_zero_metrics_are_not_accepted_as_a_decision():
 
     assert result.passed is False
     assert "evaluated=False" in result.detail
+
+
+@pytest.mark.asyncio
+async def test_linguistic_check_rejects_windows_over_no_documents():
+    """A window with no documents means entity extraction never ran.
+
+    The service can be healthy, with spaCy loaded, while every window it evaluates is
+    empty. Nothing downstream separated "no drift found" from "nothing was looked at", so
+    the demo could pass with the linguistic signal entirely inert.
+    """
+    windows = [{"id": "w1", "documentCount": 0, "compositeScore": 0.0}]
+    async with client_for_routes({"/v1/linguistic/status": windows}) as client:
+        result = await verify_demo.check_linguistic_analysis(client)
+
+    assert result.passed is False
+    assert "none over a non-empty document set" in result.detail
+
+
+@pytest.mark.asyncio
+async def test_linguistic_check_passes_on_an_analysed_window():
+    windows = [
+        {
+            "id": "w1",
+            "documentCount": 420,
+            "compositeScore": 0.62,
+            "newEntities": [{"label": "ORG", "text": "apple"}],
+            "emergingTerms": [{"term": "quadra"}, {"term": "vram"}],
+        }
+    ]
+    async with client_for_routes({"/v1/linguistic/status": windows}) as client:
+        result = await verify_demo.check_linguistic_analysis(client)
+
+    assert result.passed is True
+    assert "documents=420" in result.detail
+    assert "new_entities=1" in result.detail
+
+
+@pytest.mark.asyncio
+async def test_linguistic_check_skips_past_empty_windows_to_an_analysed_one():
+    """An empty recent window is normal; the check needs any window with documents."""
+    windows = [
+        {"id": "w2", "documentCount": 0, "compositeScore": 0.0},
+        {"id": "w1", "documentCount": 380, "compositeScore": 0.41},
+    ]
+    async with client_for_routes({"/v1/linguistic/status": windows}) as client:
+        result = await verify_demo.check_linguistic_analysis(client)
+
+    assert result.passed is True
+    assert "documents=380" in result.detail

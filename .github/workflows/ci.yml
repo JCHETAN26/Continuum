@@ -249,7 +249,10 @@ jobs:
       # the one number the demo exists to produce was discarded on every green run.
       - name: Capture Compose Logs
         if: always()
-        run: docker compose --env-file .env.example -f infra/docker-compose.yml logs --tail=300
+        # 300 lines per service truncated most of a run: a linguistic window reporting an
+        # empty document set was the only line of that service still visible, which made it
+        # impossible to tell whether entity extraction had ever run.
+        run: docker compose --env-file .env.example -f infra/docker-compose.yml logs --tail=2000
 
       - name: Stop Compose Stack
         if: always()
