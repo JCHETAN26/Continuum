@@ -430,6 +430,8 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile.python
+      args:
+        INSTALL_EXTRAS: nlp
     container_name: continuum-linguistic-drift
     restart: unless-stopped
     command:

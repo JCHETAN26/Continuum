@@ -152,6 +152,19 @@ rolling windows against the baseline corpus for entity movement, topic movement,
 vocabulary shift, stores results in `linguistic_windows`, publishes `linguistic-drift-alerts`,
 and streams live dashboard updates from `http://localhost:8004/v1/linguistic/events`.
 
+Entities come from spaCy `en_core_web_sm`, installed into the service image along with the
+model — spaCy ships no model with the package, and a missing one silently degrades entity
+extraction to a capitalised-word regex. That regex is still there as a fallback, but it now
+says so: it cannot tell a person from a product from a sentence-initial word, and it labels
+every match the same, so a report built on it is weaker and the extractor records which
+backend produced it.
+
+Topics use TF-IDF keyword grouping by default. BERTopic is available through the separate
+`topics` extra and is not installed, because it depends on sentence-transformers and so
+pulls torch, umap-learn, hdbscan, numba and pandas into a service that needs none of them.
+On windows of a few hundred short posts its clusters are also unstable enough to move the
+topic distribution between runs on identical input.
+
 ## Seed Corpus
 
 `uv run scripts/seed.py` ingests real documents, not generated text: 700 posts from

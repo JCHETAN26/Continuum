@@ -33,6 +33,12 @@ RUN if [ -n "$INSTALL_EXTRAS" ]; then \
     else \
       uv sync --all-packages; \
     fi
+
+# spaCy ships no model with the package, and a missing model degrades entity extraction to
+# a capitalised-word regex. Baked in so the service cannot start in that state.
+RUN if [ "$INSTALL_EXTRAS" = "nlp" ]; then \
+      uv run python -m spacy download en_core_web_sm; \
+    fi
 # Bake the embedding weights into the image. Downloading at startup would put the Hub on
 # the critical path of every container start, and would let replicas drift onto different
 # revisions of the model, which the drift detector cannot distinguish from real drift.
