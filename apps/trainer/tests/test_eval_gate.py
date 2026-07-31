@@ -92,18 +92,24 @@ async def test_evaluation_set_is_capped(monkeypatch):
 
     def record(texts):
         seen.append(len(texts))
-        return np.tile(np.array([1.0, 0.0], dtype=np.float32), (len(texts), 1))
+        # Distinct vectors so the retrieval scorer has something to rank.
+        return np.eye(len(texts), 8, dtype=np.float32)
 
     monkeypatch.setattr("continuum_trainer.eval.embed_texts", record)
     monkeypatch.setattr(
         "continuum_trainer.eval.run_onnx_encoder",
-        lambda artifact, texts: np.tile(np.array([1.0, 0.0], dtype=np.float32), (len(texts), 1)),
+        lambda artifact, texts: np.eye(len(texts), 8, dtype=np.float32),
     )
 
+    body = " ".join(f"word{n}" for n in range(60))
     examples = [
-        {"source": "pc_hardware" if index % 2 else "mac_hardware", "text": f"document {index}"}
+        {
+            "source": "pc_hardware" if index % 2 else "mac_hardware",
+            "text": f"document {index} opening line about hardware {body}",
+        }
         for index in range(1000)
     ]
     await eval_module.evaluate_encoder_model("v1", b"onnx", examples)
 
-    assert seen == [eval_module.MAX_EVALUATION_EXAMPLES]
+    # Queries and documents are embedded separately, so each capped pair costs two calls.
+    assert seen == [eval_module.MAX_EVALUATION_PAIRS, eval_module.MAX_EVALUATION_PAIRS]

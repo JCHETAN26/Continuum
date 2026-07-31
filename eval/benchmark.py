@@ -29,14 +29,13 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
+from continuum_shared.pairs import split_query_and_document  # noqa: E402
 from corpus import BASELINE_CATEGORIES, DRIFT_CATEGORIES, load_documents  # noqa: E402
 
 SERVER_URL = "http://localhost:8002/v1/embed"
 API_KEY = "continuum-secret-key"
 
 QUERIES_PER_DOMAIN = 50
-QUERY_WORDS = 15
-MIN_DOCUMENT_WORDS = 40
 EVAL_SEED = 909
 
 
@@ -54,18 +53,6 @@ class DomainResult:
             f"{self.domain:<14} queries={self.queries:<4} candidates={self.candidates:<5} "
             f"MRR={self.mrr:.4f}  R@1={self.recall_at_1:.4f}  R@5={self.recall_at_5:.4f}"
         )
-
-
-def split_query_and_document(text: str) -> tuple[str, str] | None:
-    """Opening words become the query; the remainder becomes the document.
-
-    Splitting keeps the query out of its own document, so a hit means the model matched
-    meaning rather than finding a literal copy of the query string.
-    """
-    words = text.split()
-    if len(words) < QUERY_WORDS + MIN_DOCUMENT_WORDS:
-        return None
-    return " ".join(words[:QUERY_WORDS]), " ".join(words[QUERY_WORDS:])
 
 
 def build_pairs(categories: frozenset[str], limit: int) -> list[tuple[str, str]]:

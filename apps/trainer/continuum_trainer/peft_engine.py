@@ -14,6 +14,7 @@ import numpy as np
 import structlog
 from continuum_shared.artifacts import sha256_hex
 from continuum_shared.config import settings
+from continuum_shared.pairs import build_pairs
 from continuum_shared.prisma import Prisma
 from minio import Minio
 from pydantic import BaseModel, Field
@@ -94,9 +95,30 @@ def load_peft_dependencies() -> PeftDependencies:
 
 
 def build_contrastive_dataset(training_texts: Sequence[TrainingText], datasets_module: Any) -> Any:
+    """Build (query, document) positives from the drifted window.
+
+    Dropout views of one text were the previous positives. They carry no information about
+    which documents ought to be close, so the objective could only push everything apart,
+    and four training runs moved retrieval by between -0.21% and +1.25%. The opening of a
+    post against its own body is a positive with actual semantic content, and it matches
+    how the model is scored.
+    """
     if len(training_texts) < 2:
         raise ValueError("PEFT training requires at least two training texts.")
-    return datasets_module.Dataset.from_dict({"text": [item.text for item in training_texts]})
+
+    pairs = build_pairs([item.text for item in training_texts])
+    if len(pairs) < 2:
+        raise ValueError(
+            "PEFT training requires at least two documents long enough to split into a "
+            f"query and a body; {len(training_texts)} texts yielded {len(pairs)} pairs."
+        )
+
+    return datasets_module.Dataset.from_dict(
+        {
+            "query": [query for query, _ in pairs],
+            "document": [document for _, document in pairs],
+        }
+    )
 
 
 def infer_domain_tag(training_texts: Sequence[TrainingText]) -> str:
@@ -148,19 +170,22 @@ def build_in_batch_trainer_class(deps: PeftDependencies) -> type:
             **_: Any,
         ) -> Any:
             labels = inputs.pop("labels", None)
-            # Two passes over the same inputs. Dropout is active in training mode, so the
-            # encoder produces two different representations of each document, which is
-            # what supplies the positive pair (SimCSE). Both dropout sources contribute:
-            # the base model's hidden_dropout_prob and the LoRA adapter's lora_dropout.
-            outputs = model(**inputs)
-            second_view = model(**inputs)
-            attention_mask = inputs["attention_mask"]
-            view_a = mean_pool_and_normalize(outputs, attention_mask, deps.torch)
-            view_b = mean_pool_and_normalize(second_view, attention_mask, deps.torch)
-            loss = in_batch_contrastive_loss(view_a, view_b, self.args.temperature, deps.torch)
+            # The query side and the document side are genuinely different text, so the
+            # diagonal of the similarity matrix is a positive the model has to earn from
+            # meaning. Encoding one text twice under dropout, as this did before, gave a
+            # positive that carried no information about which documents belong together.
+            query_mask = inputs["query_attention_mask"]
+            document_mask = inputs["document_attention_mask"]
+            query_outputs = model(input_ids=inputs["query_input_ids"], attention_mask=query_mask)
+            document_outputs = model(
+                input_ids=inputs["document_input_ids"], attention_mask=document_mask
+            )
+            queries = mean_pool_and_normalize(query_outputs, query_mask, deps.torch)
+            documents = mean_pool_and_normalize(document_outputs, document_mask, deps.torch)
+            loss = in_batch_contrastive_loss(queries, documents, self.args.temperature, deps.torch)
             if labels is not None:
                 inputs["labels"] = labels
-            return (loss, outputs) if return_outputs else loss
+            return (loss, query_outputs) if return_outputs else loss
 
     return InBatchContrastiveTrainer
 
@@ -177,15 +202,23 @@ def build_lora_config(config: PeftTrainingConfig, peft_module: Any) -> Any:
 
 
 def tokenize_dataset(dataset: Any, tokenizer: Any, max_length: int) -> Any:
-    def tokenize(batch: dict[str, list[str]]) -> dict[str, Any]:
-        return tokenizer(
-            batch["text"],
-            padding="max_length",
-            truncation=True,
-            max_length=max_length,
-        )
+    """Tokenise both sides of each pair into separately named columns."""
 
-    return dataset.map(tokenize, batched=True, remove_columns=["text"])
+    def tokenize(batch: dict[str, list[str]]) -> dict[str, Any]:
+        queries = tokenizer(
+            batch["query"], padding="max_length", truncation=True, max_length=max_length
+        )
+        documents = tokenizer(
+            batch["document"], padding="max_length", truncation=True, max_length=max_length
+        )
+        return {
+            "query_input_ids": queries["input_ids"],
+            "query_attention_mask": queries["attention_mask"],
+            "document_input_ids": documents["input_ids"],
+            "document_attention_mask": documents["attention_mask"],
+        }
+
+    return dataset.map(tokenize, batched=True, remove_columns=["query", "document"])
 
 
 def train_peft_model(

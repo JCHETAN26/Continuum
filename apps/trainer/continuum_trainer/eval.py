@@ -7,10 +7,13 @@ import onnxruntime as ort
 import structlog
 from continuum_shared.config import settings
 from continuum_shared.embeddings import embed_texts, encode_with_session, get_tokenizer
+from continuum_shared.pairs import build_pairs
 
 logger = structlog.get_logger()
 
-MAX_EVALUATION_EXAMPLES = 400
+# Each pair costs four encodes: query and document, base and candidate.
+MAX_EVALUATION_PAIRS = 300
+MIN_EVALUATION_PAIRS = 8
 
 
 async def evaluate_model(
@@ -53,47 +56,81 @@ async def evaluate_model(
 async def evaluate_encoder_model(
     version: str, onnx_artifact: bytes, examples: list[dict[str, Any]]
 ) -> tuple[bool, dict[str, float], dict[str, float], float]:
-    """Score a LoRA-adapted encoder against the base model on the same documents.
+    """Score a LoRA-adapted encoder against the base model on held-out retrieval.
 
-    Both sides embed the same raw text, so the comparison isolates the adapter. The
-    projection path cannot be reused here: it scores a matrix applied to base vectors,
-    while this model produces its own vectors from tokens.
+    Each query must retrieve its own document out of every candidate. The previous gate
+    counted any document from the same newsgroup as relevant, which half the candidates
+    satisfied: it reported MRR near 0.88 for both models, left almost no headroom, and four
+    training runs moved it by between -0.21% and +1.25%. Nothing could be learned that the
+    measurement could see. On this task the base model scores around 0.5, so an improvement
+    has somewhere to show up.
+
+    It is also the task the adapter now trains on, so the gate and the objective agree.
     """
-    # Every document is encoded twice here, once by the base model and once by the
-    # candidate, so the evaluation set is the dominant cost of the whole pipeline. A few
-    # hundred documents already give a stable MRR across two domains; a thousand mostly
-    # buys runtime.
-    if len(examples) > MAX_EVALUATION_EXAMPLES:
-        examples = examples[:MAX_EVALUATION_EXAMPLES]
-
-    logger.info("Running encoder evaluation", version=version, examples=len(examples))
-    if len(examples) < 4 or len({example["source"] for example in examples}) < 2:
-        empty = {"mrr": 0.0, "recall_at_5": 0.0, "mean_margin": 0.0, "quality": 0.0}
+    pairs = build_pairs([str(example["text"]) for example in examples])
+    if len(pairs) < MIN_EVALUATION_PAIRS:
+        empty = {"mrr": 0.0, "recall_at_1": 0.0, "recall_at_5": 0.0, "quality": 0.0}
+        logger.warning(
+            "Too few documents long enough to evaluate on", version=version, pairs=len(pairs)
+        )
         return False, empty, empty.copy(), 0.0
 
-    texts = [str(example["text"]) for example in examples]
-    baseline_vectors = np.array(embed_texts(texts), dtype=np.float32)
-    adapted_vectors = run_onnx_encoder(onnx_artifact, texts)
+    pairs = pairs[:MAX_EVALUATION_PAIRS]
+    queries = [query for query, _ in pairs]
+    documents = [document for _, document in pairs]
 
-    baseline_metrics = score_retrieval(examples, baseline_vectors)
-    metrics = score_retrieval(examples, adapted_vectors)
-    improvement = (metrics["quality"] - baseline_metrics["quality"]) / max(
-        baseline_metrics["quality"], 1e-6
+    logger.info("Running encoder evaluation", version=version, pairs=len(pairs))
+
+    baseline = score_pair_retrieval(
+        np.array(embed_texts(queries), dtype=np.float32),
+        np.array(embed_texts(documents), dtype=np.float32),
     )
+    candidate = score_pair_retrieval(
+        run_onnx_encoder(onnx_artifact, queries),
+        run_onnx_encoder(onnx_artifact, documents),
+    )
+
+    improvement = (candidate["quality"] - baseline["quality"]) / max(baseline["quality"], 1e-6)
     passed = improvement > settings.activation_min_improvement
 
     logger.info(
         "Encoder evaluation completed",
         version=version,
-        baseline=baseline_metrics,
-        candidate=metrics,
-        baseline_mrr=baseline_metrics["mrr"],
-        candidate_mrr=metrics["mrr"],
+        baseline=baseline,
+        candidate=candidate,
+        baseline_mrr=baseline["mrr"],
+        candidate_mrr=candidate["mrr"],
         improvement=f"{improvement * 100:.2f}%",
         gate=f"{settings.activation_min_improvement * 100:.2f}%",
         passed=passed,
     )
-    return passed, metrics, baseline_metrics, improvement
+    return passed, candidate, baseline, improvement
+
+
+def score_pair_retrieval(queries: np.ndarray, documents: np.ndarray) -> dict[str, float]:
+    """Rank every document for each query; exactly one is correct."""
+    queries = normalize_rows(queries)
+    documents = normalize_rows(documents)
+    similarities = queries @ documents.T
+
+    reciprocal, hits_at_1, hits_at_5 = [], [], []
+    for index in range(len(queries)):
+        order = np.argsort(similarities[index])[::-1]
+        rank = int(np.where(order == index)[0][0]) + 1
+        reciprocal.append(1.0 / rank)
+        hits_at_1.append(1.0 if rank == 1 else 0.0)
+        hits_at_5.append(1.0 if rank <= 5 else 0.0)
+
+    mrr = float(np.mean(reciprocal))
+    recall_at_1 = float(np.mean(hits_at_1))
+    recall_at_5 = float(np.mean(hits_at_5))
+    return {
+        "mrr": round(mrr, 6),
+        "recall_at_1": round(recall_at_1, 6),
+        "recall_at_5": round(recall_at_5, 6),
+        # Weighted toward MRR, which is the metric the gate exists to protect.
+        "quality": round((0.7 * mrr) + (0.3 * recall_at_5), 6),
+    }
 
 
 def run_onnx_encoder(onnx_artifact: bytes, texts: list[str]) -> np.ndarray:
