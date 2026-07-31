@@ -201,3 +201,50 @@ def test_singleton_services_keep_their_fixed_names():
 
     for service_name in SINGLETON_SERVICES:
         assert services[service_name].get("container_name"), f"{service_name} must not be scalable"
+
+
+def test_every_prisma_migration_is_mounted_into_postgres():
+    """Compose applies the product schema through init scripts, not a migrate step.
+
+    A migration that exists on disk but is not mounted simply never runs, and the failure
+    surfaces far away: services start, then fail at query time with a column that does not
+    exist. That is how first_embedded_at reached CI.
+    """
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    migrations = sorted(
+        path.name
+        for path in (root / "packages/shared/prisma/migrations").iterdir()
+        if path.is_dir()
+    )
+
+    mounts = " ".join(str(volume) for volume in load_compose()["services"]["postgres"]["volumes"])
+
+    for migration in migrations:
+        assert migration in mounts, (
+            f"{migration}/migration.sql is not mounted into postgres, so it will never run"
+        )
+
+
+def test_mounted_migrations_run_in_directory_order():
+    """Prisma names migrations by timestamp; the init scripts must apply them in that order."""
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    migrations = sorted(
+        path.name
+        for path in (root / "packages/shared/prisma/migrations").iterdir()
+        if path.is_dir()
+    )
+
+    volumes = [
+        str(volume)
+        for volume in load_compose()["services"]["postgres"]["volumes"]
+        if "initdb" in str(volume) and "migration.sql" in str(volume)
+    ]
+    # The numeric prefix on the init script decides execution order.
+    prefixes = [volume.split("/docker-entrypoint-initdb.d/")[1][:2] for volume in volumes]
+
+    assert prefixes == sorted(prefixes)
+    assert len(volumes) == len(migrations)

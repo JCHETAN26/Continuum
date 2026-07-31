@@ -451,10 +451,11 @@ async def test_mark_model_pending_eval_updates_phase_one_columns():
 async def test_training_set_follows_embedding_time_not_ingestion_time():
     """Window membership must match how the drift service builds a centroid.
 
-    The drift service selects embeddings by created_at. Selecting documents by
-    ingested_at described a different set: once a real model does the embedding, that work
-    runs well behind ingestion, so a window that breached held hundreds of embeddings and
-    no newly ingested documents, and training died on an empty corpus.
+    Two clocks have been wrong here. Selecting documents by ingested_at described a
+    different set entirely, because embedding runs well behind ingestion once a real model
+    does the work, and training died on an empty corpus. Selecting by created_at then broke
+    a second way: a backfill moves it, so re-encoded documents would drift into whichever
+    window was current. first_embedded_at is the arrival clock the drift service uses.
     """
     from continuum_trainer.peft_engine import load_drifted_training_texts
 
@@ -470,7 +471,8 @@ async def test_training_set_follows_embedding_time_not_ingestion_time():
     assert len(texts) == 4
     statement = " ".join(captured[0].split())
     assert "FROM embeddings e" in statement
-    assert "e.created_at >= w.window_start" in statement
+    assert "e.first_embedded_at >= w.window_start" in statement
+    assert "e.created_at" not in statement
     assert "ingested_at" not in statement
 
 

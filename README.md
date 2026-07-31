@@ -142,6 +142,16 @@ the mismatch is the work queue. That makes re-indexing resumable across restarts
 over however many worker replicas are running, rather than blocking the training job for the
 length of a full pass.
 
+It is a full backfill: the predicate matches every historical document, not only new
+arrivals. Two limits are worth stating. There is no dual index, so retrieval spans a mix of
+old and new vectors until the backfill finishes. And the claim is unordered, so freshly
+ingested documents compete with the backlog rather than taking priority.
+
+Drift windows are built from `first_embedded_at`, which records when a document first became
+searchable and is never updated. `created_at` moves on every write, so a backfill would
+otherwise restamp the whole corpus into the current window and the drift score measured
+during one would describe every document rather than recent arrivals.
+
 `TRAINER_BACKEND=demo_adapter` selects the original deterministic projection instead. It
 trains nothing, and exists for a fast laptop demo.
 

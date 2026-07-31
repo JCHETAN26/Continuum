@@ -51,9 +51,15 @@ CLAIM_UNEMBEDDED_QUERY = """
     FOR UPDATE OF d SKIP LOCKED
 """
 
+# first_embedded_at is written on insert and deliberately absent from the update clause:
+# it records when a document first became searchable, and drift windows are built from it.
+# created_at continues to move on every write, which is what makes it useful for watching
+# a backfill progress.
 UPSERT_QUERY = """
-    INSERT INTO embeddings (id, document_id, model_version_id, vector, dimension, created_at)
-    VALUES ($1::uuid, $2::uuid, $3::uuid, $4::vector, $5, NOW())
+    INSERT INTO embeddings (
+        id, document_id, model_version_id, vector, dimension, created_at, first_embedded_at
+    )
+    VALUES ($1::uuid, $2::uuid, $3::uuid, $4::vector, $5, NOW(), NOW())
     ON CONFLICT (document_id) DO UPDATE
     SET vector = EXCLUDED.vector,
         model_version_id = EXCLUDED.model_version_id,

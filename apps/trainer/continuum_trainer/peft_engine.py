@@ -467,10 +467,10 @@ async def load_drifted_training_texts(
             FROM embeddings e
             JOIN documents d ON d.id = e.document_id
             JOIN drift_windows w
-              ON e.created_at >= w.window_start
-             AND e.created_at < w.window_end
+              ON e.first_embedded_at >= w.window_start
+             AND e.first_embedded_at < w.window_end
             WHERE w.id = $1::uuid
-            ORDER BY e.created_at DESC
+            ORDER BY e.first_embedded_at DESC
             LIMIT $2
             """,
             drift_window_id,

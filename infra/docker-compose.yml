@@ -187,6 +187,10 @@ services:
       # nested mount cannot create its target inside a read-only mount.
       - ./postgres/init/01-shadow-database.sh:/docker-entrypoint-initdb.d/01-shadow-database.sh:ro
       - ../packages/shared/prisma/migrations/20260726000000_init/migration.sql:/docker-entrypoint-initdb.d/02-schema.sql:ro
+      # Every Prisma migration has to be mounted here in order. These run only on an empty
+      # data directory, so adding one means `pnpm infra:reset` locally; CI starts from a
+      # fresh volume on every run.
+      - ../packages/shared/prisma/migrations/20260731000000_embedding_first_embedded_at/migration.sql:/docker-entrypoint-initdb.d/03-embedding-first-embedded-at.sql:ro
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-continuum} -d ${POSTGRES_DB:-continuum}']
       interval: 5s
