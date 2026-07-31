@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import uuid
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -15,6 +16,23 @@ from continuum_linguistic_drift.analyzer import LinguisticDriftAnalyzer
 from continuum_linguistic_drift.schemas import DocumentForAnalysis, LinguisticDriftReport
 
 logger = structlog.get_logger()
+
+# A comparison needs enough baseline text for the entity and vocabulary distributions to
+# mean anything, and at least a couple of documents to compare against it.
+MIN_BASELINE_DOCUMENTS = 10
+MIN_WINDOW_DOCUMENTS = 2
+
+
+@dataclass(frozen=True)
+class AnalysisWindow:
+    """A resolved baseline/window pair, and how its bounds were arrived at."""
+
+    window_start: datetime
+    window_end: datetime
+    baseline: list[DocumentForAnalysis]
+    window: list[DocumentForAnalysis]
+    # True when the bounds came from document timestamps rather than the wall clock.
+    event_time: bool
 
 
 def get_kafka_producer():
@@ -57,6 +75,100 @@ async def fetch_documents(
         )
         for row in rows
     ]
+
+
+async def count_documents(db: Prisma) -> int:
+    rows = await db.query_raw("SELECT COUNT(*)::int AS total FROM documents")
+    return int(rows[0]["total"]) if rows else 0
+
+
+async def fetch_documents_by_rank(
+    db: Prisma, *, offset: int, limit: int
+) -> list[DocumentForAnalysis]:
+    """Newest-first slice by position rather than by timestamp."""
+    rows = await db.query_raw(
+        """
+        SELECT id::text, text, source, occurred_at
+        FROM documents
+        ORDER BY occurred_at DESC
+        LIMIT $1 OFFSET $2
+        """,
+        limit,
+        offset,
+    )
+    return [
+        DocumentForAnalysis(
+            id=row["id"],
+            text=row["text"],
+            source=row["source"],
+            occurred_at=row["occurred_at"],
+        )
+        for row in rows
+    ]
+
+
+async def window_already_analysed(db: Prisma, window_start: datetime, window_end: datetime) -> bool:
+    rows = await db.query_raw(
+        """
+        SELECT 1 AS present
+        FROM linguistic_windows
+        WHERE window_start = $1::timestamptz AND window_end = $2::timestamptz
+        """,
+        window_start,
+        window_end,
+    )
+    return bool(rows)
+
+
+async def resolve_analysis_window(
+    db: Prisma, *, duration: timedelta, baseline_limit: int, window_limit: int
+) -> AnalysisWindow | None:
+    """Pick a baseline and a comparison window, preferring the trailing wall-clock window.
+
+    The wall-clock window is the right answer for a live stream, and it is tried first so
+    steady-state behaviour is unchanged. It goes permanently empty the moment ingestion
+    pauses, though: the demo corpus arrives as a burst of about a minute, so within two
+    minutes of the last document every subsequent window holds nothing and the analyser
+    skips forever. That is what it did, logging baseline_count=1000 window_count=0 every
+    thirty seconds while the end-to-end check waited out its timeout.
+
+    So when the clock window comes up short, the bounds are taken from the documents
+    instead: the newest half of the corpus becomes the window and the older documents the
+    baseline. Splitting by position rather than by elapsed time guarantees both sides are
+    non-empty whenever enough documents exist at all, which a duration cannot promise when
+    the whole corpus is shorter than one window.
+    """
+    now = datetime.now(UTC)
+    window_end = now.replace(second=0, microsecond=0)
+    window_start = window_end - duration
+
+    baseline = await fetch_documents(db, None, window_start, limit=baseline_limit)
+    window = await fetch_documents(db, window_start, window_end, limit=window_limit)
+    if len(baseline) >= MIN_BASELINE_DOCUMENTS and len(window) >= MIN_WINDOW_DOCUMENTS:
+        return AnalysisWindow(window_start, window_end, baseline, window, event_time=False)
+
+    total = await count_documents(db)
+    if total < MIN_BASELINE_DOCUMENTS + MIN_WINDOW_DOCUMENTS:
+        return None
+
+    # Half keeps both sides populated whatever the corpus size, and on the seeded demo it
+    # lands close to the actual distribution boundary: 1200 documents split 600/600, where
+    # the newest 500 are the drifted domain.
+    size = min(window_limit, total // 2)
+    window = await fetch_documents_by_rank(db, offset=0, limit=size)
+    baseline = await fetch_documents_by_rank(db, offset=size, limit=baseline_limit)
+    if len(baseline) < MIN_BASELINE_DOCUMENTS or len(window) < MIN_WINDOW_DOCUMENTS:
+        return None
+
+    # Bounds describe the documents actually analysed, so the stored row stays truthful and
+    # its (window_start, window_end) key is stable while the stream is idle.
+    return AnalysisWindow(
+        window_start=window[-1].occurred_at,
+        window_end=window[0].occurred_at + timedelta(seconds=1),
+        baseline=baseline,
+        window=window,
+        event_time=True,
+    )
 
 
 async def latest_semantic_drift_window_id(db: Prisma) -> str | None:
@@ -195,26 +307,32 @@ async def process_linguistic_window(
     window_limit: int = 1000,
 ) -> str | None:
     now = datetime.now(UTC)
-    window_end = now.replace(second=0, microsecond=0)
-    window_start = window_end - duration
-
-    baseline_docs = await fetch_documents(db, None, window_start, limit=baseline_limit)
-    window_docs = await fetch_documents(db, window_start, window_end, limit=window_limit)
-    if len(baseline_docs) < 10 or len(window_docs) < 2:
-        logger.info(
-            "Not enough documents for linguistic drift",
-            baseline_count=len(baseline_docs),
-            window_count=len(window_docs),
-        )
+    resolved = await resolve_analysis_window(
+        db, duration=duration, baseline_limit=baseline_limit, window_limit=window_limit
+    )
+    if resolved is None:
+        logger.info("Not enough documents for linguistic drift")
         return None
 
-    report = analyzer.analyze(baseline_docs, window_docs)
+    window_start = resolved.window_start
+    window_end = resolved.window_end
+
+    # An idle stream resolves to the same bounds on every poll. Without this the analyser
+    # would re-run spaCy over the whole corpus every thirty seconds to rewrite a row it had
+    # already written.
+    if resolved.event_time and await window_already_analysed(db, window_start, window_end):
+        return None
+
+    report = analyzer.analyze(resolved.baseline, resolved.window)
     window_id = await insert_linguistic_window(db, window_start, window_end, report)
     logger.info(
         "Processed linguistic window",
         window_id=window_id,
         composite_score=report.composite_score,
         breached=report.breached,
+        baseline_count=len(resolved.baseline),
+        window_count=len(resolved.window),
+        event_time=resolved.event_time,
     )
 
     if report.breached:
