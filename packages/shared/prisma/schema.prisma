@@ -138,10 +138,19 @@ model Embedding {
   /// Denormalised for cheap validation; must equal 384 for the MiniLM family.
   dimension Int @default(384)
 
+  /// When this document's vector was last written. Re-encoding after a model activation
+  /// moves it, so it tracks backfill progress rather than document arrival.
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  /// When this document first became searchable, set once and never updated. Drift windows
+  /// are built from this: using createdAt meant a backfill restamped the whole corpus into
+  /// the current window, so the window covered every document rather than recent arrivals
+  /// and the drift score computed during one was meaningless.
+  firstEmbeddedAt DateTime @default(now()) @map("first_embedded_at") @db.Timestamptz(6)
 
   @@index([modelVersionId])
   @@index([createdAt])
+  @@index([firstEmbeddedAt])
   @@map("embeddings")
 }
 

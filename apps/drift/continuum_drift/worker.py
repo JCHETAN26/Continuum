@@ -36,7 +36,7 @@ async def compute_centroid(
     query = """
         SELECT AVG(vector)::text AS centroid, COUNT(*)::int AS document_count
         FROM embeddings
-        WHERE created_at >= $1::timestamptz AND created_at < $2::timestamptz
+        WHERE first_embedded_at >= $1::timestamptz AND first_embedded_at < $2::timestamptz
     """
     rows = await db.query_raw(query, start_time, end_time)
 
@@ -72,7 +72,9 @@ async def get_or_create_baseline(db: Prisma) -> tuple[str, np.ndarray]:
             return (baseline_record.id, centroid)
 
     # If no baseline, we must wait or just take the first 100 docs
-    query = "SELECT vector::text as vec_str FROM embeddings ORDER BY created_at ASC LIMIT 100"
+    query = (
+        "SELECT vector::text as vec_str FROM embeddings ORDER BY first_embedded_at ASC LIMIT 100"
+    )
     rows = await db.query_raw(query)
 
     if not rows:

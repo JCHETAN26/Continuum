@@ -76,3 +76,48 @@ def test_average_is_returned_in_the_expected_text_shape(cursor):
 
     assert rendered.startswith("[") and rendered.endswith("]")
     assert len(rendered.strip("[]").split(",")) == 8
+
+
+def test_first_embedded_at_survives_a_reencode(cursor):
+    """The drift clock must not move when a backfill rewrites a vector.
+
+    This is the behaviour the column exists for: created_at tracks the latest write so a
+    backfill can be observed, first_embedded_at records arrival so drift windows keep
+    describing recent documents rather than everything the backfill just touched.
+    """
+    cursor.execute("DROP TABLE IF EXISTS reencode_probe")
+    cursor.execute(
+        """
+        CREATE TABLE reencode_probe (
+            document_id uuid PRIMARY KEY,
+            v vector(8),
+            created_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            first_embedded_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+    doc = "11111111-1111-1111-1111-111111111111"
+    cursor.execute(
+        "INSERT INTO reencode_probe (document_id, v) VALUES (%s::uuid, %s::vector)",
+        (doc, literal(np.ones(8))),
+    )
+    cursor.execute("SELECT created_at, first_embedded_at FROM reencode_probe")
+    original_created, original_first = cursor.fetchone()
+
+    # Mirror the worker's upsert: created_at moves, first_embedded_at is left alone.
+    cursor.execute(
+        """
+        INSERT INTO reencode_probe (document_id, v, created_at, first_embedded_at)
+        VALUES (%s::uuid, %s::vector, NOW(), NOW())
+        ON CONFLICT (document_id) DO UPDATE
+        SET v = EXCLUDED.v, created_at = NOW()
+        """,
+        (doc, literal(np.zeros(8))),
+    )
+    cursor.execute("SELECT created_at, first_embedded_at FROM reencode_probe")
+    new_created, new_first = cursor.fetchone()
+
+    assert new_first == original_first, "arrival time moved; drift windows would be corrupted"
+    assert new_created >= original_created
+
+    cursor.execute("DROP TABLE IF EXISTS reencode_probe")

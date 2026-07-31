@@ -107,3 +107,32 @@ async def test_a_broken_artifact_does_not_stop_the_worker():
         resolved = await resolve_model(SimpleNamespace(), current)
 
     assert resolved is current
+
+
+def test_upsert_preserves_the_arrival_timestamp_across_reencodes():
+    """A backfill must not restamp historical documents into the current drift window.
+
+    created_at moves on every write, and drift windows used to be built from it. Activating
+    an adapted model re-encodes the whole corpus, so a backfill pushed every historical
+    vector into the current window: the window then covered the entire corpus instead of
+    recent arrivals, and the drift score computed during one meant nothing.
+    """
+    statement = normalise(UPSERT_QUERY)
+
+    assert "first_embedded_at" in statement
+    update_clause = statement.split("DO UPDATE")[1]
+    # Present on insert, absent from the update: written once, never moved.
+    assert "first_embedded_at" not in update_clause
+    assert "created_at = NOW()" in update_clause
+
+
+def test_drift_and_training_agree_on_which_clock_defines_a_window():
+    """A window built from one timestamp and sampled by another describes two sets."""
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[3]
+    drift = (root / "apps/drift/continuum_drift/worker.py").read_text()
+    trainer = (root / "apps/trainer/continuum_trainer/peft_engine.py").read_text()
+
+    assert "first_embedded_at >= $1::timestamptz" in drift
+    assert "e.first_embedded_at >= w.window_start" in trainer
