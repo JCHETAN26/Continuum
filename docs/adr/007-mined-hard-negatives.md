@@ -38,14 +38,16 @@ same corpus.
 
 Cost is a third encode per training step.
 
-The measured effect is unresolved. Three runs gained +1.17%, +4.22% and +7.02% at 119, 270
-and 400 training examples. Against the in-batch-only runs at comparable sizes that is
-better where the previous objective did nothing and worse at 400, the one size where a
-direct comparison exists (+7.02% against +9.86%).
+The measured effect is unresolved. Four runs gained +1.17%, +4.22%, +7.02% and +10.44% at
+119, 270, 400 and 400 training examples.
 
-**No improvement is claimed.** Run-to-run variance on identical code has spanned ten
-percentage points on this pipeline, which is wider than every difference being compared,
-and there is one run per cell. Deciding this needs an experiment that pins the training-set
+The two runs at 400 settle the question of whether these numbers can be compared at all:
+identical code and identical training-set size produced +7.02% and +10.44%, a 3.4-point
+spread straddling the activation gate. The within-condition noise is wider than any
+difference between the two objectives, so the comparison against in-batch-only runs cannot
+support a conclusion in either direction.
+
+**No improvement is claimed.** Deciding this needs an experiment that pins the training-set
 size and runs both arms several times, rather than the opportunistic sizes CI produces
 while doing other work.
 
