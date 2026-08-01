@@ -205,6 +205,12 @@ jobs:
       - name: Install Python dependencies
         run: uv sync --all-packages --dev
 
+      # The benchmark runs on the host and imports continuum_shared.config, whose settings
+      # are loaded from .env. Without this it raised a pydantic validation error for every
+      # required field -- and, piped into tee, reported success while producing nothing.
+      - name: Create .env from example
+        run: cp .env.example .env
+
       - name: Start Compose Stack
         run: docker compose --env-file .env.example -f infra/docker-compose.yml up --build -d --wait
 

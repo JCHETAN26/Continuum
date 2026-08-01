@@ -174,10 +174,13 @@ def measure(connection: psycopg.Connection, rows: int, seed: int) -> list[Measur
     probe /= np.linalg.norm(probe)
     probe_literal = "[" + ",".join(f"{value:.5f}" for value in probe) + "]"
     absent_version = "00000000-0000-0000-0000-000000000000"
+    settled_version = "11111111-1111-1111-1111-111111111111"
 
+    # With every row still unversioned the claim matches immediately and LIMIT 50 returns
+    # after fifty rows, which is the backlog case and the easy one.
     results = [
         Measurement(
-            "claim query (steady state)",
+            "claim query (backlog)",
             rows,
             time_query(connection, CLAIM_QUERY, (absent_version,)),
             explain(connection, CLAIM_QUERY, (absent_version,)),
@@ -197,6 +200,27 @@ def measure(connection: psycopg.Connection, rows: int, seed: int) -> list[Measur
             time_query(connection, ANN_SEARCH, (probe_literal,)),
         ),
     ]
+
+    # The case that actually matters: every vector already carries the active version, so
+    # the claim matches nothing and LIMIT cannot stop early. This is what the worker polls
+    # once a backfill has drained, several times a second, forever.
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "INSERT INTO model_versions (id, version, base_model, updated_at) "
+            "VALUES (%s::uuid, 'load-test', 'synthetic', NOW()) ON CONFLICT DO NOTHING",
+            (settled_version,),
+        )
+        cursor.execute("UPDATE embeddings SET model_version_id = %s::uuid", (settled_version,))
+    connection.commit()
+
+    results.append(
+        Measurement(
+            "claim query (settled)",
+            rows,
+            time_query(connection, CLAIM_QUERY, (settled_version,)),
+            explain(connection, CLAIM_QUERY, (settled_version,)),
+        )
+    )
 
     # Re-index throughput: what activating a model costs. Bounded to a slice so the
     # measurement stays proportional rather than rewriting the whole corpus.
