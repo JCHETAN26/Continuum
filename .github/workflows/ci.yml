@@ -257,3 +257,63 @@ jobs:
       - name: Stop Compose Stack
         if: always()
         run: docker compose --env-file .env.example -f infra/docker-compose.yml down -v
+
+  load:
+    name: Load (synthetic vectors)
+    runs-on: ubuntu-latest
+    # The demo runs on 1,200 documents, which says nothing about how the data plane behaves
+    # at a corpus size worth worrying about. Synthetic vectors cost nothing to generate and
+    # exercise the same indexes, so this measures the storage and query paths without paying
+    # for a million real embeddings.
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: continuum
+          POSTGRES_PASSWORD: continuum
+          POSTGRES_DB: loadtest
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U continuum"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: 'uv.lock'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: '.python-version'
+
+      - name: Install Python dependencies
+        run: uv sync --all-packages --dev
+
+      - name: Load and measure
+        run: |
+          uv run bench/load_vectors.py --count 100000 \
+            --output bench-results/load.json | tee load.txt
+          {
+            echo "### Data plane at 100k vectors"
+            echo '```'
+            cat load.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+        env:
+          LOAD_TEST_DSN: postgresql://continuum:continuum@localhost:5432/loadtest
+
+      - name: Upload Load Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: load-results
+          path: bench-results/
+          if-no-files-found: warn

@@ -81,6 +81,15 @@ x-worker-limits: &worker-limits
   cpus: '0.75'
   mem_limit: 768m
 
+# The embedding worker is the only worker doing transformer inference, and at the 0.75 CPU
+# of x-worker-limits it re-encoded 50 documents every 16 seconds, or 3.1 per second. That
+# is what sets how long a backfill takes after a model activation: 1,200 documents in about
+# six minutes, and a corpus of a million in days. Throughput is close to linear in CPU,
+# serving measuring 9.4 documents per second at 2.00.
+x-embedding-limits: &embedding-limits
+  cpus: '2.00'
+  mem_limit: 1g
+
 x-trainer-limits: &trainer-limits
   # Raised from 2.00: LoRA training is the longest stage in the pipeline and the other
   # services are effectively idle while it runs. cpus is a ceiling, not a reservation.
@@ -372,7 +381,7 @@ services:
   # pipeline, and its polling query claims rows with FOR UPDATE SKIP LOCKED, so replicas
   # take disjoint batches without coordinating.
   embedding:
-    <<: *worker-limits
+    <<: *embedding-limits
     build:
       context: ..
       dockerfile: docker/Dockerfile.python
