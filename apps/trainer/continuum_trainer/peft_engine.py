@@ -21,6 +21,16 @@ from pydantic import BaseModel, Field
 
 logger = structlog.get_logger()
 
+# How much of the drift window to train on. The window is whatever happened to arrive, and
+# it has ranged from 180 to 559 pairs across runs, which made training time swing by three
+# times and made no two runs comparable: the measured gain tracked the size of the window
+# more than anything the trainer did. One run at 559 pairs did not finish inside the
+# end-to-end timeout at all.
+#
+# 300 sits just above the runs that produced the largest gains, so the cap bounds the cost
+# and the variance without cutting into the regime where the adapter works.
+MAX_TRAINING_PAIRS = 300
+
 
 class TrainingText(BaseModel):
     text: str = Field(min_length=1)
@@ -36,14 +46,23 @@ class PeftTrainingConfig(BaseModel):
     target_modules: tuple[str, ...] = ("query", "key", "value", "dense")
     task_type: str = "FEATURE_EXTRACTION"
     epochs: int = 3
+    # Held at 16. Raising it to 32 alongside 256-token documents put peak memory past the
+    # container limit and the trainer was killed mid-run. Batch size does not change total
+    # FLOPs, only memory and the number of optimizer steps, so it is the cheapest thing to
+    # give back when the length increase is what actually matters.
     batch_size: int = 16
     learning_rate: float = 2e-4
     temperature: float = 0.05
-    # Sequences are padded to exactly this length, so it is a direct multiplier on
-    # training cost rather than a ceiling. Corpus documents run 72-83 words at the median
-    # (~110 tokens), so 256 spent more than half of every batch on padding that the
-    # attention mask then discards. Serving still embeds at MAX_SEQUENCE_LENGTH.
-    max_length: int = 128
+    # Documents and queries have very different length distributions, and padding both to
+    # one number is wrong in both directions. Measured over the seeded corpus with the
+    # serving tokenizer: queries run 24 tokens at the median and 104 at the longest, while
+    # documents run 128 at the median and 224 at p90.
+    #
+    # A shared 128 truncated 46% of documents. 256 would truncate none, but attention is
+    # quadratic and it took training from four minutes past the thirty-minute timeout. 192
+    # truncates 16% at roughly half that cost, which is the trade this pipeline can afford.
+    max_length: int = 192
+    query_max_length: int = 128
     # Mine one hard negative per pair and score it alongside the in-batch negatives. Off
     # is the previous behaviour, kept so the two can be compared on the same corpus.
     use_hard_negatives: bool = True
@@ -167,6 +186,10 @@ def build_contrastive_dataset(
             f"query and a body; {len(training_texts)} texts yielded {len(pairs)} pairs."
         )
 
+    if len(pairs) > MAX_TRAINING_PAIRS:
+        logger.info("Capping the training set", available=len(pairs), used=MAX_TRAINING_PAIRS)
+        pairs = pairs[:MAX_TRAINING_PAIRS]
+
     queries = [query for query, _ in pairs]
     documents = [document for _, document in pairs]
     columns: dict[str, list[str]] = {"query": queries, "document": documents}
@@ -284,14 +307,21 @@ def build_lora_config(config: PeftTrainingConfig, peft_module: Any) -> Any:
     )
 
 
-def tokenize_dataset(dataset: Any, tokenizer: Any, max_length: int) -> Any:
-    """Tokenise both sides of each pair into separately named columns."""
+def tokenize_dataset(
+    dataset: Any, tokenizer: Any, max_length: int, query_max_length: int | None = None
+) -> Any:
+    """Tokenise both sides of each pair, each to its own length.
+
+    Queries are short and documents are not, so one shared length truncates the documents
+    and pads the queries. See PeftTrainingConfig for the measured distributions.
+    """
 
     has_negatives = "negative" in dataset.column_names
+    query_length = max_length if query_max_length is None else query_max_length
 
     def tokenize(batch: dict[str, list[str]]) -> dict[str, Any]:
         queries = tokenizer(
-            batch["query"], padding="max_length", truncation=True, max_length=max_length
+            batch["query"], padding="max_length", truncation=True, max_length=query_length
         )
         documents = tokenizer(
             batch["document"], padding="max_length", truncation=True, max_length=max_length
@@ -338,7 +368,7 @@ def train_peft_model(
     base_model = deps.transformers.AutoModel.from_pretrained(config.base_model)
     lora_config = build_lora_config(config, deps.peft)
     model = deps.peft.get_peft_model(base_model, lora_config)
-    tokenized = tokenize_dataset(dataset, tokenizer, config.max_length)
+    tokenized = tokenize_dataset(dataset, tokenizer, config.max_length, config.query_max_length)
     tokenized = tokenized.with_format("torch")
 
     trainer_cls = build_in_batch_trainer_class(deps)

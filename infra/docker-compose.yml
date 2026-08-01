@@ -85,7 +85,9 @@ x-trainer-limits: &trainer-limits
   # Raised from 2.00: LoRA training is the longest stage in the pipeline and the other
   # services are effectively idle while it runs. cpus is a ceiling, not a reservation.
   cpus: '3.50'
-  mem_limit: 3g
+  # Raised from 3g alongside batch 32 at 256 tokens. Activations retained for backward
+  # across three encodes per step (query, document, mined negative) are the bulk of it.
+  mem_limit: 4g
 
 services:
   # -------------------------------------------------------------------------
