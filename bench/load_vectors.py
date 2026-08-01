@@ -89,7 +89,8 @@ def load_documents(connection: psycopg.Connection, count: int, seed: int) -> flo
                             f"synthetic load-test document {row}",
                             "load_test",
                             "2026-01-01T00:00:00+00:00",
-                            f"hash-{row}",
+                            # documents_content_hash_check enforces ^[0-9a-f]{64}$.
+                            f"{row:064x}",
                         )
                     )
         connection.commit()

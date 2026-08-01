@@ -248,3 +248,19 @@ def test_mounted_migrations_run_in_directory_order():
 
     assert prefixes == sorted(prefixes)
     assert len(volumes) == len(migrations)
+
+
+def test_measurement_steps_do_not_hide_failures_behind_tee():
+    """`cmd | tee file` exits with tee's status, so a crashed benchmark reports success.
+
+    The load test did exactly that: it died on a check-constraint violation and the job
+    went green in 29 seconds. The retrieval benchmark had been doing the same thing
+    quietly, which is why one run produced neither output nor its results artifact while
+    its step showed as passed.
+    """
+    root = Path(__file__).resolve().parents[1]
+    workflow = (root / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+
+    piped = [line for line in workflow.splitlines() if "| tee " in line]
+    assert piped, "expected at least one measurement step piping into tee"
+    assert workflow.count("set -o pipefail") >= len(piped)

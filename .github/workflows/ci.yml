@@ -215,6 +215,7 @@ jobs:
       # the same images and resource limits rather than a bespoke benchmark environment.
       - name: Measure Serving Latency
         run: |
+          set -o pipefail
           uv run bench/latency.py --output bench-results/latency.json | tee latency.txt
           {
             echo "### Serving latency (p50/p95/p99)"
@@ -228,6 +229,7 @@ jobs:
       # model to find one specific post out of every candidate.
       - name: Run Retrieval Benchmark
         run: |
+          set -o pipefail
           uv run eval/benchmark.py --output bench-results/retrieval.json | tee retrieval.txt
           {
             echo "### Retrieval benchmark (100 held-out queries)"
@@ -299,6 +301,7 @@ jobs:
 
       - name: Load and measure
         run: |
+          set -o pipefail
           uv run bench/load_vectors.py --count 100000 \
             --output bench-results/load.json | tee load.txt
           {
