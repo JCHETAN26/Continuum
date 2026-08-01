@@ -37,7 +37,9 @@ the drifted window, followed by an ONNX export and an evaluation against the bas
 Each query must retrieve its own document out of every candidate, which is the same task
 the adapter trains on, so the gate and the objective agree.
 
-Five runs of the identical scenario:
+Five runs of the identical scenario, with in-batch negatives only. This was the shipped
+objective through commit `0dc89a0`; mined hard negatives replaced it in
+[#42](https://github.com/JCHETAN26/Continuum/pull/42) and are measured in the next section.
 
 | run                                                                              | training samples | baseline MRR | candidate MRR | change |
 | -------------------------------------------------------------------------------- | ---------------- | ------------ | ------------- | ------ |
@@ -64,6 +66,38 @@ pairs, better adapter — is at least the ordinary one.
 **The candidate was rejected in all five runs**, against a 10% activation gate. Even the
 best run fell 0.14 points short. That is the system working: it measured a candidate, found
 no gain worth a model swap, and kept serving the baseline.
+
+### Hard negatives, and why they are not claimed as an improvement
+
+Each pair now also carries a negative mined from the base model's own confusions. Three runs
+of the same scenario, this time with mined negatives in the denominator:
+
+| run                                                                              | training samples | baseline MRR | candidate MRR | change |
+| -------------------------------------------------------------------------------- | ---------------- | ------------ | ------------- | ------ |
+| [`30664356329`](https://github.com/JCHETAN26/Continuum/actions/runs/30664356329) | 119              | 0.4626       | 0.4661        | +1.17% |
+| [`30663295295`](https://github.com/JCHETAN26/Continuum/actions/runs/30663295295) | 270              | 0.4324       | 0.4494        | +4.22% |
+| [`30664356329`](https://github.com/JCHETAN26/Continuum/actions/runs/30664356329) | 400              | 0.4242       | 0.4508        | +7.02% |
+
+Set against the runs above at comparable sizes, the comparison does not settle anything:
+
+| training samples | in-batch only  | with hard negatives |
+| ---------------- | -------------- | ------------------- |
+| ~120             | +0.62%         | +1.17%              |
+| ~230–270         | −0.49%, +0.87% | +4.22%              |
+| 400              | +9.86%         | +7.02%              |
+
+Hard negatives look better in the range where the previous objective did nothing and worse
+at the one size where a direct comparison exists. **Neither reading is supported by one run
+per cell.** Run-to-run variance on identical code has spanned ten percentage points on this
+pipeline, which is wider than every difference in that table.
+
+Answering this properly needs a dedicated experiment that pins the training-set size and
+runs both arms several times, rather than the opportunistic sizes CI happens to produce.
+That has not been done, so no improvement is claimed. Hard negatives are shipped because
+they are the standard construction for this objective and they are correct, not because
+they have been shown to beat the alternative here.
+
+The candidate was rejected in all three of these runs too. Eight runs, eight rejections.
 
 ### NDCG@10 does not move with MRR
 
