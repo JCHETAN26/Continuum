@@ -319,6 +319,21 @@ jobs:
         env:
           LOAD_TEST_DSN: postgresql://continuum:continuum@localhost:5432/loadtest
 
+      # Ranking 500 queries against every post in the corpus rather than the 100 the
+      # served benchmark uses. Embedding runs in process because the serving container is
+      # capped at 2.00 CPU, which would turn twelve thousand documents into half an hour.
+      - name: Retrieval at full corpus
+        run: |
+          set -o pipefail
+          uv run eval/benchmark.py --full-corpus --queries 500 \
+            --output bench-results/full-corpus.json | tee full-corpus.txt
+          {
+            echo "### Retrieval against the full corpus"
+            echo '```'
+            cat full-corpus.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Upload Load Results
         if: always()
         uses: actions/upload-artifact@v4
