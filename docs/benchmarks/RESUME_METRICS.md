@@ -69,14 +69,15 @@ no gain worth a model swap, and kept serving the baseline.
 
 ### Hard negatives, and why they are not claimed as an improvement
 
-Each pair now also carries a negative mined from the base model's own confusions. Three runs
+Each pair now also carries a negative mined from the base model's own confusions. Four runs
 of the same scenario, this time with mined negatives in the denominator:
 
-| run                                                                              | training samples | baseline MRR | candidate MRR | change |
-| -------------------------------------------------------------------------------- | ---------------- | ------------ | ------------- | ------ |
-| [`30664356329`](https://github.com/JCHETAN26/Continuum/actions/runs/30664356329) | 119              | 0.4626       | 0.4661        | +1.17% |
-| [`30663295295`](https://github.com/JCHETAN26/Continuum/actions/runs/30663295295) | 270              | 0.4324       | 0.4494        | +4.22% |
-| [`30664356329`](https://github.com/JCHETAN26/Continuum/actions/runs/30664356329) | 400              | 0.4242       | 0.4508        | +7.02% |
+| run                                                                              | training samples | baseline MRR | candidate MRR | change      |
+| -------------------------------------------------------------------------------- | ---------------- | ------------ | ------------- | ----------- |
+| [`30664356329`](https://github.com/JCHETAN26/Continuum/actions/runs/30664356329) | 119              | 0.4626       | 0.4661        | +1.17%      |
+| [`30663295295`](https://github.com/JCHETAN26/Continuum/actions/runs/30663295295) | 270              | 0.4324       | 0.4494        | +4.22%      |
+| [`30664356329`](https://github.com/JCHETAN26/Continuum/actions/runs/30664356329) | 400              | 0.4242       | 0.4508        | +7.02%      |
+| [`30672478186`](https://github.com/JCHETAN26/Continuum/actions/runs/30672478186) | 400              | 0.4402       | 0.4851        | **+10.44%** |
 
 Set against the runs above at comparable sizes, the comparison does not settle anything:
 
@@ -84,20 +85,44 @@ Set against the runs above at comparable sizes, the comparison does not settle a
 | ---------------- | -------------- | ------------------- |
 | ~120             | +0.62%         | +1.17%              |
 | ~230–270         | −0.49%, +0.87% | +4.22%              |
-| 400              | +9.86%         | +7.02%              |
+| 400              | +9.86%         | +7.02%, +10.44%     |
 
-Hard negatives look better in the range where the previous objective did nothing and worse
-at the one size where a direct comparison exists. **Neither reading is supported by one run
-per cell.** Run-to-run variance on identical code has spanned ten percentage points on this
-pipeline, which is wider than every difference in that table.
+**The two runs at 400 examples on identical code differ by 3.4 points**, +7.02% against
++10.44%, one below the activation gate and one above it. That is the clearest available
+statement of how noisy this measurement is: the within-condition spread at a fixed
+training-set size is wider than any difference between the two objectives. No improvement
+from hard negatives is claimed, and none of the numbers in the comparison table above
+survive that spread.
 
 Answering this properly needs a dedicated experiment that pins the training-set size and
 runs both arms several times, rather than the opportunistic sizes CI happens to produce.
-That has not been done, so no improvement is claimed. Hard negatives are shipped because
-they are the standard construction for this objective and they are correct, not because
-they have been shown to beat the alternative here.
+That has not been done. Hard negatives are shipped because they are the standard
+construction for this objective and they are correct, not because they have been shown to
+beat the alternative here.
 
-The candidate was rejected in all three of these runs too. Eight runs, eight rejections.
+### The loop has closed once, end to end
+
+Run [`30672478186`](https://github.com/JCHETAN26/Continuum/actions/runs/30672478186) is the
+first in which a candidate cleared the gate. Nine runs, eight rejections, one promotion.
+
+| stage              | evidence                                                        |
+| ------------------ | --------------------------------------------------------------- |
+| Drift detected     | `score=0.181, threshold=0.080, breached=True`                   |
+| Training triggered | `status=SUCCEEDED, samples=400`                                 |
+| Gate passed        | `improvement=+10.44%, gate=+10%`                                |
+| Model promoted     | `version=2026.07.31-c9dfab84, status=ACTIVE`                    |
+| Serving switched   | `served_by=2026.07.31-c9dfab84`                                 |
+| Re-indexing began  | `Embedded batch documents=50 model_version=2026.07.31-c9dfab84` |
+
+The last line is the one worth reading closely. On activation the embedding worker starts
+re-encoding the existing corpus under the new version, because vectors from two different
+encoders are not comparable. It claims documents whose `model_version_id` differs from the
+active model, so the work is resumable and spreads across replicas.
+
+**The end-to-end test does not wait for that backfill to finish.** It observed re-indexing
+in progress, at 50 documents per batch against a corpus of 1200, and then tore the stack
+down. That a full backfill completes is therefore not demonstrated; that activation triggers
+one, and that the re-encoding uses the promoted model, is.
 
 ### NDCG@10 does not move with MRR
 
