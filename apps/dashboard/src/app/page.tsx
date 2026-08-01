@@ -1,6 +1,7 @@
 'use client';
 
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { format } from 'date-fns';
 import { useEffect, useState } from 'react';
@@ -17,6 +18,7 @@ import {
 const DRIFT_API = process.env.NEXT_PUBLIC_DRIFT_API_URL ?? 'http://localhost:8001';
 const LINGUISTIC_API = process.env.NEXT_PUBLIC_LINGUISTIC_API_URL ?? 'http://localhost:8004';
 const TRAINER_API = process.env.NEXT_PUBLIC_TRAINER_API_URL ?? 'http://localhost:8003';
+const INGEST_API = process.env.NEXT_PUBLIC_INGEST_API_URL ?? 'http://localhost:8000';
 
 interface DriftWindow {
   id: string;
@@ -25,6 +27,13 @@ interface DriftWindow {
   driftScore: number;
   threshold: number;
   breached: boolean;
+}
+
+interface DemoStatus {
+  phase: string;
+  ingested: number;
+  total: number;
+  error: string | null;
 }
 
 interface DriftSummary {
@@ -89,6 +98,42 @@ export default function Home() {
   const [linguisticSummary, setLinguisticSummary] = useState<LinguisticSummary | null>(null);
   const [models, setModels] = useState<ModelVersion[]>([]);
   const [points, setPoints] = useState<ProjectionPoint[]>([]);
+  const [demo, setDemo] = useState<DemoStatus | null>(null);
+
+  // Phases the controller reports while a run is in flight. Anything else -- idle,
+  // complete, failed, cancelled -- means the button is free again.
+  const demoRunning =
+    demo !== null &&
+    ['starting', 'loading corpus', 'baseline', 'settling', 'drift'].includes(demo.phase);
+
+  const startDemo = async () => {
+    try {
+      const response = await fetch(`${INGEST_API}/v1/demo/seed`, { method: 'POST' });
+      if (response.ok) {
+        setDemo((await response.json()) as DemoStatus);
+      }
+    } catch {
+      // The ingest service is not up. The button simply does nothing rather than
+      // throwing, which matches how the rest of this page treats a missing backend.
+    }
+  };
+
+  useEffect(() => {
+    if (!demoRunning) {
+      return;
+    }
+    const poll = setInterval(async () => {
+      try {
+        const response = await fetch(`${INGEST_API}/v1/demo/status`);
+        if (response.ok) {
+          setDemo((await response.json()) as DemoStatus);
+        }
+      } catch {
+        // Transient while the stack settles; the next tick retries.
+      }
+    }, 1000);
+    return () => clearInterval(poll);
+  }, [demoRunning]);
 
   useEffect(() => {
     const refreshSnapshot = async () => {
@@ -195,11 +240,25 @@ export default function Home() {
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Overview</h1>
-        <p className="text-muted-foreground">
-          Monitor real semantic drift from the local pipeline.
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Overview</h1>
+          <p className="text-muted-foreground">
+            Monitor real semantic drift from the local pipeline.
+          </p>
+        </div>
+        <div className="flex flex-col items-end gap-1">
+          <Button onClick={startDemo} disabled={demoRunning}>
+            {demoRunning ? 'Running demo…' : 'Run demo'}
+          </Button>
+          {demo && demo.phase !== 'idle' && (
+            <p className="text-xs text-muted-foreground">
+              {demo.phase}
+              {demo.total > 0 && ` · ${demo.ingested}/${demo.total} documents`}
+            </p>
+          )}
+          {demo?.error && <p className="text-xs text-destructive">{demo.error}</p>}
+        </div>
       </div>
 
       <div className="grid gap-6 md:grid-cols-4">

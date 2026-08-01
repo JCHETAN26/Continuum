@@ -11,12 +11,14 @@ from continuum_shared.observability import get_tracer, instrument_fastapi
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
+from continuum_ingest.api.demo import DemoController
 from continuum_ingest.api.schema import DocumentPayload
 
 logger = structlog.get_logger()
 tracer = get_tracer("continuum-ingest")
 
 producer_instance: Producer | None = None
+demo_controller = DemoController()
 
 
 @asynccontextmanager
@@ -66,6 +68,34 @@ async def ingest_batch(payloads: list[DocumentPayload]) -> dict[str, Any]:
 
     producer_instance.poll(0)
     return {"status": "accepted", "count": len(payloads)}
+
+
+@app.post("/v1/demo/seed", status_code=202)
+async def start_demo() -> dict[str, Any]:
+    """Run the seeded scenario, so the dashboard can start it without a terminal.
+
+    Publishes the same real posts scripts/seed.py does, to the same topic. Everything the
+    dashboard then shows -- the drift score, the training run, the promotion decision --
+    is produced by the pipeline reacting to them.
+    """
+    if not producer_instance:
+        raise HTTPException(status_code=500, detail="Producer not initialized")
+
+    async def publish(payload: dict[str, Any]) -> None:
+        await publish_document(DocumentPayload(**payload))
+        producer_instance.poll(0)
+
+    if not demo_controller.start(publish):
+        raise HTTPException(
+            status_code=409,
+            detail="a demo run is already in flight",
+        )
+    return {"status": "started", **demo_controller.state.snapshot()}
+
+
+@app.get("/v1/demo/status")
+async def demo_status() -> dict[str, Any]:
+    return demo_controller.state.snapshot()
 
 
 async def publish_document(payload: DocumentPayload) -> None:
