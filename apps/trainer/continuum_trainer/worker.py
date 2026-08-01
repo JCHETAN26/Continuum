@@ -90,6 +90,49 @@ async def create_training_run(
     return model.id, job.id
 
 
+async def reclaim_abandoned_jobs(
+    db: Prisma, *, runner: PipelineRunner = _async_run_training_pipeline
+) -> list[str]:
+    """Re-run training jobs left RUNNING by a worker that died mid-run.
+
+    The worker is driven entirely by Kafka and never polls for QUEUED work, so a job whose
+    process disappeared stayed RUNNING forever: restart:unless-stopped brought the container
+    back, create_training_run saw a job already existed for that drift window and returned
+    None, and nothing ever picked it up again. An end-to-end run sat on that for its full
+    1800s timeout after the trainer was killed for exceeding its memory limit.
+
+    A RUNNING job at startup can only be abandoned, because this container is a singleton
+    and is the only thing that executes jobs. Attempts are bounded by maxAttempts, so a run
+    that fails deterministically ends up FAILED rather than looping.
+    """
+    abandoned = await db.trainingjob.find_many(
+        where={"status": TrainingJobStatus.RUNNING}, order={"queuedAt": "asc"}
+    )
+    resumed: list[str] = []
+    for job in abandoned:
+        if job.attempts >= job.maxAttempts:
+            await db.trainingjob.update(
+                where={"id": job.id},
+                data={
+                    "status": TrainingJobStatus.FAILED,
+                    "error": "abandoned by a worker restart after exhausting attempts",
+                    "finishedAt": datetime.now(UTC),
+                },
+            )
+            logger.warning("Abandoned training job exhausted its attempts", job_id=job.id)
+            continue
+
+        logger.info(
+            "Resuming a training job abandoned by a worker restart",
+            job_id=job.id,
+            attempts=job.attempts,
+        )
+        if job.modelVersionId:
+            await run_training_with_retries(db, job.modelVersionId, job.id, runner=runner)
+            resumed.append(job.id)
+    return resumed
+
+
 async def run_training_with_retries(
     db: Prisma,
     model_id: str,
@@ -143,6 +186,10 @@ async def run_alert_worker() -> None:
         }
     )
     consumer.subscribe(["drift-alerts"])
+
+    # Before taking new alerts, finish anything a previous process left mid-run. Otherwise
+    # the dedupe check below sees a RUNNING job for that drift window and skips it forever.
+    await reclaim_abandoned_jobs(db)
     logger.info("Trainer worker started, consuming drift-alerts")
 
     try:

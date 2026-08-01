@@ -1,3 +1,4 @@
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -347,3 +348,47 @@ async def test_rejected_encoder_does_not_reindex_the_corpus():
         await _async_run_training_pipeline("model-id", None)
 
         mock_activate.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_reclaim_resumes_a_job_abandoned_mid_run():
+    """A worker killed mid-training left its job RUNNING and nothing ever picked it up.
+
+    The worker only reacts to Kafka alerts, and create_training_run refuses to make a
+    second job for a drift window that already has one, so the run stalled until the
+    end-to-end check timed out thirty minutes later.
+    """
+    from continuum_trainer.worker import reclaim_abandoned_jobs
+
+    job = SimpleNamespace(id="job-1", attempts=0, maxAttempts=3, modelVersionId="model-1")
+    db = MagicMock()
+    db.trainingjob.find_many = AsyncMock(return_value=[job])
+    db.trainingjob.update = AsyncMock()
+    ran: list[tuple[str, str]] = []
+
+    async def runner(model_id: str, job_id: str) -> None:
+        ran.append((model_id, job_id))
+
+    resumed = await reclaim_abandoned_jobs(db, runner=runner)
+
+    assert resumed == ["job-1"]
+    assert ran == [("model-1", "job-1")]
+
+
+@pytest.mark.asyncio
+async def test_reclaim_fails_a_job_that_exhausted_its_attempts():
+    """A deterministic crash must terminate, not restart forever."""
+    from continuum_trainer.worker import reclaim_abandoned_jobs
+
+    job = SimpleNamespace(id="job-2", attempts=3, maxAttempts=3, modelVersionId="model-2")
+    db = MagicMock()
+    db.trainingjob.find_many = AsyncMock(return_value=[job])
+    db.trainingjob.update = AsyncMock()
+
+    async def runner(model_id: str, job_id: str) -> None:
+        raise AssertionError("must not run a job that is out of attempts")
+
+    resumed = await reclaim_abandoned_jobs(db, runner=runner)
+
+    assert resumed == []
+    assert db.trainingjob.update.await_args.kwargs["data"]["status"] == "FAILED"

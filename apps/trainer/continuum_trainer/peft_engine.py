@@ -36,20 +36,22 @@ class PeftTrainingConfig(BaseModel):
     target_modules: tuple[str, ...] = ("query", "key", "value", "dense")
     task_type: str = "FEATURE_EXTRACTION"
     epochs: int = 3
-    # In-batch negatives scale with batch size: at 16 each query saw 15 in-batch plus its
-    # mined negative, and the contrastive signal is the count of negatives. Raised with the
-    # learning rate, since fewer, larger optimizer steps otherwise underfit.
-    batch_size: int = 32
-    learning_rate: float = 3e-4
+    # Held at 16. Raising it to 32 alongside 256-token documents put peak memory past the
+    # container limit and the trainer was killed mid-run. Batch size does not change total
+    # FLOPs, only memory and the number of optimizer steps, so it is the cheapest thing to
+    # give back when the length increase is what actually matters.
+    batch_size: int = 16
+    learning_rate: float = 2e-4
     temperature: float = 0.05
     # Documents and queries have very different length distributions, and padding both to
-    # one number is wrong in both directions. Measured over the seeded corpus: queries run
-    # 24 tokens at the median and 104 at the longest, while documents run 128 at the median
-    # and 224 at p90. A shared 128 truncated 46% of documents while padding the average
-    # query to five times its length. Serving embeds at MAX_SEQUENCE_LENGTH of 256, so the
-    # document side now matches it and the model no longer trains on text shorter than it
-    # is asked to encode.
-    max_length: int = 256
+    # one number is wrong in both directions. Measured over the seeded corpus with the
+    # serving tokenizer: queries run 24 tokens at the median and 104 at the longest, while
+    # documents run 128 at the median and 224 at p90.
+    #
+    # A shared 128 truncated 46% of documents. 256 would truncate none, but attention is
+    # quadratic and it took training from four minutes past the thirty-minute timeout. 192
+    # truncates 16% at roughly half that cost, which is the trade this pipeline can afford.
+    max_length: int = 192
     query_max_length: int = 128
     # Mine one hard negative per pair and score it alongside the in-batch negatives. Off
     # is the previous behaviour, kept so the two can be compared on the same corpus.
