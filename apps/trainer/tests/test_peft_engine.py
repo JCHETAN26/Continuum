@@ -67,10 +67,15 @@ class FakeTokenizer:
         assert model_name == "prajjwal1/bert-tiny"
         return cls()
 
+    seen_lengths: list[int] = []
+
     def __call__(self, texts, padding: str, truncation: bool, max_length: int):
         assert padding == "max_length"
         assert truncation is True
-        assert max_length == 32
+        # Queries are short and documents are not, so the two sides are tokenised to
+        # different lengths. A single shared length truncated 46% of documents while
+        # padding the median query to five times its own length.
+        FakeTokenizer.seen_lengths.append(max_length)
         return {
             "input_ids": [[1, 2, 0] for _ in texts],
             "attention_mask": [[1, 1, 0] for _ in texts],
@@ -358,6 +363,7 @@ def test_train_peft_model_orchestrates_tiny_model_export(tmp_path: Path):
         (output_dir / "model.onnx").write_bytes(b"onnx")
 
     validated: list[tuple[Path, int]] = []
+    FakeTokenizer.seen_lengths.clear()
 
     def recording_validator(path: Path, expected_dim: int) -> int:
         validated.append((path, expected_dim))
@@ -370,12 +376,18 @@ def test_train_peft_model_orchestrates_tiny_model_export(tmp_path: Path):
             epochs=1,
             batch_size=2,
             max_length=32,
+            query_max_length=8,
             output_dir=str(tmp_path),
         ),
         deps=fake_deps(),
         exporter=fake_exporter,
         validator=recording_validator,
     )
+
+    # The query side is tokenised to query_max_length and the document side to
+    # max_length, rather than both to one shared number.
+    assert FakeTokenizer.seen_lengths[0] == 8
+    assert set(FakeTokenizer.seen_lengths[1:]) == {32}
 
     assert telemetry.sample_count == 2
     assert telemetry.loss_history == [{"step": 1.0, "loss": 0.4}]

@@ -36,14 +36,21 @@ class PeftTrainingConfig(BaseModel):
     target_modules: tuple[str, ...] = ("query", "key", "value", "dense")
     task_type: str = "FEATURE_EXTRACTION"
     epochs: int = 3
-    batch_size: int = 16
-    learning_rate: float = 2e-4
+    # In-batch negatives scale with batch size: at 16 each query saw 15 in-batch plus its
+    # mined negative, and the contrastive signal is the count of negatives. Raised with the
+    # learning rate, since fewer, larger optimizer steps otherwise underfit.
+    batch_size: int = 32
+    learning_rate: float = 3e-4
     temperature: float = 0.05
-    # Sequences are padded to exactly this length, so it is a direct multiplier on
-    # training cost rather than a ceiling. Corpus documents run 72-83 words at the median
-    # (~110 tokens), so 256 spent more than half of every batch on padding that the
-    # attention mask then discards. Serving still embeds at MAX_SEQUENCE_LENGTH.
-    max_length: int = 128
+    # Documents and queries have very different length distributions, and padding both to
+    # one number is wrong in both directions. Measured over the seeded corpus: queries run
+    # 24 tokens at the median and 104 at the longest, while documents run 128 at the median
+    # and 224 at p90. A shared 128 truncated 46% of documents while padding the average
+    # query to five times its length. Serving embeds at MAX_SEQUENCE_LENGTH of 256, so the
+    # document side now matches it and the model no longer trains on text shorter than it
+    # is asked to encode.
+    max_length: int = 256
+    query_max_length: int = 128
     # Mine one hard negative per pair and score it alongside the in-batch negatives. Off
     # is the previous behaviour, kept so the two can be compared on the same corpus.
     use_hard_negatives: bool = True
@@ -284,14 +291,21 @@ def build_lora_config(config: PeftTrainingConfig, peft_module: Any) -> Any:
     )
 
 
-def tokenize_dataset(dataset: Any, tokenizer: Any, max_length: int) -> Any:
-    """Tokenise both sides of each pair into separately named columns."""
+def tokenize_dataset(
+    dataset: Any, tokenizer: Any, max_length: int, query_max_length: int | None = None
+) -> Any:
+    """Tokenise both sides of each pair, each to its own length.
+
+    Queries are short and documents are not, so one shared length truncates the documents
+    and pads the queries. See PeftTrainingConfig for the measured distributions.
+    """
 
     has_negatives = "negative" in dataset.column_names
+    query_length = max_length if query_max_length is None else query_max_length
 
     def tokenize(batch: dict[str, list[str]]) -> dict[str, Any]:
         queries = tokenizer(
-            batch["query"], padding="max_length", truncation=True, max_length=max_length
+            batch["query"], padding="max_length", truncation=True, max_length=query_length
         )
         documents = tokenizer(
             batch["document"], padding="max_length", truncation=True, max_length=max_length
@@ -338,7 +352,7 @@ def train_peft_model(
     base_model = deps.transformers.AutoModel.from_pretrained(config.base_model)
     lora_config = build_lora_config(config, deps.peft)
     model = deps.peft.get_peft_model(base_model, lora_config)
-    tokenized = tokenize_dataset(dataset, tokenizer, config.max_length)
+    tokenized = tokenize_dataset(dataset, tokenizer, config.max_length, config.query_max_length)
     tokenized = tokenized.with_format("torch")
 
     trainer_cls = build_in_batch_trainer_class(deps)
