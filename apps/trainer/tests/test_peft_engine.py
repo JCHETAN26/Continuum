@@ -639,3 +639,26 @@ def test_dataset_omits_negatives_when_disabled():
     dataset = build_contrastive_dataset(texts, FakeDatasetsModule, use_hard_negatives=False)
 
     assert "negative" not in dataset.payload
+
+
+def test_training_set_is_capped_for_comparability():
+    """The drift window is whatever arrived, and its size drove both cost and results.
+
+    Windows ranged from 180 to 559 pairs across runs. Training time swung with them, one
+    run exceeded the end-to-end timeout entirely, and the measured gain tracked window
+    size more than anything the trainer did.
+    """
+    from continuum_trainer.peft_engine import MAX_TRAINING_PAIRS
+
+    texts = [
+        TrainingText(
+            text=" ".join(f"word{index}-{row}" for index in range(80)),
+            source="s",
+            domain_tag="d",
+        )
+        for row in range(MAX_TRAINING_PAIRS + 40)
+    ]
+
+    dataset = build_contrastive_dataset(texts, FakeDatasetsModule, use_hard_negatives=False)
+
+    assert len(dataset.payload["query"]) == MAX_TRAINING_PAIRS

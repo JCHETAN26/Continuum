@@ -21,6 +21,16 @@ from pydantic import BaseModel, Field
 
 logger = structlog.get_logger()
 
+# How much of the drift window to train on. The window is whatever happened to arrive, and
+# it has ranged from 180 to 559 pairs across runs, which made training time swing by three
+# times and made no two runs comparable: the measured gain tracked the size of the window
+# more than anything the trainer did. One run at 559 pairs did not finish inside the
+# end-to-end timeout at all.
+#
+# 300 sits just above the runs that produced the largest gains, so the cap bounds the cost
+# and the variance without cutting into the regime where the adapter works.
+MAX_TRAINING_PAIRS = 300
+
 
 class TrainingText(BaseModel):
     text: str = Field(min_length=1)
@@ -175,6 +185,10 @@ def build_contrastive_dataset(
             "PEFT training requires at least two documents long enough to split into a "
             f"query and a body; {len(training_texts)} texts yielded {len(pairs)} pairs."
         )
+
+    if len(pairs) > MAX_TRAINING_PAIRS:
+        logger.info("Capping the training set", available=len(pairs), used=MAX_TRAINING_PAIRS)
+        pairs = pairs[:MAX_TRAINING_PAIRS]
 
     queries = [query for query, _ in pairs]
     documents = [document for _, document in pairs]
