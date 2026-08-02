@@ -305,6 +305,11 @@ jobs:
       - name: Install Python dependencies
         run: uv sync --all-packages --dev
 
+      # The full-corpus benchmark below imports continuum_shared.config, whose settings
+      # come from .env. Without it pydantic raises on every required field.
+      - name: Create .env from example
+        run: cp .env.example .env
+
       - name: Load and measure
         run: |
           set -o pipefail
