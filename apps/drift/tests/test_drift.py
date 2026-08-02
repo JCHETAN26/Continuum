@@ -3,11 +3,17 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import numpy as np
 import pytest
+from continuum_shared.config import settings
 
 # Mock dependencies before import
 with patch("continuum_drift.worker.Prisma"):
     from continuum_drift.api import DriftSummaryResponse, DriftWindowResponse, compute_projection
-    from continuum_drift.worker import compute_centroid, process_window
+    from continuum_drift.worker import (
+        align_window_end,
+        compute_centroid,
+        get_or_create_baseline,
+        process_window,
+    )
 
 
 @pytest.mark.asyncio
@@ -167,3 +173,50 @@ async def test_drift_event_payload_contains_windows_summary_and_projection(monke
     assert payload["windows"][0]["id"] == "window-id"
     assert payload["summary"]["breached"] is True
     assert payload["projection"]["method"] == "pca"
+
+
+def test_short_windows_tumble_instead_of_overlapping():
+    """Consecutive short windows must not share documents.
+
+    Windows used to be two minutes wide and advance once a minute, so half of every window
+    was the previous one. A distribution that changed arrived averaged with the one it
+    replaced, which cost a window before the score crossed the threshold.
+    """
+    duration = timedelta(seconds=40)
+    origin = datetime(2026, 8, 2, 12, 0, 0, tzinfo=UTC)
+    ends = [
+        align_window_end(origin + timedelta(seconds=offset), duration)
+        for offset in (0, 13, 39, 40, 41, 79, 80)
+    ]
+
+    assert ends[0] == ends[1] == ends[2] == datetime(2026, 8, 2, 12, 0, 0, tzinfo=UTC)
+    assert ends[3] == ends[4] == ends[5] == datetime(2026, 8, 2, 12, 0, 40, tzinfo=UTC)
+    assert ends[6] == datetime(2026, 8, 2, 12, 1, 20, tzinfo=UTC)
+
+    # Distinct boundaries, so [start, end) of one window is [end, ...) of the next.
+    assert ends[3] - ends[0] == duration
+
+
+def test_hour_window_still_slides_every_minute():
+    """Tumbling the hour window would emit one row an hour and starve a short run."""
+    moment = datetime(2026, 8, 2, 12, 34, 56, tzinfo=UTC)
+
+    assert align_window_end(moment, timedelta(minutes=1)) == moment.replace(second=0, microsecond=0)
+
+
+@pytest.mark.asyncio
+async def test_baseline_ignores_a_window_too_small_to_describe_a_distribution():
+    """A run starting just before a boundary leaves a sliver in the first window.
+
+    Taking it as the baseline would measure every later window against noise, which short
+    tumbling windows make much easier to hit than two-minute sliding ones did.
+    """
+    mock_db = MagicMock()
+    mock_db.driftwindow.find_first = AsyncMock(return_value=None)
+    mock_db.query_raw = AsyncMock(return_value=[{"vec_str": "[1.0,0.0,0.0]"}])
+    mock_db.execute_raw = AsyncMock()
+
+    await get_or_create_baseline(mock_db)
+
+    where = mock_db.driftwindow.find_first.call_args.kwargs["where"]
+    assert where["documentCount"] == {"gte": settings.drift_trigger_min_documents}

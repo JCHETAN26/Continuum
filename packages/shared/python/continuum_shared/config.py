@@ -48,6 +48,16 @@ class Settings(BaseSettings):
 
     # Drift detection
     drift_threshold: float = Field(ge=0.0, le=1.0)
+    # Width of the short drift window. Windows tumble on multiples of this value rather
+    # than sliding once a minute, so consecutive windows share no documents and a shift
+    # shows up in the first window that follows it instead of being averaged with the
+    # distribution it replaced. The floor is set by how many documents a window holds: the
+    # embedding worker writes about 9 vectors a second, and the measured within-domain
+    # noise (0.05 - 0.06 against a 0.08 threshold) was observed on windows of ~350
+    # documents. Below roughly 30 seconds a window stops holding enough of them for the
+    # threshold to sit clear of that noise.
+    drift_window_seconds: int = Field(default=40, gt=0)
+    drift_poll_seconds: int = Field(default=5, gt=0)
     linguistic_drift_threshold: float = Field(default=0.65, ge=0.0, le=1.0)
     linguistic_drift_window_minutes: int = Field(default=2, gt=0)
     linguistic_drift_poll_seconds: int = Field(default=30, gt=0)

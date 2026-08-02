@@ -25,14 +25,29 @@ logger = structlog.get_logger()
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
 
-# Matches scripts/seed.py, so the button and the command line produce the same run.
-BASELINE_DOCUMENTS = 700
-DRIFT_DOCUMENTS = 500
+# Sized for someone watching, which scripts/seed.py is not. That script publishes 700 and
+# 500 documents as fast as the broker accepts them and leaves; this run has to stay legible
+# for its whole length, and the numbers below come from the two rates that bound it.
+#
+# The embedding worker writes about 9 vectors a second at its 2.00 CPU limit, and the drift
+# window is 40 seconds wide. Publishing faster than the worker drains only builds a backlog:
+# the counter would finish in a few seconds and then nothing visible would happen for a
+# minute while the vectors caught up. So the publish rate sits just under the drain rate,
+# which keeps first_embedded_at close to publish time and each phase inside its own window.
+#
+#   350 baseline documents at 8.3/s  ->  42s, roughly one window
+#   250 drift documents at 8.3/s     ->  30s
+#
+# Drift is detected when the window holding the shift closes, about 85 seconds after the
+# click. Fewer documents than this would land under drift_trigger_min_documents and put the
+# window centroid inside the measured within-domain noise.
+BASELINE_DOCUMENTS = 350
+DRIFT_DOCUMENTS = 250
 BATCH_SIZE = 10
-INTER_BATCH_DELAY_SECONDS = 0.2
-# Long enough for a drift window to close over baseline-only documents, so the shift that
-# follows lands against an established centroid rather than an empty one.
-SETTLE_SECONDS = 15.0
+INTER_BATCH_DELAY_SECONDS = 1.2
+# One window boundary is what separates the two distributions now that windows tumble, so
+# this only has to cover the gap between publishing a document and its vector being written.
+SETTLE_SECONDS = 5.0
 CORPUS_SEED = 20260727
 
 

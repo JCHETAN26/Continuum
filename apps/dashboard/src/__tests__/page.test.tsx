@@ -49,7 +49,7 @@ function stubBackend(demoResponse: unknown, calls: string[]) {
 
 test('run demo button posts to the ingest service', async () => {
   const calls: string[] = [];
-  stubBackend({ phase: 'baseline', ingested: 10, total: 1200, error: null }, calls);
+  stubBackend({ phase: 'baseline', ingested: 10, total: 600, error: null }, calls);
 
   render(<Home />);
   fireEvent.click(screen.getByRole('button', { name: /run demo/i }));
