@@ -85,6 +85,28 @@ def load_documents(categories: frozenset[str], limit: int, seed: int) -> list[st
     return unique[:limit]
 
 
+def load_corpus(limit: int, seed: int) -> list[tuple[str, str]]:
+    """Every newsgroup, as (text, group) pairs.
+
+    The drift scenario only needs two hardware groups, but a retrieval score is only as
+    meaningful as the pool it ranks against: 300 candidates drawn from one subject is a
+    task the base model finds easy, and the resulting MRR says more about the pool than
+    the model. All twenty groups give roughly 19,000 posts to rank against instead.
+    """
+    candidates = [
+        (text, str(row.get("label_text") or "unknown"))
+        for row in _load_rows()
+        for text in [str(row.get("text", "")).strip()]
+        if MIN_WORDS <= len(text.split()) <= MAX_WORDS
+    ]
+    if not candidates:
+        raise RuntimeError("no documents in the corpus")
+
+    unique = list(dict.fromkeys(candidates))
+    random.Random(seed).shuffle(unique)
+    return unique[:limit]
+
+
 def load_baseline_documents(limit: int, seed: int) -> list[str]:
     """PC hardware posts: the distribution the deployed model is calibrated on."""
     return load_documents(BASELINE_CATEGORIES, limit, seed)

@@ -305,6 +305,11 @@ jobs:
       - name: Install Python dependencies
         run: uv sync --all-packages --dev
 
+      # The full-corpus benchmark below imports continuum_shared.config, whose settings
+      # come from .env. Without it pydantic raises on every required field.
+      - name: Create .env from example
+        run: cp .env.example .env
+
       - name: Load and measure
         run: |
           set -o pipefail
@@ -318,6 +323,21 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
         env:
           LOAD_TEST_DSN: postgresql://continuum:continuum@localhost:5432/loadtest
+
+      # Ranking 500 queries against every post in the corpus rather than the 100 the
+      # served benchmark uses. Embedding runs in process because the serving container is
+      # capped at 2.00 CPU, which would turn twelve thousand documents into half an hour.
+      - name: Retrieval at full corpus
+        run: |
+          set -o pipefail
+          uv run eval/benchmark.py --full-corpus --queries 500 \
+            --output bench-results/full-corpus.json | tee full-corpus.txt
+          {
+            echo "### Retrieval against the full corpus"
+            echo '```'
+            cat full-corpus.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload Load Results
         if: always()
