@@ -122,17 +122,21 @@ export default function Home() {
     if (!demoRunning) {
       return;
     }
-    const poll = setInterval(async () => {
-      try {
-        const response = await fetch(`${INGEST_API}/v1/demo/status`);
-        if (response.ok) {
-          setDemo((await response.json()) as DemoStatus);
+    const poll = setInterval(() => {
+      void (async () => {
+        try {
+          const response = await fetch(`${INGEST_API}/v1/demo/status`);
+          if (response.ok) {
+            setDemo((await response.json()) as DemoStatus);
+          }
+        } catch {
+          // Transient while the stack settles; the next tick retries.
         }
-      } catch {
-        // Transient while the stack settles; the next tick retries.
-      }
+      })();
     }, 1000);
-    return () => clearInterval(poll);
+    return () => {
+      clearInterval(poll);
+    };
   }, [demoRunning]);
 
   useEffect(() => {
@@ -248,13 +252,18 @@ export default function Home() {
           </p>
         </div>
         <div className="flex flex-col items-end gap-1">
-          <Button onClick={startDemo} disabled={demoRunning}>
+          <Button
+            onClick={() => {
+              void startDemo();
+            }}
+            disabled={demoRunning}
+          >
             {demoRunning ? 'Running demo…' : 'Run demo'}
           </Button>
           {demo && demo.phase !== 'idle' && (
             <p className="text-xs text-muted-foreground">
               {demo.phase}
-              {demo.total > 0 && ` · ${demo.ingested}/${demo.total} documents`}
+              {demo.total > 0 && ` · ${String(demo.ingested)}/${String(demo.total)} documents`}
             </p>
           )}
           {demo?.error && <p className="text-xs text-destructive">{demo.error}</p>}

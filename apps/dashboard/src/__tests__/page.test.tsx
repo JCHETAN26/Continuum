@@ -32,7 +32,7 @@ afterEach(() => {
 function stubBackend(demoResponse: unknown, calls: string[]) {
   vi.stubGlobal(
     'fetch',
-    vi.fn(async (url: string, init?: RequestInit) => {
+    vi.fn((url: string, init?: RequestInit) => {
       calls.push(`${init?.method ?? 'GET'} ${url}`);
       let body: unknown = [];
       if (url.includes('/v1/demo/')) {
@@ -42,7 +42,7 @@ function stubBackend(demoResponse: unknown, calls: string[]) {
       } else if (url.includes('/projection')) {
         body = { points: [] };
       }
-      return { ok: true, json: async () => body };
+      return Promise.resolve({ ok: true, json: () => Promise.resolve(body) });
     }),
   );
 }
@@ -54,15 +54,15 @@ test('run demo button posts to the ingest service', async () => {
   render(<Home />);
   fireEvent.click(screen.getByRole('button', { name: /run demo/i }));
 
-  await waitFor(() => expect(calls).toContain('POST http://localhost:8000/v1/demo/seed'));
+  await waitFor(() => {
+    expect(calls).toContain('POST http://localhost:8000/v1/demo/seed');
+  });
 });
 
 test('a backend that is down leaves the button usable', async () => {
   vi.stubGlobal(
     'fetch',
-    vi.fn(async () => {
-      throw new Error('connection refused');
-    }),
+    vi.fn(() => Promise.reject(new Error('connection refused'))),
   );
 
   render(<Home />);
@@ -72,5 +72,7 @@ test('a backend that is down leaves the button usable', async () => {
   // The click swallows the failure rather than surfacing an unhandled rejection, the same
   // way the page's snapshot fetches do.
   // jest-dom matchers are not installed here, so this checks the property directly.
-  await waitFor(() => expect((button as HTMLButtonElement).disabled).toBe(false));
+  await waitFor(() => {
+    expect((button as HTMLButtonElement).disabled).toBe(false);
+  });
 });
