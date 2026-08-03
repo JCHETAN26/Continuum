@@ -12,6 +12,7 @@ coordinating.
 
 import asyncio
 import uuid
+from typing import Any
 
 import structlog
 from continuum_shared.active_model import LoadedModel, load_active_model
@@ -29,25 +30,38 @@ logger = structlog.get_logger()
 BATCH_SIZE = 50
 IDLE_SLEEP_SECONDS = 1.0
 
-# Documents with no vector, or whose vector predates the active model. IS DISTINCT FROM
-# treats a null model_version_id as "not the active model", so vectors written before this
-# column was populated are re-encoded once and then settle.
-CLAIM_QUERY = """
-    SELECT d.id, d.text
-    FROM documents d
-    LEFT JOIN embeddings e ON e.document_id = d.id
-    WHERE e.id IS NULL
-       OR e.model_version_id IS DISTINCT FROM $1::uuid
-    LIMIT $2
-    FOR UPDATE OF d SKIP LOCKED
-"""
-
-# Same claim without an active model to compare against: only documents lacking a vector.
+# Documents lacking a vector entirely. Also the whole claim when no model is active: with
+# nothing to compare a version against, re-encoding would loop forever.
 CLAIM_UNEMBEDDED_QUERY = """
     SELECT d.id, d.text
     FROM documents d
     WHERE NOT EXISTS (SELECT 1 FROM embeddings e WHERE e.document_id = d.id)
     LIMIT $1
+    FOR UPDATE OF d SKIP LOCKED
+"""
+
+# Documents whose vector predates the active model, which is what an activation invalidates.
+#
+# Split out of the claim rather than ORed into it. The two conditions were one query --
+# LEFT JOIN ... WHERE e.id IS NULL OR e.model_version_id IS DISTINCT FROM $1 -- and that
+# disjunction is not indexable, so Postgres hashed both tables and filtered. bench/load_vectors.py
+# caught it at 100k rows: a sequential scan over every document and every embedding, on the
+# path this worker polls once a second, costing the most in the settled state where the
+# answer is "nothing to do".
+#
+# `IS DISTINCT FROM` has no btree strategy, and neither does `<>`. Spelling the same
+# predicate as IS NULL plus two range bounds gives the planner three quals it can answer
+# from embeddings(model_version_id), which it combines with a BitmapOr. Driving from
+# embeddings rather than documents then lets the join probe documents by primary key.
+# Measured at 100k settled rows: ~99ms -> ~0.9ms.
+CLAIM_STALE_QUERY = """
+    SELECT d.id, d.text
+    FROM embeddings e
+    JOIN documents d ON d.id = e.document_id
+    WHERE e.model_version_id IS NULL
+       OR e.model_version_id < $1::uuid
+       OR e.model_version_id > $1::uuid
+    LIMIT $2
     FOR UPDATE OF d SKIP LOCKED
 """
 
@@ -102,6 +116,23 @@ async def resolve_model(db: Prisma, current: LoadedModel | None) -> LoadedModel 
     return latest
 
 
+async def claim_documents(db: Prisma, model: LoadedModel | None) -> list[dict[str, Any]]:
+    """A batch to encode: documents with no vector first, then ones on a superseded model.
+
+    New documents are not searchable at all until they have a vector, whereas a document on
+    a superseded model is merely stale, so the backlog is drained before the re-index. Both
+    are claimed in the same poll so an activation does not stall behind a steady arrival
+    rate, and vice versa.
+    """
+    rows = await db.query_raw(CLAIM_UNEMBEDDED_QUERY, BATCH_SIZE)
+
+    if model is None or len(rows) >= BATCH_SIZE:
+        return rows
+
+    remaining = BATCH_SIZE - len(rows)
+    return rows + await db.query_raw(CLAIM_STALE_QUERY, model.model_id, remaining)
+
+
 async def run_worker() -> None:
     db = Prisma()
     await db.connect()
@@ -112,10 +143,7 @@ async def run_worker() -> None:
         while True:
             model = await resolve_model(db, model)
 
-            if model is None:
-                rows = await db.query_raw(CLAIM_UNEMBEDDED_QUERY, BATCH_SIZE)
-            else:
-                rows = await db.query_raw(CLAIM_QUERY, model.model_id, BATCH_SIZE)
+            rows = await claim_documents(db, model)
 
             if not rows:
                 await asyncio.sleep(IDLE_SLEEP_SECONDS)
