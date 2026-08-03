@@ -844,13 +844,15 @@ dependencies = [
 
 [package.optional-dependencies]
 nlp = [
-    { name = "bertopic" },
     { name = "spacy" },
+]
+topics = [
+    { name = "bertopic" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "bertopic", marker = "extra == 'nlp'", specifier = ">=0.16.4" },
+    { name = "bertopic", marker = "extra == 'topics'", specifier = ">=0.16.4" },
     { name = "confluent-kafka", specifier = ">=2.4.0" },
     { name = "continuum-shared", editable = "packages/shared/python" },
     { name = "fastapi", specifier = ">=0.111.0" },
@@ -861,7 +863,7 @@ requires-dist = [
     { name = "structlog", specifier = ">=24.4.0" },
     { name = "uvicorn", specifier = ">=0.30.0" },
 ]
-provides-extras = ["nlp"]
+provides-extras = ["nlp", "topics"]
 
 [[package]]
 name = "continuum-server"

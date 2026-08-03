@@ -57,10 +57,17 @@ async def compute_centroid(
 
 async def get_or_create_baseline(db: Prisma) -> tuple[str, np.ndarray]:
     """Returns (baseline_id, baseline_centroid)"""
-    # For this implementation, the baseline is just the first 1-hour window of data.
-    # We query for the earliest 100 embeddings to form a baseline if not explicitly set.
+    # The earliest window that holds enough documents to describe a distribution. The
+    # document floor matters more now that windows tumble on a short duration: a run that
+    # starts a few seconds before a boundary puts a handful of documents in that first
+    # window, and taking `documentCount > 0` would have anchored every later comparison to
+    # that sliver. Everything after it would then be measured against noise.
     baseline_record = await db.driftwindow.find_first(
-        where={"baselineId": None, "documentCount": {"gt": 0}}, order={"windowStart": "asc"}
+        where={
+            "baselineId": None,
+            "documentCount": {"gte": settings.drift_trigger_min_documents},
+        },
+        order={"windowStart": "asc"},
     )
 
     if baseline_record:
@@ -131,9 +138,28 @@ async def get_or_create_baseline(db: Prisma) -> tuple[str, np.ndarray]:
     return baseline_id, centroid
 
 
-async def process_window(db: Prisma, producer: Producer, window_size: str, duration: timedelta):
+def align_window_end(now: datetime, align: timedelta) -> datetime:
+    """Floor `now` to a multiple of `align`, counted from the epoch.
+
+    The short window aligns to its own duration, which makes consecutive windows tumble
+    instead of overlap. Two-minute windows advancing once a minute shared half their
+    documents with the window before them, so a distribution shift arrived diluted by the
+    distribution it had just replaced and took an extra window to cross the threshold.
+    """
+    step = int(align.total_seconds())
+    epoch_seconds = int(now.timestamp())
+    return datetime.fromtimestamp(epoch_seconds - epoch_seconds % step, tz=UTC)
+
+
+async def process_window(
+    db: Prisma,
+    producer: Producer,
+    window_size: str,
+    duration: timedelta,
+    align: timedelta | None = None,
+):
     now = datetime.now(UTC)
-    window_end = now.replace(second=0, microsecond=0)
+    window_end = align_window_end(now, align or timedelta(minutes=1))
     window_start = window_end - duration
 
     # Check if this window was already processed
@@ -300,14 +326,16 @@ async def run_drift_worker():
 
     try:
         while True:
-            # Process a rolling two-minute demo window labelled as FIVE_MIN for the
-            # existing schema/API contract.
-            await process_window(db, producer, "FIVE_MIN", timedelta(minutes=2))
-            # Process 1 hour window
+            # The short window, labelled FIVE_MIN for the existing schema/API contract.
+            # It tumbles on its own duration so each window holds one distribution.
+            short_window = timedelta(seconds=settings.drift_window_seconds)
+            await process_window(db, producer, "FIVE_MIN", short_window, align=short_window)
+            # The hour window still slides once a minute. Tumbling it would emit one row an
+            # hour, and a run shorter than that would never see a second one.
             await process_window(db, producer, "ONE_HOUR", timedelta(hours=1))
 
             producer.flush(timeout=1.0)
-            await asyncio.sleep(10)
+            await asyncio.sleep(settings.drift_poll_seconds)
     except asyncio.CancelledError:
         pass
     except KeyboardInterrupt:
