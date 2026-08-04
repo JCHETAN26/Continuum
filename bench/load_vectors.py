@@ -120,7 +120,19 @@ def load_documents(connection: psycopg.Connection, count: int, seed: int) -> flo
                     )
         connection.commit()
 
-    return (time.perf_counter() - started) * 1000.0
+    elapsed = (time.perf_counter() - started) * 1000.0
+
+    # COPY does not update pg_stats, and nothing here waits for autovacuum. Without this the
+    # planner has no statistics at all for a hundred thousand rows -- pg_stats returns zero
+    # rows for the columns below -- and every plan measured afterwards is a guess rather than
+    # a decision, which is not the state any deployment queries from. Excluded from load_ms:
+    # it is setup, not ingest throughput.
+    with connection.cursor() as cursor:
+        cursor.execute("ANALYZE documents")
+        cursor.execute("ANALYZE embeddings")
+    connection.commit()
+
+    return elapsed
 
 
 Params = tuple | dict | None
@@ -242,6 +254,29 @@ def measure(connection: psycopg.Connection, rows: int, seed: int) -> list[Measur
             (settled_version,),
         )
         cursor.execute("UPDATE embeddings SET model_version_id = %s::uuid", (settled_version,))
+    connection.commit()
+
+    # Measured before ANALYZE, deliberately. A bulk UPDATE leaves pg_stats describing the
+    # column as it was, and the planner cannot use an index it believes matches every row:
+    # it picks a full scan and the rewrite below looks like it did nothing. This is a real
+    # transient -- it is what the worker hits in the minutes after a re-index, before
+    # autovacuum catches up -- so it is measured rather than analysed away.
+    results.append(
+        Measurement(
+            "claim query, stale branch (settled, stats stale)",
+            rows,
+            time_query(connection, CLAIM_STALE_QUERY, {"version": settled_version}),
+            explain(connection, CLAIM_STALE_QUERY, {"version": settled_version}),
+        )
+    )
+
+    # What the worker actually polls for all but those first minutes. Autovacuum does this
+    # on its own once ~10% of the table has changed; the benchmark cannot wait for it,
+    # because it reaches the settled state in one statement rather than over an hour of
+    # fifty-row batches.
+    with connection.cursor() as cursor:
+        cursor.execute("ANALYZE embeddings")
+        cursor.execute("ANALYZE documents")
     connection.commit()
 
     results.extend(
