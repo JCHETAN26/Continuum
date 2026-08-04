@@ -279,6 +279,21 @@ def measure(connection: psycopg.Connection, rows: int, seed: int) -> list[Measur
         cursor.execute("ANALYZE documents")
     connection.commit()
 
+    # The re-version above rewrote every row, leaving the checkpointer to write back a
+    # few hundred megabytes of dirty pages. Measuring through that flush charges the query
+    # for someone else's I/O: the run below reported a 25-buffer index scan as slower than
+    # the 49,000-buffer sequential scan it replaced, which is not a fact about either plan.
+    # Forcing the checkpoint first makes the timings describe the queries.
+    # CHECKPOINT needs superuser or pg_checkpoint. Without it the timings are noisier, which
+    # is worth reporting but not worth failing a benchmark run over.
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("CHECKPOINT")
+        connection.commit()
+    except psycopg.errors.InsufficientPrivilege:
+        connection.rollback()
+        print("  (no permission to CHECKPOINT; settled timings include checkpoint I/O)")
+
     results.extend(
         [
             Measurement(
