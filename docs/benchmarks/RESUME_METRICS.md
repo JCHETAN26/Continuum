@@ -16,19 +16,25 @@ opening fifteen words of a post, the document is the rest of that post, and it i
 relevant result among all 100 candidates. The query is removed from its own document, so a
 hit means the model matched meaning rather than finding a copy of the query string.
 
-Run [`30589884101`](https://github.com/JCHETAN26/Continuum/actions/runs/30589884101):
+Run [`30877829855`](https://github.com/JCHETAN26/Continuum/actions/runs/30877829855):
 
-| domain         | queries | candidates | MRR    | recall@1 | recall@5 |
-| -------------- | ------- | ---------- | ------ | -------- | -------- |
-| `pc_hardware`  | 50      | 100        | 0.6051 | 0.50     | 0.70     |
-| `mac_hardware` | 50      | 100        | 0.4340 | 0.30     | 0.58     |
-| overall        | 100     | 100        | 0.5196 |          |          |
+| domain         | queries | candidates | MRR    | recall@1 | recall@5 | NDCG@10 |
+| -------------- | ------- | ---------- | ------ | -------- | -------- | ------- |
+| `pc_hardware`  | 50      | 100        | 0.6214 | 0.52     | 0.72     | 0.6434  |
+| `mac_hardware` | 50      | 100        | 0.4972 | 0.38     | 0.60     | 0.5980  |
+| overall        | 100     | 100        | 0.5593 |          |          |         |
 
-**Retrieval on the drifted domain is 28% worse than on the baseline domain**, 0.434 against
-0.605. That is the premise of the project appearing in a measurement: drift is not only a
-centroid moving, it is a measurable loss of retrieval quality on the shifted distribution.
-It is also the one number here produced by code that shares nothing with the pipeline it
-measures.
+**Retrieval on the drifted domain is 20.0% worse than on the baseline domain**, 0.497
+against 0.621. That is the premise of the project appearing in a measurement: drift is not
+only a centroid moving, it is a measurable loss of retrieval quality on the shifted
+distribution. It is also the one number here produced by code that shares nothing with the
+pipeline it measures.
+
+This step runs after the smoke test, so the model answering it is the **adapted** one the
+run just promoted, not the base encoder. The gap above is therefore what survives
+adaptation, and the pre-adaptation gap is wider. An earlier version of this document
+reported 28% from run `30589884101`, which GitHub no longer serves — the figure could not
+be re-derived from a deleted run, so it was replaced by a measurement that links.
 
 ## Domain adaptation
 
@@ -180,19 +186,22 @@ Measured against the compose stack in CI, at the same images and resource limits
 runs under, using documents from the ingested corpus. Nearest-rank percentiles over 50
 requests per batch size, warm-up excluded.
 
-Three runs: [`30605700975`](https://github.com/JCHETAN26/Continuum/actions/runs/30605700975),
-[`30607125415`](https://github.com/JCHETAN26/Continuum/actions/runs/30607125415) and
-[`30658311041`](https://github.com/JCHETAN26/Continuum/actions/runs/30658311041).
+Four runs: [`30605700975`](https://github.com/JCHETAN26/Continuum/actions/runs/30605700975),
+[`30607125415`](https://github.com/JCHETAN26/Continuum/actions/runs/30607125415),
+[`30658311041`](https://github.com/JCHETAN26/Continuum/actions/runs/30658311041) and
+[`30877829855`](https://github.com/JCHETAN26/Continuum/actions/runs/30877829855).
 
 | batch | p50 range      | p95 range      | slowest observed |
 | ----- | -------------- | -------------- | ---------------- |
-| 1     | 27 – 71 ms     | 38 – 137 ms    | 186 ms           |
-| 8     | 346 – 788 ms   | 503 – 1116 ms  | 1289 ms          |
-| 32    | 1603 – 3356 ms | 2235 – 3790 ms | 3888 ms          |
+| 1     | 27 – 82 ms     | 38 – 145 ms    | 186 ms           |
+| 8     | 346 – 920 ms   | 503 – 1537 ms  | 1580 ms          |
+| 32    | 1603 – 3485 ms | 2235 – 4085 ms | 4318 ms          |
 
-**Run-to-run spread reaches 2.6x at batch 1 and 2.1x at batch 32.** These are shared CI
+**Run-to-run spread reaches 3.0x at batch 1 and 2.2x at batch 32.** These are shared CI
 runners with no isolation, so the figures support an order-of-magnitude claim and nothing
-finer.
+finer. The fourth run widened every band: batch 1 p50 came in at 82 ms against a previous
+worst of 71 ms. Any single-run figure quoted from this table will be contradicted by the
+next run, so quote the range.
 
 ### Raising the CPU limit and dropping fixed padding cut batch-32 latency about 3x
 
@@ -212,9 +221,109 @@ tail figure. The benchmark prints the same caveat when run under a hundred sampl
 ### The spec target is still missed
 
 The target is p99 under 50 ms at batch 32, and the best observed p50 is 1603 ms — a gap of
-roughly 32x after the 3x improvement, against 150x to 284x before it. Batch 1 now sits at
-27 – 71 ms p50, within the target range, so the remaining gap is throughput under batching
-rather than per-request cost.
+roughly 32x after the 3x improvement, against 150x to 284x before it.
+
+Batch 1 spans 27 – 82 ms p50 across four runs, so it **straddles the 50 ms target rather than
+meeting it**: two runs land inside, two outside. The remaining gap is mostly throughput under
+batching rather than per-request cost, but "batch 1 meets the target" is not a claim these
+measurements support.
+
+## Retrieval against the whole corpus
+
+The section above ranks each query against 100 candidates. That pool size flatters the
+numbers: with 100 candidates a random guess lands at MRR ≈ 0.05, and the task gets steadily
+harder as the pool grows. `eval/benchmark.py --full-corpus` ranks 500 queries against every
+post that survives the corpus filters, which is 8,525 of them.
+
+Run [`30877829855`](https://github.com/JCHETAN26/Continuum/actions/runs/30877829855):
+
+| queries | candidates | MRR    | recall@1 | recall@5 | NDCG@10 |
+| ------- | ---------- | ------ | -------- | -------- | ------- |
+| 500     | 8,525      | 0.3063 | 0.208    | 0.412    | 0.4756  |
+
+**One in five queries retrieves its own document first out of 8,525.** The drop from 0.56 to
+0.31 MRR between the two pool sizes is the pool, not a regression — quoting either number
+without its candidate count says nothing.
+
+The corpus funnel that produces 8,525: 18,846 raw posts, 18,331 non-empty, 12,414 within the
+25–200 word bounds, 12,380 after dedup, and 8,525 long enough to split into a 15-word query
+plus a 40-word document.
+
+## Data plane at 100k vectors
+
+The demo runs on 600 documents, which says nothing about how the storage layer behaves at a
+size worth worrying about. `bench/load_vectors.py` loads 100,000 synthetic vectors into the
+real schema with the HNSW index live, then times and `EXPLAIN`s the queries the services
+actually run.
+
+Run [`30877829855`](https://github.com/JCHETAN26/Continuum/actions/runs/30877829855):
+
+| query                              | time      | plan                     |
+| ---------------------------------- | --------- | ------------------------ |
+| ANN search (HNSW, top 10)          | 1.20 ms   | —                        |
+| claim, stale branch (backlog)      | 0.59 ms   | SEQ SCAN, 646 buffers    |
+| claim, stale branch (settled)      | 65.80 ms  | **index, 31 buffers**    |
+| claim, unembedded branch (settled) | 61.36 ms  | SEQ SCAN, 78,691 buffers |
+| drift centroid over window         | 297.53 ms | —                        |
+| re-index UPDATE                    | 16.3 s    | 5,000 rows, 307 rows/sec |
+
+### The benchmark caught a sequential scan on the worker's poll
+
+The embedding worker claimed documents with one query:
+
+```sql
+LEFT JOIN embeddings e ON e.document_id = d.id
+WHERE e.id IS NULL OR e.model_version_id IS DISTINCT FROM $1
+```
+
+`IS DISTINCT FROM` has no btree strategy and neither does `<>`, so no index could serve that
+`OR` however the tables were indexed. Postgres hashed both tables and filtered. The settled
+state was the expensive one: once every vector carries the active version the query matches
+nothing, `LIMIT 50` cannot stop early, and the worker pays a full scan of both tables once a
+second forever.
+
+[#49](https://github.com/JCHETAN26/Continuum/pull/49) split it into the two claims it always
+was and spelled the version test as `IS NULL OR < $1 OR > $1` — the same predicate, in a form
+the planner answers from the **existing** `embeddings(model_version_id)` index with a
+BitmapOr. **Pages touched fell from 49,040 to 31**, about 1,580x. No index was added; the one
+that was needed already existed and the query shape was keeping it unreachable.
+
+### Buffers, not milliseconds, are the signal in that table
+
+Two things distort the wall-clock and both are visible above.
+
+Every claim query ends in `LIMIT 50`, so a sequential scan that finds fifty rows and stops is
+cheap — the backlog row reads `SEQ SCAN` at 0.59 ms. Access method alone does not separate a
+healthy plan from a sick one; pages touched does.
+
+The three settled measurements run after a statement that rewrites all 100,000 rows, and they
+cluster at 61–67 ms regardless of whether they touch 31 pages or 78,691. Everything measured
+before that rewrite is fast (ANN at 1.20 ms), so the floor is contention from the rewrite —
+dead tuples and the autovacuum they trigger on a ~380 MB table with an HNSW index — not the
+queries. Forcing a `CHECKPOINT` first did not move it. On an idle local instance the fixed
+query runs in **0.15 ms**; CI cannot show that, so the buffer counts carry the claim.
+
+### The planner needs statistics before its plans mean anything
+
+The first run of the fix still reported `SEQ SCAN`. The rewrite was correct; the benchmark
+was not. `COPY` does not update `pg_stats`, neither does the bulk `UPDATE` that reaches the
+settled state, and nothing waited for autovacuum — `pg_stats` returned **zero rows** for
+`model_version_id`. A planner that cannot tell how selective a predicate is will not risk an
+index, so it scanned. `ANALYZE` now runs after the load and again after the re-version.
+
+The un-analysed case is kept as its own row in the benchmark rather than deleted. It is real:
+it is what the worker meets in the minutes after a re-index, before autovacuum catches up.
+
+### What is still slow
+
+The unembedded branch stays a sequential scan at 78,691 buffers and no index fixes it:
+proving that no document is missing a vector means visiting every document. The drift
+centroid at 297 ms is the same shape — an aggregate over a window that legitimately reads
+what it covers.
+
+Re-indexing at ~307 rows/sec means a 100,000-document corpus takes about five minutes to
+re-encode after an activation. That is why re-encoding is the worker's job and resumable
+rather than a step inside the training pipeline.
 
 ## Why the task was chosen
 
