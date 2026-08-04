@@ -25,6 +25,7 @@ import argparse
 import json
 import os
 import random
+import re
 import statistics
 import time
 from dataclasses import asdict, dataclass
@@ -119,11 +120,26 @@ def load_documents(connection: psycopg.Connection, count: int, seed: int) -> flo
                     )
         connection.commit()
 
-    return (time.perf_counter() - started) * 1000.0
+    elapsed = (time.perf_counter() - started) * 1000.0
+
+    # COPY does not update pg_stats, and nothing here waits for autovacuum. Without this the
+    # planner has no statistics at all for a hundred thousand rows -- pg_stats returns zero
+    # rows for the columns below -- and every plan measured afterwards is a guess rather than
+    # a decision, which is not the state any deployment queries from. Excluded from load_ms:
+    # it is setup, not ingest throughput.
+    with connection.cursor() as cursor:
+        cursor.execute("ANALYZE documents")
+        cursor.execute("ANALYZE embeddings")
+    connection.commit()
+
+    return elapsed
+
+
+Params = tuple | dict | None
 
 
 def time_query(
-    connection: psycopg.Connection, sql: str, params: tuple = (), runs: int = 3
+    connection: psycopg.Connection, sql: str, params: Params = (), runs: int = 3
 ) -> float:
     """Median wall-clock of a query, so one cold run does not define the number."""
     samples = []
@@ -136,24 +152,51 @@ def time_query(
     return statistics.median(samples)
 
 
-def explain(connection: psycopg.Connection, sql: str, params: tuple = ()) -> str:
+def explain(connection: psycopg.Connection, sql: str, params: Params = ()) -> str:
+    """Access method plus buffers touched.
+
+    The access method alone is not enough to tell a healthy plan from a sick one: every
+    query here ends in LIMIT 50, so a sequential scan that finds fifty matching rows and
+    stops is cheap, while one that reads the whole table to prove nothing matches is the
+    problem. Buffers separate the two, and are the same number regardless of how loaded the
+    runner is, which wall-clock on shared CI is not.
+    """
     with connection.cursor() as cursor:
         cursor.execute("EXPLAIN (ANALYZE, BUFFERS) " + sql, params)
         plan = " ".join(line[0] for line in cursor.fetchall())
+
+    buffers = sum(int(count) for count in re.findall(r"shared hit=(\d+)", plan))
     if "Seq Scan" in plan:
-        return "SEQ SCAN"
-    if "Index" in plan:
-        return "index"
-    return "?"
+        method = "SEQ SCAN"
+    elif "Index" in plan:
+        method = "index"
+    else:
+        method = "?"
+    return f"{method}, {buffers} buffers"
 
 
-# The query the embedding worker polls. IS DISTINCT FROM behind an OR with a null check
-# cannot use an index, so this is the path most likely to degrade with corpus size.
-CLAIM_QUERY = """
+# The two queries the embedding worker polls, mirroring apps/embedding/continuum_embedding/main.py.
+#
+# They were one query joined by OR until this benchmark reported it as a SEQ SCAN at 100k
+# rows: `IS DISTINCT FROM` behind an OR with a null check has no btree strategy, so Postgres
+# hashed both tables and filtered. Kept split here so the numbers below describe what the
+# worker runs rather than a shape nobody executes.
+CLAIM_UNEMBEDDED_QUERY = """
     SELECT d.id, d.text
     FROM documents d
-    LEFT JOIN embeddings e ON e.document_id = d.id
-    WHERE e.id IS NULL OR e.model_version_id IS DISTINCT FROM %s::uuid
+    WHERE NOT EXISTS (SELECT 1 FROM embeddings e WHERE e.document_id = d.id)
+    LIMIT 50
+"""
+
+# IS NULL plus two range bounds is the same predicate as IS DISTINCT FROM, spelled so the
+# planner can answer it from embeddings(model_version_id) with a BitmapOr.
+CLAIM_STALE_QUERY = """
+    SELECT d.id, d.text
+    FROM embeddings e
+    JOIN documents d ON d.id = e.document_id
+    WHERE e.model_version_id IS NULL
+       OR e.model_version_id < %(version)s::uuid
+       OR e.model_version_id > %(version)s::uuid
     LIMIT 50
 """
 
@@ -180,10 +223,10 @@ def measure(connection: psycopg.Connection, rows: int, seed: int) -> list[Measur
     # after fifty rows, which is the backlog case and the easy one.
     results = [
         Measurement(
-            "claim query (backlog)",
+            "claim query, stale branch (backlog)",
             rows,
-            time_query(connection, CLAIM_QUERY, (absent_version,)),
-            explain(connection, CLAIM_QUERY, (absent_version,)),
+            time_query(connection, CLAIM_STALE_QUERY, {"version": absent_version}),
+            explain(connection, CLAIM_STALE_QUERY, {"version": absent_version}),
         ),
         Measurement(
             "drift centroid over window",
@@ -213,13 +256,63 @@ def measure(connection: psycopg.Connection, rows: int, seed: int) -> list[Measur
         cursor.execute("UPDATE embeddings SET model_version_id = %s::uuid", (settled_version,))
     connection.commit()
 
+    # Measured before ANALYZE, deliberately. A bulk UPDATE leaves pg_stats describing the
+    # column as it was, and the planner cannot use an index it believes matches every row:
+    # it picks a full scan and the rewrite below looks like it did nothing. This is a real
+    # transient -- it is what the worker hits in the minutes after a re-index, before
+    # autovacuum catches up -- so it is measured rather than analysed away.
     results.append(
         Measurement(
-            "claim query (settled)",
+            "claim query, stale branch (settled, stats stale)",
             rows,
-            time_query(connection, CLAIM_QUERY, (settled_version,)),
-            explain(connection, CLAIM_QUERY, (settled_version,)),
+            time_query(connection, CLAIM_STALE_QUERY, {"version": settled_version}),
+            explain(connection, CLAIM_STALE_QUERY, {"version": settled_version}),
         )
+    )
+
+    # What the worker actually polls for all but those first minutes. Autovacuum does this
+    # on its own once ~10% of the table has changed; the benchmark cannot wait for it,
+    # because it reaches the settled state in one statement rather than over an hour of
+    # fifty-row batches.
+    with connection.cursor() as cursor:
+        cursor.execute("ANALYZE embeddings")
+        cursor.execute("ANALYZE documents")
+    connection.commit()
+
+    # The re-version above rewrote every row, leaving the checkpointer to write back a
+    # few hundred megabytes of dirty pages. Measuring through that flush charges the query
+    # for someone else's I/O: the run below reported a 25-buffer index scan as slower than
+    # the 49,000-buffer sequential scan it replaced, which is not a fact about either plan.
+    # Forcing the checkpoint first makes the timings describe the queries.
+    # CHECKPOINT needs superuser or pg_checkpoint. Without it the timings are noisier, which
+    # is worth reporting but not worth failing a benchmark run over.
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("CHECKPOINT")
+        connection.commit()
+    except psycopg.errors.InsufficientPrivilege:
+        connection.rollback()
+        print("  (no permission to CHECKPOINT; settled timings include checkpoint I/O)")
+
+    results.extend(
+        [
+            Measurement(
+                "claim query, stale branch (settled)",
+                rows,
+                time_query(connection, CLAIM_STALE_QUERY, {"version": settled_version}),
+                explain(connection, CLAIM_STALE_QUERY, {"version": settled_version}),
+            ),
+            # The unembedded branch has no version to match on, so it stays an anti-join and
+            # stays linear: proving no document is missing a vector means visiting them all.
+            # Reported separately rather than folded in, because the two branches degrade for
+            # different reasons and only one of them was fixable with an index.
+            Measurement(
+                "claim query, unembedded branch (settled)",
+                rows,
+                time_query(connection, CLAIM_UNEMBEDDED_QUERY, None),
+                explain(connection, CLAIM_UNEMBEDDED_QUERY, None),
+            ),
+        ]
     )
 
     # Re-index throughput: what activating a model costs. Bounded to a slice so the

@@ -8,14 +8,16 @@ training pipeline blocked the job for the length of a full re-index and could no
 from __future__ import annotations
 
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import numpy as np
 import pytest
 from continuum_embedding.main import (
-    CLAIM_QUERY,
+    BATCH_SIZE,
+    CLAIM_STALE_QUERY,
     CLAIM_UNEMBEDDED_QUERY,
     UPSERT_QUERY,
+    claim_documents,
     encode,
     resolve_model,
 )
@@ -27,12 +29,64 @@ def normalise(sql: str) -> str:
 
 
 def test_claim_selects_documents_encoded_by_another_model():
-    statement = normalise(CLAIM_QUERY)
+    statement = normalise(CLAIM_STALE_QUERY)
 
-    assert "e.id IS NULL" in statement
-    assert "e.model_version_id IS DISTINCT FROM $1::uuid" in statement
+    # IS DISTINCT FROM and <> have no btree strategy. IS NULL plus two range bounds is the
+    # same predicate spelled so embeddings(model_version_id) can answer it, which is what
+    # turns the settled-state poll from a full scan into a BitmapOr.
+    assert "IS DISTINCT FROM" not in statement
+    assert "e.model_version_id IS NULL" in statement
+    assert "e.model_version_id < $1::uuid" in statement
+    assert "e.model_version_id > $1::uuid" in statement
     # Replicas must take disjoint batches without coordinating.
     assert "FOR UPDATE OF d SKIP LOCKED" in statement
+
+
+def test_stale_claim_drives_off_embeddings_so_documents_is_probed_by_key():
+    """Driving off documents would scan them all before the version filter applied."""
+    statement = normalise(CLAIM_STALE_QUERY)
+
+    assert "FROM embeddings e JOIN documents d ON d.id = e.document_id" in statement
+
+
+@pytest.mark.asyncio
+async def test_claim_drains_missing_vectors_before_re_encoding_stale_ones():
+    """A document with no vector is not searchable; a stale one merely lags."""
+    db = MagicMock()
+    db.query_raw = AsyncMock(side_effect=[[{"id": "a", "text": "x"}], [{"id": "b", "text": "y"}]])
+    model = LoadedModel(model_id="m1", version="v2", kind="encoder", session=object())
+
+    rows = await claim_documents(db, model)
+
+    assert [row["id"] for row in rows] == ["a", "b"]
+    assert normalise(db.query_raw.call_args_list[0].args[0]) == normalise(CLAIM_UNEMBEDDED_QUERY)
+    assert normalise(db.query_raw.call_args_list[1].args[0]) == normalise(CLAIM_STALE_QUERY)
+    # The second claim only asks for what the first left room for, so a poll never returns
+    # more than a batch.
+    assert db.query_raw.call_args_list[1].args[2] == BATCH_SIZE - 1
+
+
+@pytest.mark.asyncio
+async def test_a_full_batch_of_new_documents_skips_the_stale_claim():
+    """Under a steady arrival rate the re-index query need not run at all."""
+    db = MagicMock()
+    db.query_raw = AsyncMock(return_value=[{"id": str(n), "text": "x"} for n in range(BATCH_SIZE)])
+    model = LoadedModel(model_id="m1", version="v2", kind="encoder", session=object())
+
+    rows = await claim_documents(db, model)
+
+    assert len(rows) == BATCH_SIZE
+    db.query_raw.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_without_an_active_model_the_stale_claim_never_runs():
+    """With no version to compare against, re-encoding would loop forever."""
+    db = MagicMock()
+    db.query_raw = AsyncMock(return_value=[])
+
+    assert await claim_documents(db, None) == []
+    db.query_raw.assert_awaited_once_with(CLAIM_UNEMBEDDED_QUERY, BATCH_SIZE)
 
 
 def test_claim_without_an_active_model_only_takes_unembedded_documents():
